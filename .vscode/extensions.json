@@ -2,6 +2,10 @@
     "recommendations": [
         "jnoortheen.nix-ide",
         "dart-code.dart-code",
-        "dart-code.flutter"
+        "dart-code.flutter",
+        "editorconfig.editorconfig",
+        "hverlin.mise-vscode",
+        "arrterian.nix-env-selector",
+        "gruntfuggly.todo-tree"
     ]
 }

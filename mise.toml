@@ -1,0 +1,46 @@
+[settings]
+windows_shim_mode = "symlink"
+yes = true
+experimental = true
+auto_install = true
+exec_auto_install = true
+not_found_auto_install = true
+task_run_auto_install = true
+lockfile = true
+all_compile = false
+
+[settings.status]
+missing_tools = "always"
+
+[tasks.build-apk]
+run = "nix develop path:$PWD -c flutter build apk"
+
+[tasks.build-appbundle]
+run = "nix develop path:$PWD -c flutter build appbundle"
+
+[tasks.build-web]
+run = "nix develop path:$PWD -c flutter build web"
+
+[tasks.build-linux]
+run = "nix develop path:$PWD -c flutter build linux"
+
+[tasks.build]
+run = [
+  "mise run build-apk",
+  "mise run build-appbundle",
+  "mise run build-linux",
+  "mise run build-web",
+]
+
+[tasks.test]
+run = [
+  "nix develop path:$PWD -c flutter pub get",
+  "nix develop path:$PWD -c flutter analyze",
+  "nix develop path:$PWD -c flutter test",
+]
+
+[tasks.publish]
+run = [
+  "test -z \"$(git status --porcelain)\"",
+  "git push origin HEAD:test --force-with-lease",
+]
