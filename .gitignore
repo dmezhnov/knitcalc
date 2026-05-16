@@ -13,15 +13,13 @@
 migrate_working_dir/
 
 # IntelliJ related
-.idea/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/shelf/
 *.iml
 *.ipr
 *.iws
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
