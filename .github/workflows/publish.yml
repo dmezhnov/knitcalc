@@ -30,6 +30,9 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+      - name: Install mise
+        uses: jdx/mise-action@v2
+
       - name: Resolve version
         id: version
         run: |
@@ -46,22 +49,19 @@ jobs:
           fi
 
       - name: Run tests
-        run: |
-          nix develop path:$PWD -c flutter pub get
-          nix develop path:$PWD -c flutter analyze
-          nix develop path:$PWD -c flutter test
+        run: mise run test
 
       - name: Build APK
-        run: nix develop path:$PWD -c flutter build apk
+        run: mise run build-apk
 
       - name: Build Android App Bundle
-        run: nix develop path:$PWD -c flutter build appbundle
+        run: mise run build-appbundle
 
       - name: Build Linux bundle
-        run: nix develop path:$PWD -c flutter build linux
+        run: mise run build-linux
 
       - name: Build web bundle
-        run: nix develop path:$PWD -c flutter build web
+        run: mise run build-web
 
       - name: Create release folder
         run: |

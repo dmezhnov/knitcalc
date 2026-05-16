@@ -1,30 +1,53 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:knitcalc/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('calculates rectangular scarf values', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('Прямоугольный шарф'), findsOneWidget);
+    expect(find.text('Петель в см'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Количество петель'),
+      '20',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Количество рядов'),
+      '30',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Ширина образца (см)'),
+      '10',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Длина образца (см)'),
+      '15',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Ширина образца (петель)'),
+      '20',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Желаемая ширина (см)'),
+      '50',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Желаемая длина (см)'),
+      '120',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Длина нити образца (см)'),
+      '400',
+    );
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('100'), findsOneWidget);
+    expect(find.text('240'), findsOneWidget);
+    expect(find.text('400'), findsWidgets);
   });
 }
