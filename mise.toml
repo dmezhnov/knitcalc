@@ -19,7 +19,7 @@ run = "nix develop path:$PWD -c flutter build apk"
 run = "nix develop path:$PWD -c flutter build appbundle"
 
 [tasks.build-web]
-run = "nix develop path:$PWD -c flutter build web"
+run = "nix develop path:$PWD -c flutter build web --base-href /knitcalc/"
 
 [tasks.build-linux]
 run = "nix develop path:$PWD -c flutter build linux"
