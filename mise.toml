@@ -12,34 +12,45 @@ all_compile = false
 [settings.status]
 missing_tools = "always"
 
+[hooks]
+postinstall = ["flutter pub get", "trunk install"]
+
+[tasks.build]
+description = "Build a target platform"
+usage = '''
+arg "<target>" help="Build target" {
+  choices "apk" "appbundle" "web" "linux" "windows" "macos" "ios"
+}
+'''
+depends = ["build-{{ usage.target }}"]
+
 [tasks.build-apk]
+hide = true
 run = "nix develop path:$PWD -c flutter build apk"
 
 [tasks.build-appbundle]
+hide = true
 run = "nix develop path:$PWD -c flutter build appbundle"
 
 [tasks.build-web]
+hide = true
 run = "nix develop path:$PWD -c flutter build web --base-href /knitcalc/"
 
 [tasks.build-linux]
+hide = true
 run = "nix develop path:$PWD -c flutter build linux"
 
 [tasks.build-windows]
+hide = true
 run = "flutter build windows"
 
 [tasks.build-macos]
+hide = true
 run = "flutter build macos"
 
 [tasks.build-ios]
+hide = true
 run = "flutter build ios --release --no-codesign"
-
-[tasks.build]
-run = [
-  "mise run build-apk",
-  "mise run build-appbundle",
-  "mise run build-linux",
-  "mise run build-web",
-]
 
 [tasks.test]
 run = [
@@ -47,6 +58,12 @@ run = [
   "nix develop path:$PWD -c flutter analyze",
   "nix develop path:$PWD -c flutter test",
 ]
+
+[tasks.lint]
+run = "trunk check --all"
+
+[tasks.format]
+run = "trunk fmt"
 
 [tasks.publish]
 run = [
