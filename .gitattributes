@@ -1,0 +1,6 @@
+*               text=auto
+*               eol=lf
+*               encoding=utf-8
+*               crlf=false
+*.user.css      text gitlab-language=postcss linguist-language=postcss
+./.vscode/*     text gitlab-language=JSON-with-Comments linguist-language=JSON-with-Comments
