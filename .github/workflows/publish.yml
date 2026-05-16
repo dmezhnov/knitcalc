@@ -1,242 +1,248 @@
 name: Publish
 
 on:
-  push:
-    branches:
-      - test
+    push:
+        branches:
+            - test
 
 permissions:
-  contents: write
-  id-token: write
-  pages: write
+    contents: write
+    id-token: write
+    pages: write
+
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: publish
-  cancel-in-progress: false
+    group: publish
+    cancel-in-progress: false
 
 jobs:
-  linux-android-web:
-    name: Test and build Linux, Android, Web
-    runs-on: ubuntu-latest
+    linux-android-web:
+        name: Test and build Linux, Android, Web
+        runs-on: ubuntu-latest
 
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
+        outputs:
+            version: ${{ steps.version.outputs.version }}
+            tag: ${{ steps.version.outputs.tag }}
 
-    steps:
-      - name: Checkout test branch
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          ref: test
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+                  ref: test
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+            - name: Install Nix
+              uses: cachix/install-nix-action@v31
+              with:
+                  extra_nix_config: |
+                      experimental-features = nix-command flakes
 
-      - name: Install mise
-        uses: jdx/mise-action@v3
+            - name: Install mise
+              uses: jdx/mise-action@v3
 
-      - name: Resolve version
-        id: version
-        run: |
-          version="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
-          tag="v${version}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+            - name: Resolve version
+              id: version
+              run: |
+                  version="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
+                  tag="v${version}"
+                  echo "version=${version}" >> "$GITHUB_OUTPUT"
+                  echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
-      - name: Ensure release tag is new
-        run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.version.outputs.tag }}"; then
-            echo "Tag ${{ steps.version.outputs.tag }} already exists. Bump version in pubspec.yaml before publishing."
-            exit 1
-          fi
+            - name: Ensure release tag is new
+              run: |
+                  if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.version.outputs.tag }}"; then
+                    echo "Tag ${{ steps.version.outputs.tag }} already exists. Bump version in pubspec.yaml before publishing."
+                    exit 1
+                  fi
 
-      - name: Run tests
-        run: mise run test
+            - name: Run lint
+              run: mise run lint
 
-      - name: Build APK
-        run: mise run build-apk
+            - name: Run tests
+              run: mise run test
 
-      - name: Build Android App Bundle
-        run: mise run build-appbundle
+            - name: Build APK
+              run: mise run build apk
 
-      - name: Build Linux bundle
-        run: mise run build-linux
+            - name: Build Android App Bundle
+              run: mise run build appbundle
 
-      - name: Build web bundle
-        run: mise run build-web
+            - name: Build Linux bundle
+              run: mise run build linux
 
-      - name: Package Linux, Android, Web
-        run: |
-          rm -rf release
-          mkdir -p release/android release/linux release/web
-          cp build/app/outputs/flutter-apk/app-release.apk "release/android/knitcalc-${{ steps.version.outputs.version }}.apk"
-          cp build/app/outputs/bundle/release/app-release.aab "release/android/knitcalc-${{ steps.version.outputs.version }}.aab"
-          tar -C build/linux/x64/release/bundle -czf "release/linux/knitcalc-linux-x64-${{ steps.version.outputs.version }}.tar.gz" .
-          tar -C build/web -czf "release/web/knitcalc-web-${{ steps.version.outputs.version }}.tar.gz" .
+            - name: Build web bundle
+              run: mise run build web
 
-      - name: Upload Linux, Android, Web artifacts
-        uses: actions/upload-artifact@v5
-        with:
-          name: release-linux-android-web
-          path: release
+            - name: Package Linux, Android, Web
+              run: |
+                  rm -rf release
+                  mkdir -p release/android release/linux release/web
+                  cp build/app/outputs/flutter-apk/app-release.apk "release/android/knitcalc-${{ steps.version.outputs.version }}.apk"
+                  cp build/app/outputs/bundle/release/app-release.aab "release/android/knitcalc-${{ steps.version.outputs.version }}.aab"
+                  tar -C build/linux/x64/release/bundle -czf "release/linux/knitcalc-linux-x64-${{ steps.version.outputs.version }}.tar.gz" .
+                  tar -C build/web -czf "release/web/knitcalc-web-${{ steps.version.outputs.version }}.tar.gz" .
 
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: build/web
+            - name: Upload Linux, Android, Web artifacts
+              uses: actions/upload-artifact@v5
+              with:
+                  name: release-linux-android-web
+                  path: release
 
-  windows:
-    name: Build Windows
-    runs-on: windows-latest
-    needs: linux-android-web
+            - name: Upload GitHub Pages artifact
+              uses: actions/upload-pages-artifact@v4
+              with:
+                  path: build/web
 
-    steps:
-      - name: Checkout test branch
-        uses: actions/checkout@v5
-        with:
-          ref: test
+    windows:
+        name: Build Windows
+        runs-on: windows-latest
+        needs: linux-android-web
 
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
 
-      - name: Install mise
-        uses: jdx/mise-action@v3
+            - name: Install Flutter
+              uses: subosito/flutter-action@v2
+              with:
+                  channel: stable
 
-      - name: Enable Windows desktop
-        run: flutter config --enable-windows-desktop
+            - name: Install mise
+              uses: jdx/mise-action@v3
 
-      - name: Build Windows bundle
-        run: mise run build-windows
+            - name: Enable Windows desktop
+              run: flutter config --enable-windows-desktop
 
-      - name: Package Windows bundle
-        shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force release -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path release/windows
-          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "release/windows/knitcalc-windows-x64-${{ needs.linux-android-web.outputs.version }}.zip"
+            - name: Build Windows bundle
+              run: mise run build windows
 
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v5
-        with:
-          name: release-windows
-          path: release
+            - name: Package Windows bundle
+              shell: pwsh
+              run: |
+                  Remove-Item -Recurse -Force release -ErrorAction SilentlyContinue
+                  New-Item -ItemType Directory -Force -Path release/windows
+                  Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "release/windows/knitcalc-windows-x64-${{ needs.linux-android-web.outputs.version }}.zip"
 
-  apple:
-    name: Build macOS and iOS
-    runs-on: macos-latest
-    needs: linux-android-web
+            - name: Upload Windows artifact
+              uses: actions/upload-artifact@v5
+              with:
+                  name: release-windows
+                  path: release
 
-    steps:
-      - name: Checkout test branch
-        uses: actions/checkout@v5
-        with:
-          ref: test
+    apple:
+        name: Build macOS and iOS
+        runs-on: macos-latest
+        needs: linux-android-web
 
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
 
-      - name: Install mise
-        uses: jdx/mise-action@v3
+            - name: Install Flutter
+              uses: subosito/flutter-action@v2
+              with:
+                  channel: stable
 
-      - name: Enable Apple desktop
-        run: flutter config --enable-macos-desktop
+            - name: Install mise
+              uses: jdx/mise-action@v3
 
-      - name: Build macOS bundle
-        run: mise run build-macos
+            - name: Enable Apple desktop
+              run: flutter config --enable-macos-desktop
 
-      - name: Build unsigned iOS app
-        run: mise run build-ios
+            - name: Build macOS bundle
+              run: mise run build macos
 
-      - name: Package Apple bundles
-        run: |
-          rm -rf release
-          mkdir -p release/macos release/ios
-          ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/knitcalc.app "release/macos/knitcalc-macos-${{ needs.linux-android-web.outputs.version }}.zip"
-          ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app "release/ios/knitcalc-ios-unsigned-${{ needs.linux-android-web.outputs.version }}.zip"
+            - name: Build unsigned iOS app
+              run: mise run build ios
 
-      - name: Upload Apple artifacts
-        uses: actions/upload-artifact@v5
-        with:
-          name: release-apple
-          path: release
+            - name: Package Apple bundles
+              run: |
+                  rm -rf release
+                  mkdir -p release/macos release/ios
+                  ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/knitcalc.app "release/macos/knitcalc-macos-${{ needs.linux-android-web.outputs.version }}.zip"
+                  ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app "release/ios/knitcalc-ios-unsigned-${{ needs.linux-android-web.outputs.version }}.zip"
 
-  publish:
-    name: Publish release
-    runs-on: ubuntu-latest
-    needs:
-      - linux-android-web
-      - windows
-      - apple
+            - name: Upload Apple artifacts
+              uses: actions/upload-artifact@v5
+              with:
+                  name: release-apple
+                  path: release
 
-    steps:
-      - name: Checkout test branch
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          ref: test
-          ssh-key: ${{ secrets.RELEASE_SSH_KEY }}
+    publish:
+        name: Publish release
+        runs-on: ubuntu-latest
+        needs:
+            - linux-android-web
+            - windows
+            - apple
 
-      - name: Download release artifacts
-        uses: actions/download-artifact@v5
-        with:
-          pattern: release-*
-          path: release-download
-          merge-multiple: true
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+                  ref: test
+                  ssh-key: ${{ secrets.RELEASE_SSH_KEY }}
 
-      - name: Create release folder
-        run: |
-          git rm -r --ignore-unmatch release
-          mkdir -p release
-          cp -R release-download/* release/
+            - name: Download release artifacts
+              uses: actions/download-artifact@v5
+              with:
+                  pattern: release-*
+                  path: release-download
+                  merge-multiple: true
 
-      - name: Commit release files
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A release
-          git commit -m "Release ${{ needs.linux-android-web.outputs.tag }}"
+            - name: Create release folder
+              run: |
+                  git rm -r --ignore-unmatch release
+                  mkdir -p release
+                  cp -R release-download/* release/
 
-      - name: Push main and tag
-        run: |
-          git remote set-url origin "git@github.com:${GITHUB_REPOSITORY}.git"
-          git push origin HEAD:main
-          git tag "${{ needs.linux-android-web.outputs.tag }}"
-          git push origin "${{ needs.linux-android-web.outputs.tag }}"
+            - name: Commit release files
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add -A release
+                  git commit -m "Release ${{ needs.linux-android-web.outputs.tag }}"
 
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${{ needs.linux-android-web.outputs.tag }}" \
-            release/android/* \
-            release/linux/* \
-            release/web/* \
-            release/windows/* \
-            release/macos/* \
-            release/ios/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "KnitCalc ${{ needs.linux-android-web.outputs.version }}" \
-            --notes "Automated release for ${{ needs.linux-android-web.outputs.tag }}"
+            - name: Push main and tag
+              run: |
+                  git remote set-url origin "git@github.com:${GITHUB_REPOSITORY}.git"
+                  git push origin HEAD:main
+                  git tag "${{ needs.linux-android-web.outputs.tag }}"
+                  git push origin "${{ needs.linux-android-web.outputs.tag }}"
 
-  deploy-pages:
-    name: Deploy GitHub Pages
-    runs-on: ubuntu-latest
-    needs:
-      - publish
+            - name: Create GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  gh release create "${{ needs.linux-android-web.outputs.tag }}" \
+                    release/android/* \
+                    release/linux/* \
+                    release/web/* \
+                    release/windows/* \
+                    release/macos/* \
+                    release/ios/* \
+                    --repo "$GITHUB_REPOSITORY" \
+                    --title "KnitCalc ${{ needs.linux-android-web.outputs.version }}" \
+                    --notes "Automated release for ${{ needs.linux-android-web.outputs.tag }}"
 
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    deploy-pages:
+        name: Deploy GitHub Pages
+        runs-on: ubuntu-latest
+        needs:
+            - publish
 
-    steps:
-      - name: Deploy GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+
+        steps:
+            - name: Deploy GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v4

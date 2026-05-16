@@ -6,6 +6,7 @@
         "editorconfig.editorconfig",
         "hverlin.mise-vscode",
         "arrterian.nix-env-selector",
-        "gruntfuggly.todo-tree"
+        "gruntfuggly.todo-tree",
+        "trunk.io"
     ]
 }

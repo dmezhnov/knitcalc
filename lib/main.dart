@@ -12,12 +12,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'KnitCalc',
-      theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
+      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
       home: const Home(),
     );
   }
 }
-
-
