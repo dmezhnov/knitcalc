@@ -54,7 +54,6 @@ run = "flutter build ios --release --no-codesign"
 
 [tasks.test]
 run = [
-  "nix develop path:$PWD -c flutter pub get",
   "nix develop path:$PWD -c flutter analyze",
   "nix develop path:$PWD -c flutter test",
 ]
