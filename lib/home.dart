@@ -71,6 +71,14 @@ class _HomeState extends State<Home> {
     return numerator / denominator;
   }
 
+  double? _multiply(double? multiplicand, double? multiplier) {
+    if (multiplicand == null || multiplier == null) {
+      return 0.0;
+    }
+
+    return multiplicand * multiplier;
+  }
+
   String _formatNumber(double? value) {
     if (value == null || value.isNaN || value.isInfinite) {
       return '-';
@@ -85,6 +93,7 @@ class _HomeState extends State<Home> {
     required String label,
     required bool allowDecimal,
     required TextEditingController controller,
+    required Key key,
   }) {
     return TextFormField(
       controller: controller,
@@ -104,12 +113,18 @@ class _HomeState extends State<Home> {
         labelText: label,
         border: const OutlineInputBorder(),
       ),
+      key: key,
     );
   }
 
-  Widget _buildOutputRow({required String label, required String value}) {
+  Widget _buildOutputRow({
+    required String label,
+    required String value,
+    required Key key,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      key: key,
       children: [
         Expanded(child: Text(label)),
         const SizedBox(width: 16),
@@ -120,31 +135,46 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    final stitches = _readNumber(_stitchesController);
-    final rows = _readNumber(_rowsController);
-    final sampleWidthCm = _readNumber(_sampleWidthCmController);
-    final sampleLengthCm = _readNumber(_sampleLengthCmController);
-    final sampleWidthStitches = _readNumber(_sampleWidthStitchesController);
-    final targetWidthCm = _readNumber(_targetWidthCmController);
-    final targetLengthCm = _readNumber(_targetLengthCmController);
-    final sampleThreadLengthCm = _readNumber(_sampleThreadLengthCmController);
+    final stitches = _readNumber(_stitchesController); // Количество петель
+    final sampleWidthCm = _readNumber(
+      _sampleWidthCmController,
+    ); // Ширина образца (см)
+    final rows = _readNumber(_rowsController); // Количество рядов
+    final sampleLengthCm = _readNumber(
+      _sampleLengthCmController,
+    ); // Длина образца (см)
+    final targetWidthCm = _readNumber(
+      _targetWidthCmController,
+    ); // Желаемая ширина (см)
+    final targetLengthCm = _readNumber(
+      _targetLengthCmController,
+    ); // Желаемая длина (см)
+    final sampleWidthStitches = _readNumber(
+      _sampleWidthStitchesController,
+    ); // Ширина образца (петель)
+    final sampleThreadLengthCm = _readNumber(
+      _sampleThreadLengthCmController,
+    ); // Длина нити образца (см)
 
-    final stitchesPerCm = _divide(stitches, sampleWidthCm);
-    final rowsPerCm = _divide(rows, sampleLengthCm);
+    final stitchesPerCm = _divide(stitches, sampleWidthCm); //
+    final rowsPerCm = _divide(rows, sampleLengthCm); //
     final sampleThreadLengthPerStitch = _divide(
+      //
       sampleThreadLengthCm,
       sampleWidthStitches,
     );
-    final targetStitches = stitchesPerCm == null || targetWidthCm == null
-        ? 0.0
-        : stitchesPerCm * targetWidthCm;
-    final targetRows = rowsPerCm == null || targetLengthCm == null
-        ? 0.0
-        : rowsPerCm * targetLengthCm;
-    final targetThreadLength =
-        sampleThreadLengthPerStitch == null || stitches == null
-        ? 0.0
-        : sampleThreadLengthPerStitch * stitches;
+    final targetStitches = _multiply(
+      stitchesPerCm,
+      targetWidthCm,
+    ); // Желаемое количество петель
+    final targetRows = _multiply(
+      rowsPerCm,
+      targetLengthCm,
+    ); // Желаемое количество рядов
+    final targetThreadLength = _multiply(
+      sampleThreadLengthPerStitch,
+      stitches,
+    ); // Желаемая длина нити
 
     return Scaffold(
       body: SafeArea(
@@ -184,46 +214,55 @@ class _HomeState extends State<Home> {
                         label: 'Количество петель',
                         allowDecimal: false,
                         controller: _stitchesController,
+                        key: const Key('stitches'),
                       ),
                       _buildNumberInput(
                         label: 'Ширина образца (см)',
                         allowDecimal: true,
                         controller: _sampleWidthCmController,
+                        key: const Key('sampleWidthCm'),
                       ),
                       _buildNumberInput(
                         label: 'Количество рядов',
                         allowDecimal: false,
                         controller: _rowsController,
+                        key: const Key('rows'),
                       ),
                       _buildNumberInput(
                         label: 'Длина образца (см)',
                         allowDecimal: true,
                         controller: _sampleLengthCmController,
+                        key: const Key('sampleLengthCm'),
                       ),
                       _buildNumberInput(
                         label: 'Желаемая ширина (см)',
                         allowDecimal: true,
                         controller: _targetWidthCmController,
+                        key: const Key('targetWidthCm'),
                       ),
                       _buildNumberInput(
                         label: 'Желаемая длина (см)',
                         allowDecimal: true,
                         controller: _targetLengthCmController,
+                        key: const Key('targetLengthCm'),
                       ),
                       _buildNumberInput(
                         label: 'Ширина образца (петель)',
                         allowDecimal: false,
                         controller: _sampleWidthStitchesController,
+                        key: const Key('sampleWidthStitches'),
                       ),
                       _buildNumberInput(
                         label: 'Длина нити образца (см)',
                         allowDecimal: true,
                         controller: _sampleThreadLengthCmController,
+                        key: const Key('sampleThreadLengthCm'),
                       ),
                       _buildNumberInput(
                         label: 'Ширина нити образца (см)',
                         allowDecimal: true,
                         controller: _sampleThreadWidthCmController,
+                        key: const Key('sampleThreadWidthCm'),
                       ),
                     ],
                   ),
@@ -243,22 +282,27 @@ class _HomeState extends State<Home> {
                       _buildOutputRow(
                         label: 'Петель в см',
                         value: _formatNumber(stitchesPerCm),
+                        key: const Key('stitchesPerCm'),
                       ),
                       _buildOutputRow(
                         label: 'Рядов в см',
                         value: _formatNumber(rowsPerCm),
+                        key: const Key('rowsPerCm'),
                       ),
                       _buildOutputRow(
                         label: 'Желаемое количество петель',
                         value: _formatNumber(targetStitches),
+                        key: const Key('targetStitches'),
                       ),
                       _buildOutputRow(
                         label: 'Желаемое количество рядов',
                         value: _formatNumber(targetRows),
+                        key: const Key('targetRows'),
                       ),
                       _buildOutputRow(
                         label: 'Желаемая длина нити',
                         value: _formatNumber(targetThreadLength),
+                        key: const Key('targetThreadLength'),
                       ),
                     ],
                   ),
