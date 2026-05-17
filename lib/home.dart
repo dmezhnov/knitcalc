@@ -136,14 +136,14 @@ class _HomeState extends State<Home> {
       sampleWidthStitches,
     );
     final targetStitches = stitchesPerCm == null || targetWidthCm == null
-        ? 0
+        ? 0.0
         : stitchesPerCm * targetWidthCm;
     final targetRows = rowsPerCm == null || targetLengthCm == null
-        ? 0
+        ? 0.0
         : rowsPerCm * targetLengthCm;
     final targetThreadLength =
         sampleThreadLengthPerStitch == null || stitches == null
-        ? 0
+        ? 0.0
         : sampleThreadLengthPerStitch * stitches;
 
     return Scaffold(
@@ -250,15 +250,15 @@ class _HomeState extends State<Home> {
                       ),
                       _buildOutputRow(
                         label: 'Желаемое количество петель',
-                        value: _formatNumber(targetStitches as double?),
+                        value: _formatNumber(targetStitches),
                       ),
                       _buildOutputRow(
                         label: 'Желаемое количество рядов',
-                        value: _formatNumber(targetRows as double?),
+                        value: _formatNumber(targetRows),
                       ),
                       _buildOutputRow(
                         label: 'Желаемая длина нити',
-                        value: _formatNumber(targetThreadLength as double?),
+                        value: _formatNumber(targetThreadLength),
                       ),
                     ],
                   ),
