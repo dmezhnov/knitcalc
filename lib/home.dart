@@ -65,7 +65,7 @@ class _HomeState extends State<Home> {
 
   double? _divide(double? numerator, double? denominator) {
     if (numerator == null || denominator == null || denominator == 0) {
-      return null;
+      return 0;
     }
 
     return numerator / denominator;
@@ -136,14 +136,14 @@ class _HomeState extends State<Home> {
       sampleWidthStitches,
     );
     final targetStitches = stitchesPerCm == null || targetWidthCm == null
-        ? null
+        ? 0
         : stitchesPerCm * targetWidthCm;
     final targetRows = rowsPerCm == null || targetLengthCm == null
-        ? null
+        ? 0
         : rowsPerCm * targetLengthCm;
     final targetThreadLength =
         sampleThreadLengthPerStitch == null || stitches == null
-        ? null
+        ? 0
         : sampleThreadLengthPerStitch * stitches;
 
     return Scaffold(
@@ -186,24 +186,19 @@ class _HomeState extends State<Home> {
                         controller: _stitchesController,
                       ),
                       _buildNumberInput(
-                        label: 'Количество рядов',
-                        allowDecimal: false,
-                        controller: _rowsController,
-                      ),
-                      _buildNumberInput(
                         label: 'Ширина образца (см)',
                         allowDecimal: true,
                         controller: _sampleWidthCmController,
                       ),
                       _buildNumberInput(
+                        label: 'Количество рядов',
+                        allowDecimal: false,
+                        controller: _rowsController,
+                      ),
+                      _buildNumberInput(
                         label: 'Длина образца (см)',
                         allowDecimal: true,
                         controller: _sampleLengthCmController,
-                      ),
-                      _buildNumberInput(
-                        label: 'Ширина образца (петель)',
-                        allowDecimal: false,
-                        controller: _sampleWidthStitchesController,
                       ),
                       _buildNumberInput(
                         label: 'Желаемая ширина (см)',
@@ -214,6 +209,11 @@ class _HomeState extends State<Home> {
                         label: 'Желаемая длина (см)',
                         allowDecimal: true,
                         controller: _targetLengthCmController,
+                      ),
+                      _buildNumberInput(
+                        label: 'Ширина образца (петель)',
+                        allowDecimal: false,
+                        controller: _sampleWidthStitchesController,
                       ),
                       _buildNumberInput(
                         label: 'Длина нити образца (см)',
@@ -250,15 +250,15 @@ class _HomeState extends State<Home> {
                       ),
                       _buildOutputRow(
                         label: 'Желаемое количество петель',
-                        value: _formatNumber(targetStitches),
+                        value: _formatNumber(targetStitches as double?),
                       ),
                       _buildOutputRow(
                         label: 'Желаемое количество рядов',
-                        value: _formatNumber(targetRows),
+                        value: _formatNumber(targetRows as double?),
                       ),
                       _buildOutputRow(
                         label: 'Желаемая длина нити',
-                        value: _formatNumber(targetThreadLength),
+                        value: _formatNumber(targetThreadLength as double?),
                       ),
                     ],
                   ),
