@@ -36,14 +36,11 @@
     {
       devShells.${system}.default = pkgs.mkShell {
         packages = [
-          pkgs.flutter
-          pkgs.jdk17
           androidSdk
         ];
 
         ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
         ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
-        JAVA_HOME = "${pkgs.jdk17}";
       };
     };
 }
