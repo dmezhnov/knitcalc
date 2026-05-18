@@ -121,7 +121,7 @@ On push to `test`, GitHub Actions:
 Before publishing a new release, bump `version` in `pubspec.yaml`. For example:
 
 ```yaml
-version: 1.0.5+9
+version: 1.0.5+10
 ```
 
 The part before `+` is the public app version. The number after `+` is the
