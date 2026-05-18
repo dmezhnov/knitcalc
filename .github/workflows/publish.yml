@@ -33,14 +33,14 @@ jobs:
                   fetch-depth: 0
                   ref: test
 
-            - name: Install mise
-              uses: jdx/mise-action@v3
-
             - name: Install Nix
               uses: cachix/install-nix-action@v31
               with:
                   extra_nix_config: |
                       experimental-features = nix-command flakes
+
+            - name: Install mise
+              uses: jdx/mise-action@v3
 
             - name: Resolve version
               id: version
