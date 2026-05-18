@@ -34,16 +34,10 @@ Install project tools and hooks:
 mise install
 ```
 
-Enter the Nix development shell when working directly with Flutter on Linux:
-
-```bash
-nix develop path:$PWD
-```
-
 Run the app:
 
 ```bash
-flutter run
+mise start
 ```
 
 ## Quality Checks
@@ -51,22 +45,22 @@ flutter run
 Run linters:
 
 ```bash
-mise run lint
+mise lint
 ```
 
 Format files supported by Trunk:
 
 ```bash
-mise run format
+mise format
 ```
 
 Run Flutter analysis and tests:
 
 ```bash
-mise run test
+mise test
 ```
 
-The release workflow runs `mise run lint` before `mise run test`. If linting
+The release workflow runs `mise lint` before `mise test`. If linting
 fails, the workflow stops before tests and builds.
 
 ## Builds
@@ -74,7 +68,7 @@ fails, the workflow stops before tests and builds.
 Build one target with:
 
 ```bash
-mise run build <target>
+mise build <target>
 ```
 
 Supported targets:
@@ -96,9 +90,9 @@ matching local machines.
 Examples:
 
 ```bash
-mise run build apk
-mise run build web
-mise run build linux
+mise build apk
+mise build web
+mise build linux
 ```
 
 The Web build uses `--base-href /knitcalc/` for GitHub Pages.
@@ -108,10 +102,10 @@ The Web build uses `--base-href /knitcalc/` for GitHub Pages.
 Publishing is driven by the `test` branch:
 
 ```bash
-mise run publish
+mise publish
 ```
 
-`mise run publish` requires a clean git working tree and pushes the current
+`mise publish` requires a clean git working tree and pushes the current
 commit to `origin/test`.
 
 On push to `test`, GitHub Actions:
@@ -127,7 +121,7 @@ On push to `test`, GitHub Actions:
 Before publishing a new release, bump `version` in `pubspec.yaml`. For example:
 
 ```yaml
-version: 1.0.3+4
+version: 1.0.5+9
 ```
 
 The part before `+` is the public app version. The number after `+` is the

@@ -58,6 +58,9 @@ run = [
   "nix develop path:$PWD -c flutter test",
 ]
 
+[tasks.start]
+run = "nix develop path:$PWD -c flutter run"
+
 [tasks.lint]
 run = "trunk check --all"
 
