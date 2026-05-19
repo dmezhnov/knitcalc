@@ -19,10 +19,9 @@ sample swatch into target stitch, row, and yarn-length estimates.
 
 ## Requirements
 
-- Nix with flakes enabled for Linux, Android, and Web builds.
-- mise for project tasks.
+- mise for project tasks and depends.
 
-The project pins tool versions in `.tool-versions`.
+The project pins tool versions in `mise.toml`.
 
 ## Setup
 
