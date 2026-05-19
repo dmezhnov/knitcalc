@@ -20,8 +20,6 @@ sample swatch into target stitch, row, and yarn-length estimates.
 ## Requirements
 
 - Nix with flakes enabled for Linux, Android, and Web builds.
-- Flutter for local app development.
-- Trunk for linting.
 - mise for project tasks.
 
 The project pins tool versions in `.tool-versions`.
@@ -37,7 +35,7 @@ mise install
 Run the app:
 
 ```bash
-mise start
+mise dev
 ```
 
 ## Quality Checks
@@ -120,9 +118,8 @@ On push to `test`, GitHub Actions:
 
 Before publishing a new release, bump `version` in `pubspec.yaml`. For example:
 
-```yaml
-version: 1.0.5+10
-```
+````yaml
+version: 1.0.1+2```
 
 The part before `+` is the public app version. The number after `+` is the
 platform build number and should increase for every release.
@@ -138,7 +135,7 @@ release/web/
 release/windows/
 release/macos/
 release/ios/
-```
+````
 
 The iOS artifact is unsigned because signed iOS releases require an Apple
 Developer Program account, certificates, and provisioning profiles.

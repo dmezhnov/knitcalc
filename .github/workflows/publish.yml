@@ -58,22 +58,22 @@ jobs:
                   fi
 
             - name: Run lint
-              run: mise run lint
+              run: mise lint
 
             - name: Run tests
-              run: mise run test
+              run: mise test
 
             - name: Build APK
-              run: mise run build apk
+              run: mise build apk
 
             - name: Build Android App Bundle
-              run: mise run build appbundle
+              run: mise build appbundle
 
             - name: Build Linux bundle
-              run: mise run build linux
+              run: mise build linux
 
             - name: Build web bundle
-              run: mise run build web
+              run: mise build web
 
             - name: Package Linux, Android, Web
               run: |
@@ -118,7 +118,7 @@ jobs:
               run: flutter config --enable-windows-desktop
 
             - name: Build Windows bundle
-              run: mise run build windows
+              run: mise build windows
 
             - name: Package Windows bundle
               shell: pwsh
@@ -144,10 +144,10 @@ jobs:
               with:
                   ref: test
 
-            - name: Install Flutter
-              uses: subosito/flutter-action@v2
-              with:
-                  channel: stable
+            # - name: Install Flutter
+            #   uses: subosito/flutter-action@v2
+            #   with:
+            #       channel: stable
 
             - name: Install mise
               uses: jdx/mise-action@v3
@@ -156,10 +156,10 @@ jobs:
               run: flutter config --enable-macos-desktop
 
             - name: Build macOS bundle
-              run: mise run build macos
+              run: mise build macos
 
             - name: Build unsigned iOS app
-              run: mise run build ios
+              run: mise build ios
 
             - name: Package Apple bundles
               run: |
