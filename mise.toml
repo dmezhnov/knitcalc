@@ -66,10 +66,7 @@ hide = true
 run = "flutter build ios --release --no-codesign"
 
 [tasks.test]
-run = [
-  "flutter analyze",
-  "flutter test",
-]
+run = ["flutter analyze", "flutter test"]
 
 [tasks.dev]
 run = "flutter run"
