@@ -8,21 +8,21 @@ base: core22
 grade: stable
 
 slots:
-  dbus-knitcalc: # adjust accordingly to your app name
-    interface: dbus
-    bus: session
-    name: org.bar.knitcalc # adjust accordingly to your app name
+    dbus-knitcalc: # adjust accordingly to your app name
+        interface: dbus
+        bus: session
+        name: org.bar.knitcalc # adjust accordingly to your app name
 
 apps:
-  knitcalc:
-    command: knitcalc
-    extensions: [gnome] # gnome includes the libraries required by flutter
-    plugs:
-    - network
-    slots:
-      - dbus-knitcalc
+    knitcalc:
+        command: knitcalc
+        extensions: [gnome] # gnome includes the libraries required by flutter
+        plugs:
+            - network
+        slots:
+            - dbus-knitcalc
 parts:
-  knitcalc:
-    source: .
-    plugin: flutter
-    flutter-target: lib/main.dart # The main entry-point file of the application
+    knitcalc:
+        source: .
+        plugin: flutter
+        flutter-target: lib/main.dart # The main entry-point file of the application
