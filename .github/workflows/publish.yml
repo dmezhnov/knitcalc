@@ -33,9 +33,6 @@ jobs:
                   fetch-depth: 0
                   ref: test
 
-            - name: Install mise
-              uses: jdx/mise-action@v3
-
             - name: Resolve version
               id: version
               run: |
@@ -50,6 +47,12 @@ jobs:
                     echo "Tag ${{ steps.version.outputs.tag }} already exists. Bump version in pubspec.yaml before publishing."
                     exit 1
                   fi
+
+            - name: Install mise
+              uses: jdx/mise-action@v3
+
+            - name: Check ANDROID_HOME
+              run: echo $ANDROID_HOME
 
             - name: Run lint
               run: mise lint

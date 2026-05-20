@@ -4,7 +4,7 @@ description: 'KnitCalc is a calculator for rectangular scarf knitting'
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.7+2
+version: 1.0.7+3
 
 environment:
     sdk: ^3.11.4
