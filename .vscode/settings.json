@@ -1,7 +1,4 @@
 {
-    "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
-    "nixEnvSelector.useFlakes": true,
-    "nixEnvSelector.flakeShell": "default",
     "editor.defaultFormatter": "trunk.io",
     "files.encoding": "utf8",
     "files.eol": "\n",
@@ -9,5 +6,28 @@
     "editor.insertSpaces": true,
     "editor.detectIndentation": false,
     "trunk.autoInit": false,
-    "trunk.inlineDecoratorsForAllExtensions": true
+    "trunk.inlineDecoratorsForAllExtensions": true,
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#1a8cc3",
+        "activityBar.background": "#1a8cc3",
+        "activityBar.foreground": "#e7e7e7",
+        "activityBar.inactiveForeground": "#e7e7e799",
+        "activityBarBadge.background": "#f4abdc",
+        "activityBarBadge.foreground": "#15202b",
+        "commandCenter.border": "#e7e7e799",
+        "sash.hoverBorder": "#1a8cc3",
+        "statusBar.background": "#146c96",
+        "statusBar.foreground": "#e7e7e7",
+        "statusBarItem.hoverBackground": "#1a8cc3",
+        "statusBarItem.remoteBackground": "#146c96",
+        "statusBarItem.remoteForeground": "#e7e7e7",
+        "titleBar.activeBackground": "#146c96",
+        "titleBar.activeForeground": "#e7e7e7",
+        "titleBar.inactiveBackground": "#146c9699",
+        "titleBar.inactiveForeground": "#e7e7e799"
+    },
+    "peacock.color": "#146c96",
+    "nixEnvSelector.suggestion": false,
+    "cmake.ignoreCMakeListsMissing": true,
+    "trunk.trace.server": "messages"
 }
