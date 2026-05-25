@@ -6,7 +6,7 @@ description: 'KnitCalc is a calculator for rectangular scarf knitting'
 
 publish_to: none
 
-version: 1.0.7+5
+version: 1.0.7+6
 
 environment:
     sdk: ^3.11.4

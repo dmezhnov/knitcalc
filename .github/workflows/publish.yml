@@ -62,6 +62,11 @@ jobs:
                   flutter config --android-sdk "$ANDROID_HOME"
                   flutter doctor -v
 
+            - name: Install Linux build packages
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y libgtk-3-dev liblzma-dev pkg-config
+
             - name: Run lint
               run: mise lint
 
