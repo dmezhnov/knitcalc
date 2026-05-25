@@ -183,12 +183,18 @@ jobs:
             - apple
 
         steps:
-            - name: Checkout test branch
+            - name: Checkout main branch
               uses: actions/checkout@v5
               with:
                   fetch-depth: 0
-                  ref: test
+                  ref: main
                   ssh-key: ${{ secrets.RELEASE_SSH_KEY }}
+
+            - name: Merge test branch
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git merge --no-edit -X theirs origin/test
 
             - name: Download release artifacts
               uses: actions/download-artifact@v5
