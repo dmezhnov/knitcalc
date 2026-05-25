@@ -27,5 +27,7 @@
         "titleBar.inactiveForeground": "#e7e7e799"
     },
     "peacock.color": "#146c96",
-    "nixEnvSelector.suggestion": false
+    "nixEnvSelector.suggestion": false,
+    "cmake.ignoreCMakeListsMissing": true,
+    "trunk.trace.server": "messages"
 }

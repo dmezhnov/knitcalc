@@ -51,9 +51,6 @@ jobs:
             - name: Install mise
               uses: jdx/mise-action@v3
 
-            - name: Check ANDROID_HOME
-              run: echo $ANDROID_HOME
-
             - name: Run lint
               run: mise lint
 
