@@ -53,7 +53,22 @@ run = "flutter build web --base-href /knitcalc/"
 
 [tasks.build-linux]
 hide = true
-run = "flutter build linux"
+run = '''
+for library in libfontconfig.so.1 libepoxy.so.0; do
+  library_path=""
+  for candidate in /nix/store/*/lib/"$library"; do
+    if file -L "$candidate" 2>/dev/null | grep -q 'ELF 64-bit.*x86-64'; then
+      library_path="$candidate"
+      break
+    fi
+  done
+  if [ -n "$library_path" ]; then
+    export LD_LIBRARY_PATH="${library_path%/*}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  fi
+done
+
+flutter build linux
+'''
 
 [tasks.build-windows]
 hide = true
@@ -71,6 +86,33 @@ run = "flutter build ios --release --no-codesign"
 run = ["flutter analyze", "flutter test"]
 
 [tasks.dev]
+run = "mise run dev-{{ os() }}"
+
+[tasks.dev-linux]
+hide = true
+run = '''
+for library in libfontconfig.so.1 libepoxy.so.0; do
+  library_path=""
+  for candidate in /nix/store/*/lib/"$library"; do
+    if file -L "$candidate" 2>/dev/null | grep -q 'ELF 64-bit.*x86-64'; then
+      library_path="$candidate"
+      break
+    fi
+  done
+  if [ -n "$library_path" ]; then
+    export LD_LIBRARY_PATH="${library_path%/*}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  fi
+done
+
+flutter run
+'''
+
+[tasks.dev-macos]
+hide = true
+run = "flutter run"
+
+[tasks.dev-windows]
+hide = true
 run = "flutter run"
 
 [tasks.lint]
