@@ -183,7 +183,17 @@ jobs:
               run: |
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                  git merge --no-edit -X theirs origin/test
+                  git merge --no-edit -X theirs origin/test || true
+                  # Accept test's side for leftover release/ conflicts (rename/delete or modify/delete).
+                  git rm -rf --ignore-unmatch release/
+                  if [ -n "$(git ls-files --unmerged)" ]; then
+                      echo "Unresolved conflicts outside release/:"
+                      git ls-files --unmerged
+                      exit 1
+                  fi
+                  if [ -f .git/MERGE_HEAD ]; then
+                      git commit --no-edit
+                  fi
 
             - name: Download release artifacts
               uses: actions/download-artifact@v5
