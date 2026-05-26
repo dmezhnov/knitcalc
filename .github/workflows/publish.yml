@@ -192,19 +192,6 @@ jobs:
                   path: release-download
                   merge-multiple: true
 
-            - name: Create release folder
-              run: |
-                  git rm -r --ignore-unmatch release
-                  mkdir -p release
-                  cp -R release-download/* release/
-
-            - name: Commit release files
-              run: |
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                  git add -A release
-                  git commit -m "Release ${{ needs.linux-android-web.outputs.tag }}"
-
             - name: Push main and tag
               run: |
                   git remote set-url origin "git@github.com:${GITHUB_REPOSITORY}.git"
@@ -217,12 +204,7 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
               run: |
                   gh release create "${{ needs.linux-android-web.outputs.tag }}" \
-                    release/android/* \
-                    release/linux/* \
-                    release/web/* \
-                    release/windows/* \
-                    release/macos/* \
-                    release/ios/* \
+                    release-download/*/* \
                     --repo "$GITHUB_REPOSITORY" \
                     --title "KnitCalc ${{ needs.linux-android-web.outputs.version }}" \
                     --notes "Automated release for ${{ needs.linux-android-web.outputs.tag }}"
