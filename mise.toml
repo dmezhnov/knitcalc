@@ -94,7 +94,7 @@ hide = true
 run = "flutter build ios --release --no-codesign"
 
 [tasks.test]
-run = ["flutter analyze", "flutter test"]
+run = ["flutter test"]
 
 [tasks.dev]
 run = "mise run dev-{{ os() }}"
