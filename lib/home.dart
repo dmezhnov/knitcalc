@@ -133,14 +133,13 @@ class _HomeState extends State<Home> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       key: key,
       children: [
-        Expanded(child: Text(label, style: TextStyle(color: highlightColor))),
+        Expanded(
+          child: Text(label, style: TextStyle(color: highlightColor)),
+        ),
         const SizedBox(width: 16),
         Text(
           value,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: highlightColor,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w600, color: highlightColor),
         ),
       ],
     );
@@ -400,9 +399,7 @@ class _HomeState extends State<Home> {
                           key: const Key('changeCount'),
                         ),
                         _buildOutputRow(
-                          label: isDecreasing
-                              ? 'Темп убавок'
-                              : 'Темп прибавок',
+                          label: isDecreasing ? 'Темп убавок' : 'Темп прибавок',
                           value: _formatNumber(changeRate),
                           key: const Key('changeRate'),
                           highlightColor: isChangeRateFractional
