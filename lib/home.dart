@@ -9,6 +9,8 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+  String _productType = 'rectangular_scarf';
+
   final _stitchesController = TextEditingController();
   final _rowsController = TextEditingController();
   final _sampleWidthCmController = TextEditingController();
@@ -18,6 +20,8 @@ class _HomeState extends State<Home> {
   final _targetLengthCmController = TextEditingController();
   final _sampleThreadLengthCmController = TextEditingController();
   final _sampleThreadWidthCmController = TextEditingController();
+  final _startWidthCmController = TextEditingController();
+  final _endWidthCmController = TextEditingController();
 
   @override
   void initState() {
@@ -38,6 +42,8 @@ class _HomeState extends State<Home> {
     _targetLengthCmController,
     _sampleThreadLengthCmController,
     _sampleThreadWidthCmController,
+    _startWidthCmController,
+    _endWidthCmController,
   ];
 
   @override
@@ -121,14 +127,21 @@ class _HomeState extends State<Home> {
     required String label,
     required String value,
     required Key key,
+    Color? highlightColor,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       key: key,
       children: [
-        Expanded(child: Text(label)),
+        Expanded(child: Text(label, style: TextStyle(color: highlightColor))),
         const SizedBox(width: 16),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: highlightColor,
+          ),
+        ),
       ],
     );
   }
@@ -155,6 +168,12 @@ class _HomeState extends State<Home> {
     final sampleThreadLengthCm = _readNumber(
       _sampleThreadLengthCmController,
     ); // Длина нити образца (см)
+    final startWidthCm = _readNumber(
+      _startWidthCmController,
+    ); // Ширина в начале (см)
+    final endWidthCm = _readNumber(
+      _endWidthCmController,
+    ); // Ширина в конце (см)
 
     final stitchesPerCm = _divide(stitches, sampleWidthCm); //
     final rowsPerCm = _divide(rows, sampleLengthCm); //
@@ -176,6 +195,27 @@ class _HomeState extends State<Home> {
       stitches,
     ); // Желаемая длина нити
 
+    final startWidthStitches = _multiply(
+      stitchesPerCm,
+      startWidthCm,
+    )?.roundToDouble(); // Петель в начале
+    final endWidthStitches = _multiply(
+      stitchesPerCm,
+      endWidthCm,
+    )?.roundToDouble(); // Петель в конце
+    final widthDiffStitches =
+        (startWidthStitches ?? 0) - (endWidthStitches ?? 0);
+    final isDecreasing = widthDiffStitches > 0;
+    final changeCount = widthDiffStitches.abs() / 2;
+    final changeRate = changeCount > 0
+        ? _divide(targetRows, changeCount)
+        : null;
+    final isChangeRateFractional =
+        changeRate != null &&
+        !changeRate.isNaN &&
+        !changeRate.isInfinite &&
+        (changeRate - changeRate.roundToDouble()).abs() > 0.005;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -185,7 +225,7 @@ class _HomeState extends State<Home> {
               spacing: 16,
               children: [
                 DropdownButtonFormField<String>(
-                  initialValue: 'rectangular_scarf',
+                  initialValue: _productType,
                   decoration: const InputDecoration(
                     labelText: 'Вид изделия',
                     border: OutlineInputBorder(),
@@ -195,8 +235,16 @@ class _HomeState extends State<Home> {
                       value: 'rectangular_scarf',
                       child: Text('Прямоугольный шарф'),
                     ),
+                    DropdownMenuItem(
+                      value: 'triangular_shawl',
+                      child: Text('Треугольный палантин'),
+                    ),
                   ],
-                  onChanged: null,
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _productType = value);
+                    }
+                  },
                 ),
                 Container(
                   width: double.infinity,
@@ -234,36 +282,58 @@ class _HomeState extends State<Home> {
                         controller: _sampleLengthCmController,
                         key: const Key('sampleLengthCm'),
                       ),
-                      _buildNumberInput(
-                        label: 'Желаемая ширина (см)',
-                        allowDecimal: true,
-                        controller: _targetWidthCmController,
-                        key: const Key('targetWidthCm'),
-                      ),
-                      _buildNumberInput(
-                        label: 'Желаемая длина (см)',
-                        allowDecimal: true,
-                        controller: _targetLengthCmController,
-                        key: const Key('targetLengthCm'),
-                      ),
-                      _buildNumberInput(
-                        label: 'Ширина образца (петель)',
-                        allowDecimal: false,
-                        controller: _sampleWidthStitchesController,
-                        key: const Key('sampleWidthStitches'),
-                      ),
-                      _buildNumberInput(
-                        label: 'Длина нити образца (см)',
-                        allowDecimal: true,
-                        controller: _sampleThreadLengthCmController,
-                        key: const Key('sampleThreadLengthCm'),
-                      ),
-                      _buildNumberInput(
-                        label: 'Ширина нити образца (см)',
-                        allowDecimal: true,
-                        controller: _sampleThreadWidthCmController,
-                        key: const Key('sampleThreadWidthCm'),
-                      ),
+                      if (_productType == 'rectangular_scarf') ...[
+                        _buildNumberInput(
+                          label: 'Желаемая ширина (см)',
+                          allowDecimal: true,
+                          controller: _targetWidthCmController,
+                          key: const Key('targetWidthCm'),
+                        ),
+                        _buildNumberInput(
+                          label: 'Желаемая длина (см)',
+                          allowDecimal: true,
+                          controller: _targetLengthCmController,
+                          key: const Key('targetLengthCm'),
+                        ),
+                        _buildNumberInput(
+                          label: 'Ширина образца (петель)',
+                          allowDecimal: false,
+                          controller: _sampleWidthStitchesController,
+                          key: const Key('sampleWidthStitches'),
+                        ),
+                        _buildNumberInput(
+                          label: 'Длина нити образца (см)',
+                          allowDecimal: true,
+                          controller: _sampleThreadLengthCmController,
+                          key: const Key('sampleThreadLengthCm'),
+                        ),
+                        _buildNumberInput(
+                          label: 'Ширина нити образца (см)',
+                          allowDecimal: true,
+                          controller: _sampleThreadWidthCmController,
+                          key: const Key('sampleThreadWidthCm'),
+                        ),
+                      ],
+                      if (_productType == 'triangular_shawl') ...[
+                        _buildNumberInput(
+                          label: 'Ширина в начале (см)',
+                          allowDecimal: true,
+                          controller: _startWidthCmController,
+                          key: const Key('startWidthCm'),
+                        ),
+                        _buildNumberInput(
+                          label: 'Ширина в конце (см)',
+                          allowDecimal: true,
+                          controller: _endWidthCmController,
+                          key: const Key('endWidthCm'),
+                        ),
+                        _buildNumberInput(
+                          label: 'Желаемая длина (см)',
+                          allowDecimal: true,
+                          controller: _targetLengthCmController,
+                          key: const Key('targetLengthCm'),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -289,21 +359,57 @@ class _HomeState extends State<Home> {
                         value: _formatNumber(rowsPerCm),
                         key: const Key('rowsPerCm'),
                       ),
-                      _buildOutputRow(
-                        label: 'Желаемое количество петель',
-                        value: _formatNumber(targetStitches),
-                        key: const Key('targetStitches'),
-                      ),
-                      _buildOutputRow(
-                        label: 'Желаемое количество рядов',
-                        value: _formatNumber(targetRows),
-                        key: const Key('targetRows'),
-                      ),
-                      _buildOutputRow(
-                        label: 'Желаемая длина нити',
-                        value: _formatNumber(targetThreadLength),
-                        key: const Key('targetThreadLength'),
-                      ),
+                      if (_productType == 'rectangular_scarf') ...[
+                        _buildOutputRow(
+                          label: 'Желаемое количество петель',
+                          value: _formatNumber(targetStitches),
+                          key: const Key('targetStitches'),
+                        ),
+                        _buildOutputRow(
+                          label: 'Желаемое количество рядов',
+                          value: _formatNumber(targetRows),
+                          key: const Key('targetRows'),
+                        ),
+                        _buildOutputRow(
+                          label: 'Желаемая длина нити',
+                          value: _formatNumber(targetThreadLength),
+                          key: const Key('targetThreadLength'),
+                        ),
+                      ],
+                      if (_productType == 'triangular_shawl') ...[
+                        _buildOutputRow(
+                          label: 'Петель в начале',
+                          value: _formatNumber(startWidthStitches),
+                          key: const Key('startWidthStitches'),
+                        ),
+                        _buildOutputRow(
+                          label: 'Петель в конце',
+                          value: _formatNumber(endWidthStitches),
+                          key: const Key('endWidthStitches'),
+                        ),
+                        _buildOutputRow(
+                          label: 'Желаемое количество рядов',
+                          value: _formatNumber(targetRows),
+                          key: const Key('targetRows'),
+                        ),
+                        _buildOutputRow(
+                          label: isDecreasing
+                              ? 'Убавок с каждой стороны'
+                              : 'Прибавок с каждой стороны',
+                          value: _formatNumber(changeCount),
+                          key: const Key('changeCount'),
+                        ),
+                        _buildOutputRow(
+                          label: isDecreasing
+                              ? 'Темп убавок'
+                              : 'Темп прибавок',
+                          value: _formatNumber(changeRate),
+                          key: const Key('changeRate'),
+                          highlightColor: isChangeRateFractional
+                              ? Colors.red
+                              : null,
+                        ),
+                      ],
                     ],
                   ),
                 ),
