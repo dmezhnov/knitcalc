@@ -133,7 +133,20 @@ run = "trunk check --all"
 run = "trunk fmt"
 
 [tasks.publish]
-run = [
-    "test -z \"$(git status --porcelain)\"",
-    "git push origin HEAD:test --force-with-lease",
-]
+description = "Bump version in pubspec.yaml, commit all changes, and push to test to trigger a release"
+usage = '''
+arg "<version>" help="New version for pubspec.yaml, e.g. 1.1.1+3"
+arg "<message>" help="Commit message for the release commit"
+'''
+run = '''
+{%- if os() == "windows" -%}
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p='pubspec.yaml'; $raw=Get-Content -Raw $p; $new=[regex]::Replace($raw, '(?m)^version:[^\r\n]*', 'version: '+$env:usage_version); [IO.File]::WriteAllText((Resolve-Path $p).Path, $new, (New-Object Text.UTF8Encoding $false)); git add -A; if($LASTEXITCODE){exit 1}; git commit -m $env:usage_message; if($LASTEXITCODE){exit 1}; git push origin HEAD:test --force-with-lease"
+{%- else -%}
+grep -qE '^version: ' pubspec.yaml || { echo "pubspec.yaml: no 'version:' line found" >&2; exit 1; }
+tmp="$(mktemp)"
+sed -E "s|^version: .*|version: ${usage_version}|" pubspec.yaml > "$tmp" && mv "$tmp" pubspec.yaml
+git add -A
+git commit -m "${usage_message}"
+git push origin HEAD:test --force-with-lease
+{%- endif -%}
+'''
