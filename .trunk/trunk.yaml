@@ -40,3 +40,22 @@ actions:
         - trunk-fmt-pre-commit
     enabled:
         - trunk-upgrade-available
+        - lint-test-pre-commit
+    definitions:
+        - id: lint-test-pre-commit
+          display_name: Pre-commit checks (test branch)
+          description: On the test branch, ensures the pubspec version tag is new, then runs `mise lint` and `mise test`; aborts the commit on failure.
+          triggers:
+              - git_hooks: [pre-commit]
+          run: |
+              if [ "$(git rev-parse --abbrev-ref HEAD)" != "test" ]; then
+                echo "trunk: not on 'test' branch, skipping pre-commit checks"
+                exit 0
+              fi
+              version="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
+              tag="v${version}"
+              if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+                echo "Tag ${tag} already exists on origin. Bump version in pubspec.yaml before committing."
+                exit 1
+              fi
+              mise lint && mise test

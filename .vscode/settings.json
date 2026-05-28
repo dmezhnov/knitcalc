@@ -29,5 +29,8 @@
     "peacock.color": "#146c96",
     "nixEnvSelector.suggestion": false,
     "cmake.ignoreCMakeListsMissing": true,
-    "trunk.trace.server": "messages"
+    "trunk.trace.server": "messages",
+    "[properties]": {
+        "editor.defaultFormatter": "yy0931.gitconfig-lsp"
+    }
 }
