@@ -1,19 +1,16 @@
 # KnitCalc
 
-KnitCalc is a Flutter calculator for rectangular scarf knitting. It converts a
-sample swatch into target stitch, row, and yarn-length estimates.
+KnitCalc is a Flutter calculator for knitting. It converts a sample swatch into
+target stitch, row, and yarn-length estimates. The interface is in Russian.
 
 ## Features
 
-- Rectangular scarf preset.
-- Numeric inputs for swatch size, stitch count, row count, target dimensions,
-  and yarn length.
-- Live calculations for:
-    - stitches per centimeter
-    - rows per centimeter
-    - target stitch count
-    - target row count
-    - target yarn length
+- Multiple product types, selected from a dropdown. Each type provides its own
+  inputs and calculations.
+- Numeric inputs for the sample swatch (size, stitch and row counts) plus
+  per-type target parameters.
+- Live calculations from the swatch gauge — starting with stitches and rows per
+  centimeter — refreshed on every input change.
 - Release builds for Android, Linux, Web, Windows, macOS, and unsigned iOS.
 - GitHub Pages deployment for the web build.
 
@@ -117,8 +114,9 @@ On push to `test`, GitHub Actions:
 
 Before publishing a new release, bump `version` in `pubspec.yaml`. For example:
 
-````yaml
-version: 1.0.1+2```
+```yaml
+version: 1.1.1+3
+```
 
 The part before `+` is the public app version. The number after `+` is the
 platform build number and should increase for every release.
@@ -134,7 +132,7 @@ release/web/
 release/windows/
 release/macos/
 release/ios/
-````
+```
 
 The iOS artifact is unsigned because signed iOS releases require an Apple
 Developer Program account, certificates, and provisioning profiles.
