@@ -1,5 +1,7 @@
 import 'package:knitcalc/update/channel.dart';
+import 'package:knitcalc/update/current_version.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
+import 'package:knitcalc/update/impl/web/web_update_service.dart';
 import 'package:knitcalc/update/update_service.dart';
 
 /// Returns the [UpdateService] implementation for the given [channel].
@@ -9,6 +11,10 @@ import 'package:knitcalc/update/update_service.dart';
 /// service worker) channel by channel without touching call sites.
 UpdateService createUpdateService(Channel channel) {
   switch (channel) {
+    // Web: compare the deployed version.json with the running build, reload.
+    case Channel.web:
+      return createWebUpdateService(currentAppVersion());
+
     // TODO(update): Phase 3 — in_app_update.
     case Channel.androidPlay:
     // TODO(update): Phase 3 — RuStore SDK.
@@ -24,8 +30,6 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.linuxAppImage:
     case Channel.linuxDpkg:
     case Channel.linuxTarball:
-    // TODO(update): Phase 2 — service worker reload dialog.
-    case Channel.web:
     // Externally managed or unknown: nothing for the app to do.
     case Channel.macosAppStore:
     case Channel.windowsStore:
