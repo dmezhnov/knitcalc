@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:knitcalc/update/channel.dart';
+import 'package:knitcalc/update/ui/update_banner.dart';
+import 'package:knitcalc/update/update_factory.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -30,6 +33,26 @@ class _HomeState extends State<Home> {
     for (final controller in _controllers) {
       controller.addListener(_updateOutputs);
     }
+
+    // Check for an update once the first frame is on screen. Off the web target
+    // the factory returns a no-op service, so this is harmless there.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+  }
+
+  Future<void> _checkForUpdate() async {
+    final channel = await detectChannel();
+    final service = createUpdateService(channel);
+    final info = await service.checkForUpdate();
+
+    if (info == null || !mounted) {
+      return;
+    }
+
+    showUpdateBanner(
+      context,
+      info: info,
+      onUpdate: () => service.startUpdate(info),
+    );
   }
 
   List<TextEditingController> get _controllers => [

@@ -60,7 +60,12 @@ run = "flutter build appbundle"
 
 [tasks.build-web]
 hide = true
-run = "flutter build web --base-href /knitcalc/"
+run = '''
+# Bake the pubspec version into the build so the running app can compare itself
+# against the deployed version.json (see lib/update/current_version.dart).
+app_version="$(yq -r '.version' pubspec.yaml)"
+flutter build web --base-href /knitcalc/ --dart-define=APP_VERSION="$app_version"
+'''
 
 [tasks.build-linux]
 hide = true
