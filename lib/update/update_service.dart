@@ -1,5 +1,11 @@
 import 'package:knitcalc/update/update_info.dart';
 
+/// Reports download progress as a fraction in `[0, 1]`.
+///
+/// Channels that cannot measure progress (e.g. the web reload) simply never
+/// invoke it, leaving the UI to show an indeterminate indicator.
+typedef UpdateProgressCallback = void Function(double fraction);
+
 /// Abstraction over a per-channel update mechanism.
 ///
 /// A concrete implementation is chosen by `createUpdateService` based on the
@@ -15,6 +21,10 @@ abstract interface class UpdateService {
   /// Starts the update described by [info].
   ///
   /// Depending on [UpdateInfo.action] this triggers an in-app flow, opens an
-  /// external URL, or is a no-op for externally managed channels.
-  Future<void> startUpdate(UpdateInfo info);
+  /// external URL, or is a no-op for externally managed channels. When the
+  /// mechanism downloads a payload it reports progress through [onProgress].
+  Future<void> startUpdate(
+    UpdateInfo info, {
+    UpdateProgressCallback? onProgress,
+  });
 }

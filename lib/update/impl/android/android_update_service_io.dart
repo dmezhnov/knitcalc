@@ -27,8 +27,9 @@ UpdateService createAndroidUpdateService(AppVersion? current) {
 /// Sideload updater for APKs distributed via GitHub Releases.
 ///
 /// Polls `releases/latest`, compares the tag with the running build, downloads
-/// the APK to the cache directory and hands it to the system installer (the
-/// user confirms the install and the "unknown sources" prompt if needed).
+/// the APK to the cache directory (reporting progress) and hands it to the
+/// system installer (the user confirms the install and the "unknown sources"
+/// prompt if needed).
 class AndroidUpdateService implements UpdateService {
   AndroidUpdateService(this._current, {HttpClient? httpClient})
     : _httpClient = httpClient ?? HttpClient();
@@ -55,14 +56,17 @@ class AndroidUpdateService implements UpdateService {
   }
 
   @override
-  Future<void> startUpdate(UpdateInfo info) async {
+  Future<void> startUpdate(
+    UpdateInfo info, {
+    UpdateProgressCallback? onProgress,
+  }) async {
     final url = info.url;
 
     if (url == null) {
       return;
     }
 
-    final path = await _downloadApk(url);
+    final path = await _downloadApk(url, onProgress);
 
     await androidUpdateChannel.invokeMethod<void>('installApk', {'path': path});
   }
@@ -86,7 +90,10 @@ class AndroidUpdateService implements UpdateService {
     return jsonDecode(body) as Map<String, dynamic>;
   }
 
-  Future<String> _downloadApk(String url) async {
+  Future<String> _downloadApk(
+    String url,
+    UpdateProgressCallback? onProgress,
+  ) async {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/knitcalc-update.apk');
 
@@ -99,7 +106,24 @@ class AndroidUpdateService implements UpdateService {
       throw HttpException('Download failed with status ${response.statusCode}');
     }
 
-    await response.pipe(file.openWrite());
+    // contentLength is -1 when the server omits it; progress then stays
+    // indeterminate and the UI shows a spinner instead of a percentage.
+    final total = response.contentLength;
+    final sink = file.openWrite();
+    var received = 0;
+
+    try {
+      await for (final chunk in response) {
+        sink.add(chunk);
+        received += chunk.length;
+
+        if (onProgress != null && total > 0) {
+          onProgress(received / total);
+        }
+      }
+    } finally {
+      await sink.close();
+    }
 
     return file.path;
   }

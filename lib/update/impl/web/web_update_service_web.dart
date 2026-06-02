@@ -42,8 +42,12 @@ class WebUpdateService implements UpdateService {
   }
 
   @override
-  Future<void> startUpdate(UpdateInfo info) async {
-    // Force a full reload so the browser pulls the freshly deployed assets.
+  Future<void> startUpdate(
+    UpdateInfo info, {
+    UpdateProgressCallback? onProgress,
+  }) async {
+    // The browser fetches the fresh assets itself, so there is no in-app
+    // download to report; force a full reload to pick up the new build.
     web.window.location.reload();
   }
 
