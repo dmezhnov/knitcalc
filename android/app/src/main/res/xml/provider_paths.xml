@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Exposes the cache dir used for the downloaded update APK
+         (getTemporaryDirectory() maps to the app cache on Android). -->
+    <cache-path name="update_cache" path="."/>
+    <external-cache-path name="external_update_cache" path="."/>
+</paths>

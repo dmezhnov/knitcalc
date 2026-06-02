@@ -52,11 +52,19 @@ run = ["dart run icons_launcher:create", "mise build-{{ usage.target }}"]
 
 [tasks.build-apk]
 hide = true
-run = "flutter build apk"
+run = '''
+# Bake the pubspec version so the installed APK can compare itself against the
+# latest GitHub release (see lib/update/current_version.dart).
+app_version="$(yq -r '.version' pubspec.yaml)"
+flutter build apk --dart-define=APP_VERSION="$app_version"
+'''
 
 [tasks.build-appbundle]
 hide = true
-run = "flutter build appbundle"
+run = '''
+app_version="$(yq -r '.version' pubspec.yaml)"
+flutter build appbundle --dart-define=APP_VERSION="$app_version"
+'''
 
 [tasks.build-web]
 hide = true
