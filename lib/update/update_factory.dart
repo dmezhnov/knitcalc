@@ -1,6 +1,7 @@
 import 'package:knitcalc/update/channel.dart';
 import 'package:knitcalc/update/current_version.dart';
 import 'package:knitcalc/update/impl/android/android_update_service.dart';
+import 'package:knitcalc/update/impl/linux/linux_update_service.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
 import 'package:knitcalc/update/impl/web/web_update_service.dart';
 import 'package:knitcalc/update/update_service.dart';
@@ -32,10 +33,17 @@ UpdateService createUpdateService(Channel channel) {
     // TODO(update): Phase 4 — Sparkle/WinSparkle via auto_updater.
     case Channel.macosManual:
     case Channel.windowsManual:
-    // TODO(update): Phase 5 — format-aware GitHub update.
+      return const NoopUpdateService();
+
+    // Manually installed Linux bundle: download the new tarball from GitHub
+    // Releases and swap it in via a detached script.
+    case Channel.linuxTarball:
+      return createLinuxUpdateService(currentAppVersion());
+
+    // TODO(update): Phase 5 — AppImage self-replace and dpkg via the package
+    // manager. No such release assets exist yet, so they stay no-op for now.
     case Channel.linuxAppImage:
     case Channel.linuxDpkg:
-    case Channel.linuxTarball:
     // Externally managed or unknown: nothing for the app to do.
     case Channel.macosAppStore:
     case Channel.windowsStore:
