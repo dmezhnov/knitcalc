@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:knitcalc/update/channel.dart';
 import 'package:knitcalc/update/ui/update_banner.dart';
+import 'package:knitcalc/update/ui/update_progress.dart';
 import 'package:knitcalc/update/update_factory.dart';
 
 class Home extends StatefulWidget {
@@ -51,7 +52,7 @@ class _HomeState extends State<Home> {
     showUpdateBanner(
       context,
       info: info,
-      onUpdate: () => service.startUpdate(info),
+      onUpdate: () => runUpdateWithProgress(context, service, info),
     );
   }
 

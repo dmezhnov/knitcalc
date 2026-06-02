@@ -13,5 +13,8 @@ class NoopUpdateService implements UpdateService {
   Future<UpdateInfo?> checkForUpdate() async => null;
 
   @override
-  Future<void> startUpdate(UpdateInfo info) async {}
+  Future<void> startUpdate(
+    UpdateInfo info, {
+    UpdateProgressCallback? onProgress,
+  }) async {}
 }
