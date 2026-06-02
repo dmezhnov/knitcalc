@@ -73,8 +73,18 @@ jobs:
                     echo "::warning::ANDROID_KEYSTORE_BASE64 is not set; the release will use debug keys and won't install over a differently signed build."
                     exit 0
                   fi
+                  for var in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+                    if [ -z "${!var}" ]; then
+                      echo "::error::$var secret is empty; set all four ANDROID_* secrets (alias is 'knitcalc')."
+                      exit 1
+                    fi
+                  done
                   keystore="$RUNNER_TEMP/knitcalc-release.jks"
-                  echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+                  # Strip any whitespace/newlines a copy-paste may have added.
+                  if ! printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$keystore"; then
+                    echo "::error::Could not base64-decode ANDROID_KEYSTORE_BASE64. Re-copy the full output of 'base64 -w0 knitcalc-release.jks'."
+                    exit 1
+                  fi
                   {
                     echo "ANDROID_KEYSTORE_PATH=$keystore"
                     echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
