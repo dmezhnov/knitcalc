@@ -48,3 +48,7 @@ app.*.map.json
 
 # Claude Code local project data
 .claude/
+android/key.properties
+*.jks
+*.keystore
+*.base64.txt
