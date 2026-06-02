@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 /// Distribution channel that determines the update mechanism.
 ///
@@ -85,9 +86,7 @@ Future<Channel> detectChannel() async {
   }
 
   if (Platform.isAndroid) {
-    // TODO(update): method channel to PackageManager.getInstallSourceInfo()
-    // (com.android.vending -> play, ru.vk.store -> rustore, else sideload).
-    return Channel.androidSideload;
+    return _detectAndroidChannel();
   }
 
   if (Platform.isIOS) {
@@ -109,6 +108,44 @@ Future<Channel> detectChannel() async {
   }
 
   return Channel.unknown;
+}
+
+/// Method channel shared with the Android host (see `MainActivity`).
+const MethodChannel _androidUpdateChannel = MethodChannel(
+  'knitcalc/android_update',
+);
+
+/// Resolves the Android channel by asking the host for the installer package.
+Future<Channel> _detectAndroidChannel() async {
+  String? installer;
+
+  try {
+    installer = await _androidUpdateChannel.invokeMethod<String>(
+      'getInstallerPackageName',
+    );
+  } on PlatformException {
+    installer = null;
+  } on MissingPluginException {
+    installer = null;
+  }
+
+  return androidChannelForInstaller(installer);
+}
+
+/// Maps an Android installer package name to its [Channel].
+///
+/// `com.android.vending` is Google Play and `ru.vk.store` is RuStore; anything
+/// else (manual install, `adb`, a file manager) is treated as a sideload that
+/// updates through GitHub Releases.
+Channel androidChannelForInstaller(String? installer) {
+  switch (installer) {
+    case 'com.android.vending':
+      return Channel.androidPlay;
+    case 'ru.vk.store':
+      return Channel.androidRustore;
+    default:
+      return Channel.androidSideload;
+  }
 }
 
 /// Detects the Linux install format entirely in Dart, without platform code.
