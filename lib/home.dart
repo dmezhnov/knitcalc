@@ -244,6 +244,9 @@ class _HomeState extends State<Home> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: SingleChildScrollView(
+            // Leave room above the first field so its floating outline label
+            // isn't clipped by the scroll view's viewport edge.
+            padding: const EdgeInsets.only(top: 8),
             child: Column(
               spacing: 16,
               children: [
