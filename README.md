@@ -48,7 +48,7 @@ Format files supported by Trunk:
 mise format
 ```
 
-Run Flutter analysis and tests:
+Run Flutter tests:
 
 ```bash
 mise test
@@ -122,17 +122,6 @@ The part before `+` is the public app version. The number after `+` is the
 platform build number and should increase for every release.
 
 ## Outputs
-
-Release artifacts are written under `release/`:
-
-```text
-release/android/
-release/linux/
-release/web/
-release/windows/
-release/macos/
-release/ios/
-```
 
 The iOS artifact is unsigned because signed iOS releases require an Apple
 Developer Program account, certificates, and provisioning profiles.
