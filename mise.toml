@@ -114,12 +114,13 @@ dart run tool/linux_desktop_install.dart
 
 [tasks.build-windows]
 hide = true
+# Bake --dart-define=APP_VERSION so the installed bundle can compare itself
+# against the latest GitHub release (see lib/update/current_version.dart);
+# without it the Windows self-updater never detects an update. On Windows mise
+# runs the task through cmd (no `#` comments allowed) and yq is linux-only, so
+# the version is read with PowerShell there; other hosts use yq under sh.
 run = '''
 {%- if os() == "windows" -%}
-# Bake the pubspec version so the installed bundle can compare itself against
-# the latest GitHub release (see lib/update/current_version.dart). Without this
-# the Windows self-updater never detects an update (currentAppVersion() stays
-# null). yq is linux-only here, so read the version with PowerShell instead.
 powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $v=([regex]::Match((Get-Content -Raw pubspec.yaml), '(?m)^version:\s*(.+?)\s*$')).Groups[1].Value; flutter build windows --dart-define=APP_VERSION=$v"
 {%- else -%}
 app_version="$(yq -r '.version' pubspec.yaml)"
