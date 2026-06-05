@@ -88,7 +88,7 @@ app_version="$(yq -r '.version' pubspec.yaml)"
 # build inside an ad-hoc nix-shell that provides the toolchain; other distros
 # (including CI) use their own system toolchain directly.
 if [ -e /etc/NIXOS ] && command -v nix-shell >/dev/null 2>&1; then
-  exec nix-shell -p clang pkg-config gtk3 fontconfig libepoxy pcre2 libsysprof-capture util-linux \
+  nix-shell -p clang pkg-config gtk3 fontconfig libepoxy pcre2 libsysprof-capture util-linux \
     --run '
       # nix-shell exposes each package as -L<dir> on NIX_LDFLAGS. GNU ld resolves
       # the engine transitive deps (libepoxy, libfontconfig) via -rpath-link, not
@@ -101,9 +101,15 @@ if [ -e /etc/NIXOS ] && command -v nix-shell >/dev/null 2>&1; then
       export LD_LIBRARY_PATH=$libdirs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
       flutter build linux --dart-define=APP_VERSION="'"$app_version"'"
     '
+else
+  flutter build linux --dart-define=APP_VERSION="$app_version"
 fi
 
-flutter build linux --dart-define=APP_VERSION="$app_version"
+# Add desktop integration (icon-theme PNGs, .desktop launcher, install.sh) to
+# the bundle; icons_launcher only emits snap assets, so a plain tarball install
+# would otherwise have no taskbar icon or menu entry. The packaging step tars
+# the whole bundle, so these ship in the release automatically.
+dart run tool/linux_desktop_install.dart
 '''
 
 [tasks.build-windows]
