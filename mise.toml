@@ -114,7 +114,18 @@ dart run tool/linux_desktop_install.dart
 
 [tasks.build-windows]
 hide = true
-run = "flutter build windows"
+run = '''
+{%- if os() == "windows" -%}
+# Bake the pubspec version so the installed bundle can compare itself against
+# the latest GitHub release (see lib/update/current_version.dart). Without this
+# the Windows self-updater never detects an update (currentAppVersion() stays
+# null). yq is linux-only here, so read the version with PowerShell instead.
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $v=([regex]::Match((Get-Content -Raw pubspec.yaml), '(?m)^version:\s*(.+?)\s*$')).Groups[1].Value; flutter build windows --dart-define=APP_VERSION=$v"
+{%- else -%}
+app_version="$(yq -r '.version' pubspec.yaml)"
+flutter build windows --dart-define=APP_VERSION="$app_version"
+{%- endif -%}
+'''
 
 [tasks.build-macos]
 hide = true
