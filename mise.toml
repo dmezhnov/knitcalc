@@ -78,6 +78,11 @@ flutter build web --base-href /knitcalc/ --dart-define=APP_VERSION="$app_version
 [tasks.build-linux]
 hide = true
 run = '''
+# Bake the pubspec version so the installed bundle can compare itself against the
+# latest GitHub release (see lib/update/current_version.dart). Without this the
+# Linux self-updater never detects an update (currentAppVersion() stays null).
+app_version="$(yq -r '.version' pubspec.yaml)"
+
 # Flutter's Linux build hardcodes CC=clang/CXX=clang++ and links the GTK stack
 # via pkg-config, none of which NixOS exposes on PATH by default. On NixOS,
 # build inside an ad-hoc nix-shell that provides the toolchain; other distros
@@ -94,11 +99,11 @@ if [ -e /etc/NIXOS ] && command -v nix-shell >/dev/null 2>&1; then
       done
       export NIX_LDFLAGS="$NIX_LDFLAGS -rpath-link $libdirs"
       export LD_LIBRARY_PATH=$libdirs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-      flutter build linux
+      flutter build linux --dart-define=APP_VERSION="'"$app_version"'"
     '
 fi
 
-flutter build linux
+flutter build linux --dart-define=APP_VERSION="$app_version"
 '''
 
 [tasks.build-windows]
