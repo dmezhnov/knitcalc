@@ -139,7 +139,7 @@ class LinuxUpdateService implements UpdateService {
         received += chunk.length;
 
         if (onProgress != null && total > 0) {
-          onProgress(received / total);
+          onProgress(DownloadProgress(received: received, total: total));
         }
       }
     } finally {

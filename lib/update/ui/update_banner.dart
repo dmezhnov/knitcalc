@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:knitcalc/update/ui/byte_format.dart';
 import 'package:knitcalc/update/update_info.dart';
+
+/// Banner text: announces the new version and, when known, how much the update
+/// will download (e.g. "Доступна новая версия 1.5.0 · 12 МБ").
+String _bannerText(UpdateInfo info) {
+  final size = info.downloadSize;
+  final suffix = size != null ? ' · ${formatBytes(size)}' : '';
+  return 'Доступна новая версия ${info.latestVersion}$suffix';
+}
 
 /// Non-intrusive banner offering the user an available update.
 ///
@@ -20,7 +29,7 @@ class UpdateBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialBanner(
-      content: Text('Доступна новая версия ${info.latestVersion}'),
+      content: Text(_bannerText(info)),
       leading: const Icon(Icons.system_update),
       actions: [
         if (!info.mandatory && onDismiss != null)
@@ -46,7 +55,7 @@ showUpdateBanner(
 
   return messenger.showMaterialBanner(
     MaterialBanner(
-      content: Text('Доступна новая версия ${info.latestVersion}'),
+      content: Text(_bannerText(info)),
       leading: const Icon(Icons.system_update),
       actions: [
         if (!info.mandatory && onDismiss != null)

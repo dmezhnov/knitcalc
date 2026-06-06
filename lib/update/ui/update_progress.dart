@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:knitcalc/update/ui/byte_format.dart';
 import 'package:knitcalc/update/update_info.dart';
 import 'package:knitcalc/update/update_service.dart';
 
@@ -18,7 +19,7 @@ Future<void> runUpdateWithProgress(
 ) async {
   final messenger = ScaffoldMessenger.of(context);
   final navigator = Navigator.of(context, rootNavigator: true);
-  final progress = ValueNotifier<double?>(null);
+  final progress = ValueNotifier<DownloadProgress?>(null);
 
   unawaited(
     showDialog<void>(
@@ -33,7 +34,7 @@ Future<void> runUpdateWithProgress(
   try {
     await service.startUpdate(
       info,
-      onProgress: (fraction) => progress.value = fraction,
+      onProgress: (value) => progress.value = value,
     );
   } on Object {
     failed = true;
@@ -56,29 +57,41 @@ Future<void> runUpdateWithProgress(
 class UpdateProgressDialog extends StatelessWidget {
   const UpdateProgressDialog({super.key, required this.progress});
 
-  final ValueListenable<double?> progress;
+  final ValueListenable<DownloadProgress?> progress;
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Загрузка обновления'),
-      content: ValueListenableBuilder<double?>(
+      content: ValueListenableBuilder<DownloadProgress?>(
         valueListenable: progress,
         builder: (context, value, _) {
-          final percent = value == null
-              ? null
-              : (value.clamp(0.0, 1.0) * 100).round();
+          final fraction = value?.fraction;
+          final percent = fraction == null ? null : (fraction * 100).round();
+
+          // "3.4 / 12 МБ" once a total is known; nothing until the first chunk.
+          final downloaded = (value != null && value.total > 0)
+              ? '${formatBytes(value.received)} / ${formatBytes(value.total)}'
+              : null;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              LinearProgressIndicator(value: value),
+              LinearProgressIndicator(value: fraction),
               const SizedBox(height: 12),
               Text(
                 percent == null ? 'Подготовка…' : '$percent%',
                 textAlign: TextAlign.center,
               ),
+              if (downloaded != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  downloaded,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ],
           );
         },

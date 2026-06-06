@@ -21,6 +21,7 @@ class UpdateInfo {
     required this.action,
     this.releaseNotes,
     this.url,
+    this.downloadSize,
     this.mandatory = false,
   });
 
@@ -35,6 +36,10 @@ class UpdateInfo {
 
   /// Link for `UpdateAction.openUrl` (store/release page/artifact).
   final String? url;
+
+  /// Size of the downloadable payload in bytes, when the source reports it.
+  /// Shown in the update banner so the user knows how much will be fetched.
+  final int? downloadSize;
 
   /// Whether the update is mandatory (blocking dialog instead of a banner).
   final bool mandatory;

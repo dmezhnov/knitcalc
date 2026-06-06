@@ -99,7 +99,10 @@ void main() {
       );
 
       final info = await service.checkForUpdate();
-      await service.startUpdate(info!, onProgress: progress.add);
+      await service.startUpdate(
+        info!,
+        onProgress: (p) => progress.add(p.fraction ?? 0),
+      );
 
       expect(server.assetRequests, 1);
       final archive = File('${tmp.path}/knitcalc-update.zip');

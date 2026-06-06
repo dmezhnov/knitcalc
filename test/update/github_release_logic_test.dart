@@ -57,6 +57,29 @@ void main() {
         isNull,
       );
     });
+
+    test('reads the asset size from the payload', () {
+      final asset = findApkAsset({
+        'tag_name': 'v1.3.0+0',
+        'assets': [
+          {
+            'name': 'knitcalc-1.3.0+0.apk',
+            'browser_download_url': 'https://example.com/app.apk',
+            'size': 12582912,
+          },
+        ],
+      });
+
+      expect(asset, isNotNull);
+      expect(asset!.sizeInBytes, 12582912);
+    });
+
+    test('leaves the size null when the payload omits it', () {
+      final asset = findApkAsset(_release());
+
+      expect(asset, isNotNull);
+      expect(asset!.sizeInBytes, isNull);
+    });
   });
 
   group('evaluateGithubApkUpdate', () {
@@ -71,6 +94,22 @@ void main() {
       expect(info.action, UpdateAction.inApp);
       expect(info.url, 'https://example.com/knitcalc.apk');
       expect(info.releaseNotes, 'What is new');
+    });
+
+    test('carries the download size into the update info', () {
+      final info = evaluateGithubApkUpdate(AppVersion.tryParse('1.2.0+1'), {
+        'tag_name': 'v1.3.0+0',
+        'assets': [
+          {
+            'name': 'knitcalc-1.3.0+0.apk',
+            'browser_download_url': 'https://example.com/app.apk',
+            'size': 7340032,
+          },
+        ],
+      });
+
+      expect(info, isNotNull);
+      expect(info!.downloadSize, 7340032);
     });
 
     test('returns null when already up to date', () {

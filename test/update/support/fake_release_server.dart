@@ -70,7 +70,11 @@ class FakeReleaseServer {
               'tag_name': tag,
               'body': 'Release notes',
               'assets': [
-                {'name': assetName, 'browser_download_url': assetUrl},
+                {
+                  'name': assetName,
+                  'browser_download_url': assetUrl,
+                  'size': assetBytes.length,
+                },
               ],
             }),
           );
