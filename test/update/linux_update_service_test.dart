@@ -38,6 +38,7 @@ void main() {
       expect(info, isNotNull);
       expect(info!.latestVersion, const AppVersion(9, 9, 9));
       expect(info.url, server.assetUrl);
+      expect(info.downloadSize, utf8.encode('bundle').length);
     });
 
     test('returns null when the release is not newer', () async {
@@ -95,7 +96,10 @@ void main() {
         );
 
         final info = await service.checkForUpdate();
-        await service.startUpdate(info!, onProgress: progress.add);
+        await service.startUpdate(
+          info!,
+          onProgress: (p) => progress.add(p.fraction ?? 0),
+        );
 
         expect(server.assetRequests, 1);
         final archive = File('${tmp.path}/knitcalc-update.tar.gz');

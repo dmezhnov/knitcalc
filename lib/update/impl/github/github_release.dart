@@ -8,10 +8,18 @@ const String githubLatestReleaseUrl =
 
 /// A single downloadable artifact attached to a GitHub release.
 class ReleaseAsset {
-  const ReleaseAsset({required this.name, required this.downloadUrl});
+  const ReleaseAsset({
+    required this.name,
+    required this.downloadUrl,
+    this.sizeInBytes,
+  });
 
   final String name;
   final String downloadUrl;
+
+  /// Artifact size in bytes from the release payload's `size` field, or `null`
+  /// when it is absent or malformed.
+  final int? sizeInBytes;
 }
 
 /// Returns the first release asset whose name satisfies [matches], or `null`
@@ -33,9 +41,14 @@ ReleaseAsset? findReleaseAsset(
 
     final name = asset['name'];
     final url = asset['browser_download_url'];
+    final size = asset['size'];
 
     if (name is String && url is String && matches(name)) {
-      return ReleaseAsset(name: name, downloadUrl: url);
+      return ReleaseAsset(
+        name: name,
+        downloadUrl: url,
+        sizeInBytes: size is int ? size : null,
+      );
     }
   }
 
@@ -81,6 +94,7 @@ UpdateInfo? evaluateGithubUpdate(
     latestVersion: latest,
     action: UpdateAction.inApp,
     url: asset.downloadUrl,
+    downloadSize: asset.sizeInBytes,
     releaseNotes: notes is String && notes.isNotEmpty ? notes : null,
   );
 }

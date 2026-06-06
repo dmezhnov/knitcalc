@@ -95,7 +95,10 @@ void main() {
         );
 
         final info = await service.checkForUpdate();
-        await service.startUpdate(info!, onProgress: progress.add);
+        await service.startUpdate(
+          info!,
+          onProgress: (p) => progress.add(p.fraction ?? 0),
+        );
 
         // The asset was fetched once and written to the temp dir verbatim.
         expect(server.assetRequests, 1);

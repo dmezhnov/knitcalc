@@ -1,10 +1,25 @@
 import 'package:knitcalc/update/update_info.dart';
 
-/// Reports download progress as a fraction in `[0, 1]`.
+/// Snapshot of an in-flight download: bytes received so far out of the total.
+///
+/// [total] is the payload size in bytes, or `-1` when the server omits a
+/// Content-Length; [fraction] is then `null` and the UI shows an indeterminate
+/// indicator without a byte count.
+class DownloadProgress {
+  const DownloadProgress({required this.received, required this.total});
+
+  final int received;
+  final int total;
+
+  /// Completed fraction in `[0, 1]`, or `null` when [total] is unknown.
+  double? get fraction => total > 0 ? (received / total).clamp(0.0, 1.0) : null;
+}
+
+/// Reports download progress as bytes received out of the total.
 ///
 /// Channels that cannot measure progress (e.g. the web reload) simply never
 /// invoke it, leaving the UI to show an indeterminate indicator.
-typedef UpdateProgressCallback = void Function(double fraction);
+typedef UpdateProgressCallback = void Function(DownloadProgress progress);
 
 /// Abstraction over a per-channel update mechanism.
 ///
