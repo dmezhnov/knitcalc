@@ -144,7 +144,15 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 [tasks.build-macos]
 hide = true
-run = "flutter build macos"
+run = '''
+# Bake the pubspec version so the installed .app can compare itself against the
+# latest GitHub release (see lib/update/current_version.dart). Without this the
+# macOS self-updater never detects an update (currentAppVersion() stays null).
+# yq is linux-only and this task only runs on the macOS CI runner, so read the
+# version with awk (matching the publish workflow's version-resolve step).
+app_version="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
+flutter build macos --dart-define=APP_VERSION="$app_version"
+'''
 
 [tasks.build-ios]
 hide = true

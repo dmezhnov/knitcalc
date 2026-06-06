@@ -2,6 +2,7 @@ import 'package:knitcalc/update/channel.dart';
 import 'package:knitcalc/update/current_version.dart';
 import 'package:knitcalc/update/impl/android/android_update_service.dart';
 import 'package:knitcalc/update/impl/linux/linux_update_service.dart';
+import 'package:knitcalc/update/impl/macos/macos_update_service.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
 import 'package:knitcalc/update/impl/web/web_update_service.dart';
 import 'package:knitcalc/update/impl/windows/windows_update_service.dart';
@@ -31,12 +32,15 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.androidRustore:
     // TODO(update): Phase 5 — upgrader (iTunes Lookup + deep link).
     case Channel.iosAppStore:
-    // TODO(update): Phase 4 — Sparkle via auto_updater.
-    case Channel.macosManual:
       return const NoopUpdateService();
 
+    // Manually installed macOS app bundle: download the new zip from GitHub
+    // Releases and swap the .app in via a detached script after the app exits.
+    case Channel.macosManual:
+      return createMacosUpdateService(currentAppVersion());
+
     // Manually installed Windows bundle: download the new zip from GitHub
-    // Releases and swap it in via a detached PowerShell script.
+    // Releases and swap it in via a detached updater helper after the app exits.
     case Channel.windowsManual:
       return createWindowsUpdateService(currentAppVersion());
 
