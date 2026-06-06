@@ -35,12 +35,18 @@ class MacosUpdateService implements UpdateService {
     this._current, {
     HttpClient? httpClient,
     UpdateLauncher? launch,
+    Uri? releaseUrl,
+    String? executablePath,
   }) : _httpClient = httpClient ?? HttpClient(),
-       _launch = launch ?? _defaultLaunch;
+       _launch = launch ?? _defaultLaunch,
+       _releaseUrl = releaseUrl ?? Uri.parse(githubLatestReleaseUrl),
+       _executablePath = executablePath ?? Platform.resolvedExecutable;
 
   final AppVersion? _current;
   final HttpClient _httpClient;
   final UpdateLauncher _launch;
+  final Uri _releaseUrl;
+  final String _executablePath;
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
@@ -73,10 +79,7 @@ class MacosUpdateService implements UpdateService {
 
     final archive = await _downloadArchive(url, onProgress);
 
-    // resolvedExecutable is `<dir>/knitcalc.app/Contents/MacOS/knitcalc`; three
-    // parents up is the `.app` bundle the script replaces.
-    final executable = File(Platform.resolvedExecutable);
-    final appBundle = executable.parent.parent.parent.path;
+    final appBundle = macAppBundlePath(_executablePath);
 
     final dir = await getTemporaryDirectory();
     final script = buildMacosUpdateScript(
@@ -92,7 +95,7 @@ class MacosUpdateService implements UpdateService {
   }
 
   Future<Map<String, dynamic>> _fetchLatestRelease() async {
-    final request = await _httpClient.getUrl(Uri.parse(githubLatestReleaseUrl));
+    final request = await _httpClient.getUrl(_releaseUrl);
     request.headers.set(
       HttpHeaders.acceptHeader,
       'application/vnd.github+json',

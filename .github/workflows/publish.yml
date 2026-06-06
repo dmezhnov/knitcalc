@@ -144,6 +144,13 @@ jobs:
             - name: Build Windows bundle
               run: mise build windows
 
+            # Exercises the real knitcalc_updater (FFI wait-for-pid + swap +
+            # relaunch) on native Windows; the build step already resolved the
+            # tool/updater package's dependencies.
+            - name: Run updater e2e test
+              run: dart test test/updater_e2e_test.dart
+              working-directory: tool/updater
+
             - name: Package Windows bundle
               shell: pwsh
               run: |
@@ -173,6 +180,12 @@ jobs:
 
             - name: Enable Apple desktop
               run: flutter config --enable-macos-desktop
+
+            # Exercises the real macOS swap script (ditto extract + full .app
+            # replace + open) on a native macOS host — the live-update step we
+            # cannot run locally without a Mac.
+            - name: Run macOS swap e2e test
+              run: flutter test test/update/macos_swap_e2e_test.dart
 
             - name: Build macOS bundle
               run: mise build macos

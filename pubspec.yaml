@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.4.3+16
+version: 1.4.4+17
 
 environment:
     sdk: ^3.11.4
@@ -33,6 +33,10 @@ dev_dependencies:
     # Linux bundle's icon-theme PNGs (transitive via icons_launcher; pinned here
     # because the tool imports it directly).
     image: ^4.0.0
+    # Test-only: let the desktop update service tests stub getTemporaryDirectory
+    # via PathProviderPlatform.instance (already transitive via path_provider).
+    path_provider_platform_interface: ^2.1.0
+    plugin_platform_interface: ^2.1.0
 
 icons_launcher:
     android: true

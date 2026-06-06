@@ -24,6 +24,35 @@ UpdateInfo? evaluateGithubMacosUpdate(
   Map<String, dynamic> releaseJson,
 ) => evaluateGithubUpdate(current, releaseJson, assetMatches: isMacosZipAsset);
 
+/// Derives the `.app` bundle path from a macOS [resolvedExecutable].
+///
+/// `Platform.resolvedExecutable` for a bundled app is
+/// `<dir>/knitcalc.app/Contents/MacOS/knitcalc`; the bundle the updater replaces
+/// is three path segments up. Kept as a pure function so it can be unit-tested
+/// without a real macOS executable.
+String macAppBundlePath(String resolvedExecutable) {
+  final macosDir = _parent(resolvedExecutable); // .../Contents/MacOS
+  final contentsDir = _parent(macosDir); // .../Contents
+
+  return _parent(contentsDir); // .../knitcalc.app
+}
+
+/// Returns [path] with its last `/`-separated segment removed. Trailing slashes
+/// are ignored, mirroring how the bundle path is laid out on macOS.
+String _parent(String path) {
+  var end = path.length;
+  while (end > 0 && path[end - 1] == '/') {
+    end--;
+  }
+
+  final slash = path.lastIndexOf('/', end - 1);
+  if (slash <= 0) {
+    return slash == 0 ? '/' : path.substring(0, end);
+  }
+
+  return path.substring(0, slash);
+}
+
 /// Builds the detached `/bin/sh` script that swaps in a downloaded macOS bundle.
 ///
 /// The app must quit after spawning it: the script waits for [pid] to disappear

@@ -135,6 +135,22 @@ void main() {
     });
   });
 
+  group('macAppBundlePath', () {
+    test('strips Contents/MacOS/<exe> to the .app bundle', () {
+      expect(
+        macAppBundlePath('/Applications/knitcalc.app/Contents/MacOS/knitcalc'),
+        '/Applications/knitcalc.app',
+      );
+    });
+
+    test('handles a bundle in a path with spaces', () {
+      expect(
+        macAppBundlePath('/Users/me/My Apps/knitcalc.app/Contents/MacOS/run'),
+        '/Users/me/My Apps/knitcalc.app',
+      );
+    });
+  });
+
   group('buildMacosUpdateScript', () {
     final script = buildMacosUpdateScript(
       pid: 4242,
