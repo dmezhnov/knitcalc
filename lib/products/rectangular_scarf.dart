@@ -13,20 +13,30 @@ class RectangularScarf extends Product {
   String get id => 'rectangular_scarf';
 
   @override
-  String get name => 'Прямоугольный шарф';
+  LocalizedString get name =>
+      (l10n) => l10n.productRectangularScarf;
 
   @override
-  List<ProductInput> get inputs => const [
+  List<ProductInput> get inputs => [
     ...gaugeInputs,
-    ProductInput(key: 'targetWidthCm', label: 'Желаемая ширина (см)'),
-    ProductInput(key: 'targetLengthCm', label: 'Желаемая длина (см)'),
+    ProductInput(
+      key: 'targetWidthCm',
+      label: (l10n) => l10n.scarfTargetWidthCm,
+    ),
+    ProductInput(key: 'targetLengthCm', label: (l10n) => l10n.targetLengthCm),
     ProductInput(
       key: 'sampleWidthStitches',
-      label: 'Ширина образца (петель)',
+      label: (l10n) => l10n.scarfSampleWidthStitches,
       allowDecimal: false,
     ),
-    ProductInput(key: 'sampleThreadLengthCm', label: 'Длина нити образца (см)'),
-    ProductInput(key: 'sampleThreadWidthCm', label: 'Ширина нити образца (см)'),
+    ProductInput(
+      key: 'sampleThreadLengthCm',
+      label: (l10n) => l10n.scarfSampleThreadLengthCm,
+    ),
+    ProductInput(
+      key: 'sampleThreadWidthCm',
+      label: (l10n) => l10n.scarfSampleThreadWidthCm,
+    ),
   ];
 
   @override
@@ -53,17 +63,17 @@ class RectangularScarf extends Product {
       ...gaugeOutputs(values),
       ProductOutput(
         key: 'targetStitches',
-        label: 'Желаемое количество петель',
+        label: (l10n) => l10n.scarfTargetStitches,
         value: targetStitches,
       ),
       ProductOutput(
         key: 'targetRows',
-        label: 'Желаемое количество рядов',
+        label: (l10n) => l10n.targetRows,
         value: targetRows,
       ),
       ProductOutput(
         key: 'targetThreadLength',
-        label: 'Желаемая длина нити',
+        label: (l10n) => l10n.scarfTargetThreadLength,
         value: targetThreadLength,
       ),
     ];

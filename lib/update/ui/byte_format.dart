@@ -1,18 +1,24 @@
-/// Formats a byte count as a short human-readable size for the update UI.
+import 'package:knitcalc/l10n/app_localizations.dart';
+
+/// Formats a byte count as a short human-readable size.
 ///
-/// Uses binary units (1 KiB = 1024 B) but labels them with the familiar Russian
-/// abbreviations (Б/КБ/МБ/ГБ). Values of 10 and above are shown without a
-/// fractional digit ("12 МБ"), smaller ones keep one ("3.4 МБ").
-String formatBytes(int bytes) {
+/// Uses binary units (1 KiB = 1024 B) but labels them with [base] for bytes and
+/// [multiples] (KB/MB/GB/TB) for larger sizes, supplied by the caller so the
+/// units follow the active locale. Values of 10 and above are shown without a
+/// fractional digit ("12 MB"), smaller ones keep one ("3.4 MB").
+String formatBytesWithUnits(
+  int bytes, {
+  required String base,
+  required List<String> multiples,
+}) {
   if (bytes < 1024) {
-    return '$bytes Б';
+    return '$bytes $base';
   }
 
-  const units = ['КБ', 'МБ', 'ГБ', 'ТБ'];
   var value = bytes / 1024;
   var unit = 0;
 
-  while (value >= 1024 && unit < units.length - 1) {
+  while (value >= 1024 && unit < multiples.length - 1) {
     value /= 1024;
     unit++;
   }
@@ -21,5 +27,15 @@ String formatBytes(int bytes) {
       ? value.round().toString()
       : value.toStringAsFixed(1);
 
-  return '$text ${units[unit]}';
+  return '$text ${multiples[unit]}';
+}
+
+/// Locale-aware byte formatting for update UI widgets.
+extension ByteFormatL10n on AppLocalizations {
+  /// Formats [bytes] using this locale's byte-unit abbreviations.
+  String formatBytes(int bytes) => formatBytesWithUnits(
+    bytes,
+    base: byteUnitB,
+    multiples: [byteUnitKB, byteUnitMB, byteUnitGB, byteUnitTB],
+  );
 }

@@ -9,7 +9,18 @@
 /// The UI knows nothing about specific products: it renders [inputs] as fields,
 /// feeds the entered values back into [computeOutputs], and renders the result.
 /// Adding a new product means adding one file — no UI changes required.
+///
+/// No user-facing text lives here: products name their labels as
+/// [LocalizedString] resolvers that look the text up in [AppLocalizations], so
+/// the actual strings stay in lib/l10n/*.arb and can be switched at runtime.
 library;
+
+import 'package:knitcalc/l10n/app_localizations.dart';
+
+/// Resolves a user-facing string for the active locale. Each product points at
+/// the generated [AppLocalizations] getter for its label rather than holding the
+/// literal text, keeping translations out of the implementation.
+typedef LocalizedString = String Function(AppLocalizations l10n);
 
 /// A single numeric input field of a product.
 class ProductInput {
@@ -23,8 +34,8 @@ class ProductInput {
   /// [Product.computeOutputs].
   final String key;
 
-  /// Russian label shown to the user.
-  final String label;
+  /// Resolves the field label for the active locale.
+  final LocalizedString label;
 
   /// Whether the field accepts a fractional value.
   final bool allowDecimal;
@@ -42,9 +53,9 @@ class ProductOutput {
   /// Stable identifier, also used as the widget [Key].
   final String key;
 
-  /// Russian label shown to the user. May depend on the inputs (e.g. "Убавок"
-  /// vs "Прибавок").
-  final String label;
+  /// Resolves the row label for the active locale. May depend on the inputs
+  /// (e.g. decreases vs increases), so the product picks the right getter.
+  final LocalizedString label;
 
   /// The computed number, or `null` when it cannot be computed. Formatting is a
   /// presentation concern handled by the UI.
@@ -62,8 +73,8 @@ abstract class Product {
   /// Stable identifier, used as the dropdown value.
   String get id;
 
-  /// Russian name shown in the product dropdown.
-  String get name;
+  /// Resolves the product name shown in the dropdown for the active locale.
+  LocalizedString get name;
 
   /// The inputs this product needs, in display order.
   List<ProductInput> get inputs;

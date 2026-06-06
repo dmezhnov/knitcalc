@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.5.1+19
+version: 1.6.0+20
 
 environment:
     sdk: ^3.11.4
@@ -18,7 +18,11 @@ issue_tracker: 'https://github.com/dmezhnov/knitcalc/issues'
 dependencies:
     flutter:
         sdk: flutter
+    flutter_localizations:
+        sdk: flutter
 
+    # Required by the gen-l10n output (AppLocalizations imports package:intl).
+    intl: any
     cupertino_icons: ^1.0.8
     web: ^1.1.1
     path_provider: ^2.1.5
@@ -58,3 +62,5 @@ icons_launcher:
 
 flutter:
     uses-material-design: true
+    # Generate AppLocalizations from lib/l10n/*.arb (see l10n.yaml).
+    generate: true

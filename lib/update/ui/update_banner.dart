@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/update/ui/byte_format.dart';
 import 'package:knitcalc/update/update_info.dart';
 
 /// Banner text: announces the new version and, when known, how much the update
 /// will download (e.g. "Доступна новая версия 1.5.0 · 12 МБ").
-String _bannerText(UpdateInfo info) {
+String _bannerText(AppLocalizations l10n, UpdateInfo info) {
   final size = info.downloadSize;
-  final suffix = size != null ? ' · ${formatBytes(size)}' : '';
-  return 'Доступна новая версия ${info.latestVersion}$suffix';
+  final suffix = size != null ? ' · ${l10n.formatBytes(size)}' : '';
+  return '${l10n.updateAvailable('${info.latestVersion}')}$suffix';
 }
 
 /// Non-intrusive banner offering the user an available update.
@@ -28,13 +29,15 @@ class UpdateBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return MaterialBanner(
-      content: Text(_bannerText(info)),
+      content: Text(_bannerText(l10n, info)),
       leading: const Icon(Icons.system_update),
       actions: [
         if (!info.mandatory && onDismiss != null)
-          TextButton(onPressed: onDismiss, child: const Text('Позже')),
-        TextButton(onPressed: onUpdate, child: const Text('Обновить')),
+          TextButton(onPressed: onDismiss, child: Text(l10n.updateLater)),
+        TextButton(onPressed: onUpdate, child: Text(l10n.updateNow)),
       ],
     );
   }
@@ -52,10 +55,11 @@ showUpdateBanner(
   VoidCallback? onDismiss,
 }) {
   final messenger = ScaffoldMessenger.of(context);
+  final l10n = AppLocalizations.of(context);
 
   return messenger.showMaterialBanner(
     MaterialBanner(
-      content: Text(_bannerText(info)),
+      content: Text(_bannerText(l10n, info)),
       leading: const Icon(Icons.system_update),
       actions: [
         if (!info.mandatory && onDismiss != null)
@@ -64,14 +68,14 @@ showUpdateBanner(
               messenger.hideCurrentMaterialBanner();
               onDismiss();
             },
-            child: const Text('Позже'),
+            child: Text(l10n.updateLater),
           ),
         TextButton(
           onPressed: () {
             messenger.hideCurrentMaterialBanner();
             onUpdate();
           },
-          child: const Text('Обновить'),
+          child: Text(l10n.updateNow),
         ),
       ],
     ),

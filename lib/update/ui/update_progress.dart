@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/update/ui/byte_format.dart';
 import 'package:knitcalc/update/update_info.dart';
 import 'package:knitcalc/update/update_service.dart';
@@ -19,6 +20,7 @@ Future<void> runUpdateWithProgress(
 ) async {
   final messenger = ScaffoldMessenger.of(context);
   final navigator = Navigator.of(context, rootNavigator: true);
+  final l10n = AppLocalizations.of(context);
   final progress = ValueNotifier<DownloadProgress?>(null);
 
   unawaited(
@@ -47,9 +49,7 @@ Future<void> runUpdateWithProgress(
   progress.dispose();
 
   if (failed) {
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Не удалось загрузить обновление')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(l10n.updateFailed)));
   }
 }
 
@@ -61,8 +61,10 @@ class UpdateProgressDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return AlertDialog(
-      title: const Text('Загрузка обновления'),
+      title: Text(l10n.updateDownloadTitle),
       content: ValueListenableBuilder<DownloadProgress?>(
         valueListenable: progress,
         builder: (context, value, _) {
@@ -71,7 +73,7 @@ class UpdateProgressDialog extends StatelessWidget {
 
           // "3.4 / 12 МБ" once a total is known; nothing until the first chunk.
           final downloaded = (value != null && value.total > 0)
-              ? '${formatBytes(value.received)} / ${formatBytes(value.total)}'
+              ? '${l10n.formatBytes(value.received)} / ${l10n.formatBytes(value.total)}'
               : null;
 
           return Column(
@@ -81,7 +83,7 @@ class UpdateProgressDialog extends StatelessWidget {
               LinearProgressIndicator(value: fraction),
               const SizedBox(height: 12),
               Text(
-                percent == null ? 'Подготовка…' : '$percent%',
+                percent == null ? l10n.updatePreparing : '$percent%',
                 textAlign: TextAlign.center,
               ),
               if (downloaded != null) ...[

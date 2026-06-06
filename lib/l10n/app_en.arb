@@ -1,0 +1,47 @@
+{
+  "@@locale": "en",
+
+  "productKindLabel": "Item type",
+
+  "productRectangularScarf": "Rectangular scarf",
+  "productTriangularShawl": "Triangular shawl",
+
+  "gaugeStitches": "Stitch count",
+  "gaugeSampleWidthCm": "Swatch width (cm)",
+  "gaugeRows": "Row count",
+  "gaugeSampleLengthCm": "Swatch length (cm)",
+  "gaugeStitchesPerCm": "Stitches per cm",
+  "gaugeRowsPerCm": "Rows per cm",
+
+  "targetLengthCm": "Desired length (cm)",
+  "targetRows": "Desired row count",
+
+  "scarfTargetWidthCm": "Desired width (cm)",
+  "scarfSampleWidthStitches": "Swatch width (stitches)",
+  "scarfSampleThreadLengthCm": "Swatch yarn length (cm)",
+  "scarfSampleThreadWidthCm": "Swatch yarn width (cm)",
+  "scarfTargetStitches": "Desired stitch count",
+  "scarfTargetThreadLength": "Desired yarn length",
+
+  "shawlStartWidthCm": "Start width (cm)",
+  "shawlEndWidthCm": "End width (cm)",
+  "shawlStartWidthStitches": "Stitches at start",
+  "shawlEndWidthStitches": "Stitches at end",
+  "shawlDecreasesPerSide": "Decreases per side",
+  "shawlIncreasesPerSide": "Increases per side",
+  "shawlDecreaseRate": "Decrease rate",
+  "shawlIncreaseRate": "Increase rate",
+
+  "updateAvailable": "New version {version} available",
+  "updateLater": "Later",
+  "updateNow": "Update",
+  "updateDownloadTitle": "Downloading update",
+  "updatePreparing": "Preparing…",
+  "updateFailed": "Failed to download the update",
+
+  "byteUnitB": "B",
+  "byteUnitKB": "KB",
+  "byteUnitMB": "MB",
+  "byteUnitGB": "GB",
+  "byteUnitTB": "TB"
+}

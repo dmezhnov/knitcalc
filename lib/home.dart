@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:knitcalc/l10n/app_localizations.dart';
+import 'package:knitcalc/l10n/language.dart';
+import 'package:knitcalc/l10n/locale_scope.dart';
 import 'package:knitcalc/products/products.dart';
 import 'package:knitcalc/update/channel.dart';
 import 'package:knitcalc/update/ui/update_banner.dart';
@@ -85,7 +88,7 @@ class _HomeState extends State<Home> {
     return rounded.replaceFirst(RegExp(r'\.?0+$'), '');
   }
 
-  Widget _buildNumberInput(ProductInput input) {
+  Widget _buildNumberInput(ProductInput input, AppLocalizations l10n) {
     return TextFormField(
       controller: _controllerFor(input.key),
       keyboardType: TextInputType.numberWithOptions(
@@ -103,14 +106,14 @@ class _HomeState extends State<Home> {
         }),
       ],
       decoration: InputDecoration(
-        labelText: input.label,
+        labelText: input.label(l10n),
         border: const OutlineInputBorder(),
       ),
       key: Key(input.key),
     );
   }
 
-  Widget _buildOutputRow(ProductOutput output) {
+  Widget _buildOutputRow(ProductOutput output, AppLocalizations l10n) {
     final color = output.highlight ? Colors.red : null;
 
     return Row(
@@ -118,7 +121,7 @@ class _HomeState extends State<Home> {
       key: Key(output.key),
       children: [
         Expanded(
-          child: Text(output.label, style: TextStyle(color: color)),
+          child: Text(output.label(l10n), style: TextStyle(color: color)),
         ),
         const SizedBox(width: 16),
         Text(
@@ -129,8 +132,28 @@ class _HomeState extends State<Home> {
     );
   }
 
+  Widget _buildLanguageMenu() {
+    final controller = LocaleScope.of(context);
+
+    return PopupMenuButton<Locale>(
+      icon: const Icon(Icons.language),
+      tooltip: languageName(controller.value),
+      initialValue: controller.value,
+      onSelected: (locale) => controller.value = locale,
+      itemBuilder: (context) => [
+        for (final locale in AppLocalizations.supportedLocales)
+          CheckedPopupMenuItem(
+            value: locale,
+            checked: locale.languageCode == controller.value.languageCode,
+            child: Text(languageName(locale)),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final values = {
       for (final input in _product.inputs)
         input.key: _readNumber(_controllerFor(input.key)),
@@ -138,6 +161,10 @@ class _HomeState extends State<Home> {
     final outputs = _product.computeOutputs(values);
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('KnitCalc'),
+        actions: [_buildLanguageMenu()],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -150,15 +177,15 @@ class _HomeState extends State<Home> {
               children: [
                 DropdownButtonFormField<String>(
                   initialValue: _product.id,
-                  decoration: const InputDecoration(
-                    labelText: 'Вид изделия',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: l10n.productKindLabel,
+                    border: const OutlineInputBorder(),
                   ),
                   items: [
                     for (final product in products)
                       DropdownMenuItem(
                         value: product.id,
-                        child: Text(product.name),
+                        child: Text(product.name(l10n)),
                       ),
                   ],
                   onChanged: (value) {
@@ -171,13 +198,13 @@ class _HomeState extends State<Home> {
                   context,
                   children: [
                     for (final input in _product.inputs)
-                      _buildNumberInput(input),
+                      _buildNumberInput(input, l10n),
                   ],
                 ),
                 _buildCard(
                   context,
                   children: [
-                    for (final output in outputs) _buildOutputRow(output),
+                    for (final output in outputs) _buildOutputRow(output, l10n),
                   ],
                 ),
               ],
