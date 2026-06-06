@@ -36,7 +36,14 @@ postinstall = """
 """
 
 [hooks]
-postinstall = ["flutter pub get", "trunk install"]
+# tool/updater is a separate package (standalone updater helper); resolve it too
+# so `mise lint` (trunk's dart analyze) can see its imports in CI, where no prior
+# pub get has run for it.
+postinstall = [
+    "flutter pub get",
+    "dart pub get -C tool/updater",
+    "trunk install",
+]
 
 [tasks.install]
 run = "mise i"
@@ -122,7 +129,7 @@ hide = true
 # "..."`: mise's outer pwsh would variable-expand the double-quoted string and
 # corrupt it. The explicit $LASTEXITCODE checks keep a failed step from being
 # reported as success. The updater helper is compiled into the bundle so the
-# self-update can swap files after the app exits (see bin/knitcalc_updater.dart);
+# self-update can swap files after the app exits (see the tool/updater package);
 # the packaging step zips the whole Release dir, so it ships automatically.
 shell = 'pwsh -NoProfile -Command'
 run = '''
