@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.4.2+13
+version: 1.4.2+14
 
 environment:
     sdk: ^3.11.4
@@ -22,7 +22,6 @@ dependencies:
     cupertino_icons: ^1.0.8
     web: ^1.1.1
     path_provider: ^2.1.5
-    archive: ^4.0.9
 
 dev_dependencies:
     flutter_test:

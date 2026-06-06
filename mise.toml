@@ -120,12 +120,18 @@ hide = true
 # runs on Windows (CI), so force pwsh and read the version with a native
 # PowerShell regex (yq is linux-only). It must NOT nest `powershell -Command
 # "..."`: mise's outer pwsh would variable-expand the double-quoted string and
-# corrupt it. The explicit $LASTEXITCODE check keeps a failed `flutter build`
-# from being reported as success.
+# corrupt it. The explicit $LASTEXITCODE checks keep a failed step from being
+# reported as success. The updater helper is compiled into the bundle so the
+# self-update can swap files after the app exits (see bin/knitcalc_updater.dart);
+# the packaging step zips the whole Release dir, so it ships automatically.
 shell = 'pwsh -NoProfile -Command'
 run = '''
 $v = [regex]::Match((Get-Content -Raw pubspec.yaml), '(?m)^version:\s*(.+?)\s*$').Groups[1].Value
 flutter build windows --dart-define=APP_VERSION=$v
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+dart pub get -C tool/updater
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+dart compile exe tool/updater/bin/knitcalc_updater.dart -o build/windows/x64/runner/Release/knitcalc_updater.exe
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 '''
 
@@ -138,7 +144,14 @@ hide = true
 run = "flutter build ios --release --no-codesign"
 
 [tasks.test]
-run = ["flutter test"]
+run = ["flutter test", "mise run test-updater"]
+
+# Tests for the standalone updater helper package (separate dependency graph),
+# run via plain `dart test` since it has no Flutter dependency.
+[tasks.test-updater]
+hide = true
+dir = "tool/updater"
+run = ["dart pub get", "dart test"]
 
 [tasks.dev]
 run = "mise run dev-{{ os() }}"
