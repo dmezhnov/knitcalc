@@ -32,6 +32,11 @@ migrate_working_dir/
 /coverage/
 android/build/
 
+# Generated localizations (gen-l10n output; regenerated from lib/l10n/*.arb by
+# `flutter pub get`/`flutter gen-l10n`, see l10n.yaml). The .arb sources are
+# committed; these build artifacts are not.
+/lib/l10n/app_localizations*.dart
+
 # Symbolication related
 app.*.symbols
 

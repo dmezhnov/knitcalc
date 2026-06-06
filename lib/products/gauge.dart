@@ -9,15 +9,22 @@ import 'product.dart';
 
 /// Inputs describing the knitted swatch. Reused at the top of every product's
 /// [Product.inputs] list.
-const List<ProductInput> gaugeInputs = [
+final List<ProductInput> gaugeInputs = [
   ProductInput(
     key: 'stitches',
-    label: 'Количество петель',
+    label: (l10n) => l10n.gaugeStitches,
     allowDecimal: false,
   ),
-  ProductInput(key: 'sampleWidthCm', label: 'Ширина образца (см)'),
-  ProductInput(key: 'rows', label: 'Количество рядов', allowDecimal: false),
-  ProductInput(key: 'sampleLengthCm', label: 'Длина образца (см)'),
+  ProductInput(key: 'sampleWidthCm', label: (l10n) => l10n.gaugeSampleWidthCm),
+  ProductInput(
+    key: 'rows',
+    label: (l10n) => l10n.gaugeRows,
+    allowDecimal: false,
+  ),
+  ProductInput(
+    key: 'sampleLengthCm',
+    label: (l10n) => l10n.gaugeSampleLengthCm,
+  ),
 ];
 
 /// Stitches per centimetre derived from the swatch.
@@ -33,12 +40,12 @@ double? gaugeRowsPerCm(Map<String, double?> values) =>
 List<ProductOutput> gaugeOutputs(Map<String, double?> values) => [
   ProductOutput(
     key: 'stitchesPerCm',
-    label: 'Петель в см',
+    label: (l10n) => l10n.gaugeStitchesPerCm,
     value: gaugeStitchesPerCm(values),
   ),
   ProductOutput(
     key: 'rowsPerCm',
-    label: 'Рядов в см',
+    label: (l10n) => l10n.gaugeRowsPerCm,
     value: gaugeRowsPerCm(values),
   ),
 ];

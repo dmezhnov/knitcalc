@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/update/ui/update_progress.dart';
 import 'package:knitcalc/update/update_service.dart';
 
@@ -10,6 +11,9 @@ Future<void> _pumpDialog(
 ) {
   return tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: UpdateProgressDialog(progress: progress)),
     ),
   );

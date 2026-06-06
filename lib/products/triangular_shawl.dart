@@ -14,14 +14,15 @@ class TriangularShawl extends Product {
   String get id => 'triangular_shawl';
 
   @override
-  String get name => 'Треугольный палантин';
+  LocalizedString get name =>
+      (l10n) => l10n.productTriangularShawl;
 
   @override
-  List<ProductInput> get inputs => const [
+  List<ProductInput> get inputs => [
     ...gaugeInputs,
-    ProductInput(key: 'startWidthCm', label: 'Ширина в начале (см)'),
-    ProductInput(key: 'endWidthCm', label: 'Ширина в конце (см)'),
-    ProductInput(key: 'targetLengthCm', label: 'Желаемая длина (см)'),
+    ProductInput(key: 'startWidthCm', label: (l10n) => l10n.shawlStartWidthCm),
+    ProductInput(key: 'endWidthCm', label: (l10n) => l10n.shawlEndWidthCm),
+    ProductInput(key: 'targetLengthCm', label: (l10n) => l10n.targetLengthCm),
   ];
 
   @override
@@ -58,29 +59,30 @@ class TriangularShawl extends Product {
       ...gaugeOutputs(values),
       ProductOutput(
         key: 'startWidthStitches',
-        label: 'Петель в начале',
+        label: (l10n) => l10n.shawlStartWidthStitches,
         value: startWidthStitches,
       ),
       ProductOutput(
         key: 'endWidthStitches',
-        label: 'Петель в конце',
+        label: (l10n) => l10n.shawlEndWidthStitches,
         value: endWidthStitches,
       ),
       ProductOutput(
         key: 'targetRows',
-        label: 'Желаемое количество рядов',
+        label: (l10n) => l10n.targetRows,
         value: targetRows,
       ),
       ProductOutput(
         key: 'changeCount',
-        label: isDecreasing
-            ? 'Убавок с каждой стороны'
-            : 'Прибавок с каждой стороны',
+        label: (l10n) => isDecreasing
+            ? l10n.shawlDecreasesPerSide
+            : l10n.shawlIncreasesPerSide,
         value: changeCount,
       ),
       ProductOutput(
         key: 'changeRate',
-        label: isDecreasing ? 'Темп убавок' : 'Темп прибавок',
+        label: (l10n) =>
+            isDecreasing ? l10n.shawlDecreaseRate : l10n.shawlIncreaseRate,
         value: changeRate,
         highlight: isChangeRateFractional,
       ),
