@@ -134,45 +134,4 @@ void main() {
       );
     });
   });
-
-  group('buildWindowsUpdateScript', () {
-    final script = buildWindowsUpdateScript(
-      pid: 4242,
-      archivePath: r'C:\Temp\knitcalc-update.zip',
-      installDir: r'C:\Program Files\KnitCalc',
-      executablePath: r'C:\Program Files\KnitCalc\knitcalc.exe',
-    );
-
-    test('waits for the running pid to exit before swapping', () {
-      expect(script, contains('Get-Process -Id 4242'));
-      // The unpack must come after the wait loop, never before.
-      expect(
-        script.indexOf('Get-Process -Id 4242'),
-        lessThan(script.indexOf('Expand-Archive')),
-      );
-    });
-
-    test('unpacks the archive over the install directory', () {
-      expect(
-        script,
-        contains(
-          r"Expand-Archive -LiteralPath 'C:\Temp\knitcalc-update.zip' "
-          r"-DestinationPath 'C:\Program Files\KnitCalc' -Force",
-        ),
-      );
-    });
-
-    test('removes the archive and relaunches the executable', () {
-      expect(
-        script,
-        contains(r"Remove-Item -LiteralPath 'C:\Temp\knitcalc-update.zip'"),
-      );
-      expect(
-        script,
-        contains(
-          r"Start-Process -FilePath 'C:\Program Files\KnitCalc\knitcalc.exe'",
-        ),
-      );
-    });
-  });
 }

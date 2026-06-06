@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:knitcalc/update/impl/windows/wine_update_logic.dart';
+import 'package:knitcalc_updater/bundle_apply.dart';
+import 'package:test/test.dart';
 
 ArchiveFile _file(String name, String content) {
   final bytes = utf8.encode(content);
@@ -25,7 +25,7 @@ void main() {
   late Directory install;
 
   setUp(() {
-    tmp = Directory.systemTemp.createTempSync('wine_update_test');
+    tmp = Directory.systemTemp.createTempSync('bundle_apply_test');
     install = Directory('${tmp.path}/install')..createSync();
   });
 
