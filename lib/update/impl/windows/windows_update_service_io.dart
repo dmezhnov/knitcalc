@@ -49,12 +49,18 @@ class WindowsUpdateService implements UpdateService {
     this._current, {
     HttpClient? httpClient,
     UpdateLauncher? launch,
+    Uri? releaseUrl,
+    String? executablePath,
   }) : _httpClient = httpClient ?? HttpClient(),
-       _launch = launch ?? _defaultLaunch;
+       _launch = launch ?? _defaultLaunch,
+       _releaseUrl = releaseUrl ?? Uri.parse(githubLatestReleaseUrl),
+       _executablePath = executablePath ?? Platform.resolvedExecutable;
 
   final AppVersion? _current;
   final HttpClient _httpClient;
   final UpdateLauncher _launch;
+  final Uri _releaseUrl;
+  final String _executablePath;
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
@@ -87,7 +93,7 @@ class WindowsUpdateService implements UpdateService {
 
     final archive = await _downloadArchive(url, onProgress);
 
-    final executable = Platform.resolvedExecutable;
+    final executable = _executablePath;
     final installDir = File(executable).parent.path;
 
     // Hands off to the detached helper and quits the app so it can swap the
@@ -96,7 +102,7 @@ class WindowsUpdateService implements UpdateService {
   }
 
   Future<Map<String, dynamic>> _fetchLatestRelease() async {
-    final request = await _httpClient.getUrl(Uri.parse(githubLatestReleaseUrl));
+    final request = await _httpClient.getUrl(_releaseUrl);
     request.headers.set(
       HttpHeaders.acceptHeader,
       'application/vnd.github+json',
