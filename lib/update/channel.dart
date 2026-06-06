@@ -26,13 +26,13 @@ enum Channel {
   /// macOS from the Mac App Store.
   macosAppStore,
 
-  /// macOS, installed manually (.dmg/.zip) — Sparkle + appcast.
+  /// macOS, installed manually (.zip) — download a new .app from GitHub.
   macosManual,
 
   /// Windows from the Microsoft Store (MSIX) — updated by the store itself.
   windowsStore,
 
-  /// Windows, installed manually (.msi/.exe) — WinSparkle + appcast.
+  /// Windows, installed manually (.zip) — download a new zip from GitHub.
   windowsManual,
 
   /// Linux under snap or flatpak — updated by the daemon.
