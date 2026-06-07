@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>KnitCalc</title>
+    </head>
+    <body style="font-family: sans-serif; text-align: center; padding-top: 3em">
+        <p>Завершаем вход…</p>
+        <script>
+            // This page is the redirect target of the Google sign-in popup. The id
+            // token comes back in the URL fragment; hand the whole URL to the opener
+            // window and close. The opener (same origin) reads the fragment.
+            (function () {
+                if (window.opener) {
+                    window.opener.postMessage(
+                        window.location.href,
+                        window.location.origin,
+                    );
+                }
+                window.close();
+            })();
+        </script>
+    </body>
+</html>

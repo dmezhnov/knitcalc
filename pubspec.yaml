@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.7.0+21
+version: 1.8.0+22
 
 environment:
     sdk: ^3.11.4
@@ -35,6 +35,14 @@ dependencies:
     # Resizes and re-encodes picked photos before they are base64-stored inline
     # in the project JSON, keeping them small enough for web localStorage.
     image: ^4.0.0
+    # Cross-platform HTTP (works on web too, unlike dart:io) for the Firebase
+    # Auth/Firestore REST clients that back cloud sync.
+    http: ^1.2.0
+    # SHA-256 for the PKCE code challenge in the Google OAuth flow.
+    crypto: ^3.0.7
+    # Opens the system browser for the Google OAuth consent step (the loopback
+    # redirect is then caught by our own dart:io HttpServer on desktop).
+    url_launcher: ^6.3.2
 
 dev_dependencies:
     flutter_test:
