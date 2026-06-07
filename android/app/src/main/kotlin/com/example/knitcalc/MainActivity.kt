@@ -5,12 +5,27 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.RenderMode
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val channelName = "knitcalc/android_update"
+
+    // Under Waydroid render into a TextureView instead of the default
+    // FlutterSurfaceView: its hardware composer renders the dedicated surface
+    // overlay into an undersized buffer and bilinearly upscales it, which blurs the
+    // whole UI, whereas a TextureView is composited through the normal View pipeline
+    // and stays sharp. TextureView is slower, so everywhere else (real devices) we
+    // keep the default surface mode.
+    override fun getRenderMode(): RenderMode =
+        if (isWaydroid()) RenderMode.texture else RenderMode.surface
+
+    /** Waydroid stamps "waydroid" into its product build identifiers. */
+    private fun isWaydroid(): Boolean =
+        listOf(Build.BRAND, Build.MANUFACTURER, Build.DEVICE, Build.PRODUCT)
+            .any { it.contains("waydroid", ignoreCase = true) }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
