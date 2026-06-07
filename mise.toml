@@ -39,12 +39,10 @@ postinstall = """
 [hooks]
 # tool/updater is a separate package (standalone updater helper); resolve it too
 # so `mise lint` (trunk's dart analyze) can see its imports in CI, where no prior
-# pub get has run for it.
-postinstall = [
-    "flutter pub get",
-    "dart pub get -C tool/updater",
-    "trunk install",
-]
+# pub get has run for it. Keep this a single shell string, not an array: newer
+# mise mis-parses the array form (it ran `trunk install flutter pub get`), so the
+# pub-get commands silently never run and the CI lint sees undefined symbols.
+postinstall = "flutter pub get && dart pub get -C tool/updater && trunk install"
 
 [tasks.install]
 run = "mise i"
