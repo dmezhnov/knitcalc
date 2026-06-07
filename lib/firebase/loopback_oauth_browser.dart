@@ -28,13 +28,14 @@ const String _landingPage =
 /// browser, and resolves with the full redirect URL once Google calls back.
 ///
 /// [launchMode] selects the external browser (desktop) or an in-app tab
-/// (mobile); when [closeInAppViewAfter] is set the in-app tab is dismissed once
-/// the redirect is captured.
+/// (mobile). Dismissing the in-app tab is left to the caller via
+/// [GoogleAuthenticator.closeBrowser], which closes it only after the token
+/// exchange — closing it here (before the exchange) drops the network on
+/// Android and breaks the code-for-token request.
 Future<String> loopbackOAuthBrowser({
   required String url,
   required String callbackUrlScheme,
   LaunchMode launchMode = LaunchMode.externalApplication,
-  bool closeInAppViewAfter = false,
 }) async {
   final callback = Uri.parse(callbackUrlScheme);
   final server = await HttpServer.bind(
@@ -59,10 +60,6 @@ Future<String> loopbackOAuthBrowser({
       ..headers.contentType = ContentType.html
       ..write(_landingPage);
     await request.response.close();
-
-    if (closeInAppViewAfter) {
-      await closeInAppWebView();
-    }
 
     return result;
   } finally {

@@ -109,6 +109,7 @@ class GoogleAuthenticator implements GoogleSignInFlow {
   GoogleAuthenticator({
     required this.config,
     required this.browser,
+    this.closeBrowser,
     http.Client? httpClient,
     Random? random,
   }) : _http = httpClient ?? http.Client(),
@@ -117,6 +118,16 @@ class GoogleAuthenticator implements GoogleSignInFlow {
   @override
   final GoogleOAuthConfig config;
   final OAuthBrowser browser;
+
+  /// Dismisses the consent browser once the redirect is captured, if the
+  /// platform opened an in-app one (mobile). Called *before* the token
+  /// exchange: while the in-app tab is up the app is backgrounded and can't
+  /// resolve `oauth2.googleapis.com` ("Failed host lookup"), so the app must
+  /// return to the foreground first. The resume still takes a second or two to
+  /// settle, which the retry in [_exchangeCode] rides out. Null on
+  /// desktop/web, where nothing needs closing.
+  final Future<void> Function()? closeBrowser;
+
   final http.Client _http;
   final Random _random;
 
@@ -138,6 +149,12 @@ class GoogleAuthenticator implements GoogleSignInFlow {
       callbackUrlScheme: config.callbackUrlScheme,
     );
 
+    // Redirect captured. Dismiss the in-app tab first so the app returns to the
+    // foreground before the token exchange (see [closeBrowser]): a backgrounded
+    // app can't resolve oauth2.googleapis.com. The resume then settles over a
+    // second or two, which the retry in [_exchangeCode] rides out.
+    await closeBrowser?.call();
+
     final params = Uri.parse(redirect).queryParameters;
     final code = params['code'];
 
@@ -152,7 +169,7 @@ class GoogleAuthenticator implements GoogleSignInFlow {
   }
 
   Future<String> _exchangeCode(String code, String verifier) async {
-    final response = await _http.post(
+    final response = await _postWithRetry(
       Uri.https('oauth2.googleapis.com', '/token'),
       headers: const {'Content-Type': 'application/x-www-form-urlencoded'},
       body: {
@@ -179,6 +196,42 @@ class GoogleAuthenticator implements GoogleSignInFlow {
     }
 
     return idToken;
+  }
+
+  /// POSTs with retries on transient transport failures.
+  ///
+  /// On Android the code-for-token exchange fires just as the in-app browser
+  /// tab is dismissed and the app activity resumes; until the resume settles
+  /// the app still can't reach the network — DNS returns no address ("Failed
+  /// host lookup", errno 7) or the socket is aborted ("Software caused
+  /// connection abort", errno 103), both surfaced by `package:http` as a
+  /// [http.ClientException]. The resume can take a couple of seconds, so the
+  /// backoffs span ~7s total to ride it out. [http.ClientException] is caught
+  /// (rather than `SocketException`) to keep this file free of `dart:io` so the
+  /// web build still compiles.
+  Future<http.Response> _postWithRetry(
+    Uri url, {
+    required Map<String, String> headers,
+    required Map<String, String> body,
+  }) async {
+    const delays = [
+      Duration(milliseconds: 400),
+      Duration(milliseconds: 800),
+      Duration(milliseconds: 1500),
+      Duration(milliseconds: 2000),
+      Duration(milliseconds: 2500),
+    ];
+
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _http.post(url, headers: headers, body: body);
+      } on http.ClientException {
+        if (attempt >= delays.length) {
+          rethrow;
+        }
+        await Future<void>.delayed(delays[attempt]);
+      }
+    }
   }
 }
 
