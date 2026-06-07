@@ -25,7 +25,9 @@ GoogleSignInFlow defaultGoogleAuthenticator() {
           launchMode: mobile
               ? LaunchMode.inAppBrowserView
               : LaunchMode.externalApplication,
-          closeInAppViewAfter: mobile,
         ),
+    // Mobile opens an in-app tab that must be dismissed; do it after the token
+    // exchange so closing it doesn't drop the network mid-request.
+    closeBrowser: mobile ? closeInAppWebView : null,
   );
 }

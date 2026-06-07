@@ -87,6 +87,70 @@ void main() {
       expect(exchangeBody['redirect_uri'], config.redirectUri);
     });
 
+    test(
+      'retries the token exchange after a transient transport abort',
+      () async {
+        // Android aborts the first socket as the in-app tab closes; the exchange
+        // must retry rather than surface the raw ClientException.
+        var attempts = 0;
+        final auth = authenticator(
+          browser: ({required url, required callbackUrlScheme}) async {
+            final state = Uri.parse(url).queryParameters['state'];
+            return 'http://localhost:8421/?code=AUTH_CODE&state=$state';
+          },
+          exchange: (request) async {
+            attempts++;
+            if (attempts == 1) {
+              throw http.ClientException('Software caused connection abort');
+            }
+            return http.Response(jsonEncode({'id_token': 'GOOGLE_ID'}), 200);
+          },
+        );
+
+        expect(await auth.obtainIdToken(), 'GOOGLE_ID');
+        expect(attempts, 2);
+      },
+    );
+
+    test('closes the in-app browser before the token exchange', () async {
+      // A backgrounded app (in-app tab on top) can't resolve the token host, so
+      // the tab is dismissed to foreground the app first, then the code is
+      // exchanged.
+      final order = <String>[];
+      final auth = GoogleAuthenticator(
+        config: config,
+        browser: ({required url, required callbackUrlScheme}) async {
+          final state = Uri.parse(url).queryParameters['state'];
+          return 'http://localhost:8421/?code=AUTH_CODE&state=$state';
+        },
+        closeBrowser: () async => order.add('close'),
+        httpClient: MockClient((request) async {
+          order.add('exchange');
+          return http.Response(jsonEncode({'id_token': 'GOOGLE_ID'}), 200);
+        }),
+      );
+
+      expect(await auth.obtainIdToken(), 'GOOGLE_ID');
+      expect(order, ['close', 'exchange']);
+    });
+
+    test('closes the in-app browser even when the flow fails', () async {
+      var closed = false;
+      final auth = GoogleAuthenticator(
+        config: config,
+        browser: ({required url, required callbackUrlScheme}) async =>
+            'http://localhost:8421/?code=X&state=WRONG',
+        closeBrowser: () async => closed = true,
+        httpClient: MockClient((request) async => http.Response('{}', 200)),
+      );
+
+      await expectLater(
+        auth.obtainIdToken(),
+        throwsA(isA<GoogleAuthException>()),
+      );
+      expect(closed, isTrue);
+    });
+
     test('rejects a mismatched state (CSRF guard)', () async {
       final auth = authenticator(
         browser: ({required url, required callbackUrlScheme}) async =>
