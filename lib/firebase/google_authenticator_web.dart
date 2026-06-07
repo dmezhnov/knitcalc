@@ -15,7 +15,13 @@ import 'google_oauth_config.dart';
 import 'web_google_sign_in_flow.dart';
 
 GoogleSignInFlow defaultGoogleAuthenticator() {
-  final redirect = '${web.window.location.origin}/$webOAuthCallbackPath';
+  // Resolve against the document base URI, not the origin: when the app is
+  // served under a sub-path (GitHub Pages uses `--base-href /knitcalc/`) the
+  // callback file lives at `<origin>/knitcalc/oauth_callback.html`, and that is
+  // also the URI registered for the web OAuth client. Building it from
+  // `window.location.origin` would drop the sub-path and send a redirect_uri
+  // Google rejects with `redirect_uri_mismatch`. `baseURI` ends in `/`.
+  final redirect = '${web.document.baseURI}$webOAuthCallbackPath';
 
   return WebGoogleSignInFlow(
     config: webGoogleConfig(redirect),
