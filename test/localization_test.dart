@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:knitcalc/main.dart';
 
+/// Launches the app. With no saved projects the calculator opens automatically.
+Future<void> openCalculator(WidgetTester tester) async {
+  await tester.pumpWidget(const MyApp());
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('switches every label between Russian and English', (
     tester,
   ) async {
-    await tester.pumpWidget(const MyApp());
+    await openCalculator(tester);
 
     // Defaults to Russian.
     expect(find.text('Вид изделия'), findsOneWidget);
@@ -38,7 +47,7 @@ void main() {
   testWidgets('preserves entered values across a language switch', (
     tester,
   ) async {
-    await tester.pumpWidget(const MyApp());
+    await openCalculator(tester);
 
     await tester.enterText(find.byKey(const Key('stitches')), '15');
     await tester.enterText(find.byKey(const Key('sampleWidthCm')), '10');

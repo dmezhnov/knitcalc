@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.6.0+20
+version: 1.7.0+21
 
 environment:
     sdk: ^3.11.4
@@ -26,6 +26,15 @@ dependencies:
     cupertino_icons: ^1.0.8
     web: ^1.1.1
     path_provider: ^2.1.5
+    # Cross-platform key/value store (localStorage on web, native prefs/files
+    # elsewhere) backing the saved-projects list.
+    shared_preferences: ^2.3.0
+    # Picks photos to attach to a project. Wraps file_selector on desktop/web and
+    # uses the native gallery on mobile; pickMultiImage works on every platform.
+    image_picker: ^1.1.2
+    # Resizes and re-encodes picked photos before they are base64-stored inline
+    # in the project JSON, keeping them small enough for web localStorage.
+    image: ^4.0.0
 
 dev_dependencies:
     flutter_test:
@@ -33,10 +42,6 @@ dev_dependencies:
 
     flutter_lints: ^6.0.0
     icons_launcher: ^3.1.0
-    # Used by tool/linux_desktop_install.dart to resize the app icon into the
-    # Linux bundle's icon-theme PNGs (transitive via icons_launcher; pinned here
-    # because the tool imports it directly).
-    image: ^4.0.0
     # Test-only: let the desktop update service tests stub getTemporaryDirectory
     # via PathProviderPlatform.instance (already transitive via path_provider).
     path_provider_platform_interface: ^2.1.0

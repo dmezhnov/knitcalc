@@ -32,6 +32,28 @@
   "shawlDecreaseRate": "Темп убавок",
   "shawlIncreaseRate": "Темп прибавок",
 
+  "saveAction": "Сохранить",
+  "newProjectAction": "Новое",
+  "newProjectTitle": "Новое изделие",
+  "descriptionLabel": "Описание",
+  "photosLabel": "Фото",
+  "addPhotoAction": "Добавить фото",
+  "removePhotoAction": "Удалить фото",
+  "renameAction": "Переименовать",
+  "deleteAction": "Удалить",
+  "cancelAction": "Отмена",
+  "projectNameLabel": "Название",
+  "saveDialogTitle": "Сохранить изделие",
+  "renameDialogTitle": "Переименовать изделие",
+  "deleteConfirmTitle": "Удалить изделие?",
+  "deleteConfirmMessage": "Удалить «{name}»?",
+  "@deleteConfirmMessage": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "projectSavedSnack": "Изделие сохранено",
+
   "updateAvailable": "Доступна новая версия {version}",
   "@updateAvailable": {
     "placeholders": {
