@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:knitcalc/calculator.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
-import 'package:knitcalc/l10n/language.dart';
-import 'package:knitcalc/l10n/locale_scope.dart';
+import 'package:knitcalc/language_menu.dart';
+import 'package:knitcalc/name_dialog.dart';
 import 'package:knitcalc/products/products.dart';
+import 'package:knitcalc/storage/photo_codec.dart';
+import 'package:knitcalc/storage/projects_repository.dart';
+import 'package:knitcalc/storage/saved_project.dart';
 import 'package:knitcalc/update/channel.dart';
 import 'package:knitcalc/update/ui/update_banner.dart';
 import 'package:knitcalc/update/ui/update_progress.dart';
 import 'package:knitcalc/update/update_factory.dart';
 
+/// Root screen. With nothing saved it shows only the calculator (there is no
+/// empty list to navigate to); once at least one project exists it shows the
+/// list, from which projects are opened, renamed or deleted.
 class Home extends StatefulWidget {
   const Home({super.key});
 
@@ -17,11 +23,14 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  Product _product = products.first;
+  final ProjectsRepository _repository = const ProjectsRepository();
 
-  /// One controller per input key, created lazily and kept for the lifetime of
-  /// the screen so values survive switching between products.
-  final Map<String, TextEditingController> _controllers = {};
+  /// The saved projects, newest-first.
+  List<SavedProject> _saved = [];
+
+  /// Whether the first load has finished; until then we show nothing rather than
+  /// flashing the empty-state calculator before any saved projects appear.
+  bool _loaded = false;
 
   @override
   void initState() {
@@ -30,6 +39,8 @@ class _HomeState extends State<Home> {
     // Check for an update once the first frame is on screen. Off the web target
     // the factory returns a no-op service, so this is harmless there.
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+
+    _loadSaved();
   }
 
   Future<void> _checkForUpdate() async {
@@ -48,182 +59,156 @@ class _HomeState extends State<Home> {
     );
   }
 
-  @override
-  void dispose() {
-    for (final controller in _controllers.values) {
-      controller.dispose();
+  Future<void> _loadSaved() async {
+    final saved = await _repository.loadAll();
+
+    if (!mounted) {
+      return;
     }
 
-    super.dispose();
+    setState(() {
+      _saved = saved;
+      _loaded = true;
+    });
   }
 
-  TextEditingController _controllerFor(String key) =>
-      _controllers.putIfAbsent(key, () {
-        final controller = TextEditingController();
-        controller.addListener(_updateOutputs);
-        return controller;
-      });
-
-  void _updateOutputs() {
-    setState(() {});
-  }
-
-  double? _readNumber(TextEditingController controller) {
-    final text = controller.text.trim().replaceAll(',', '.');
-
-    if (text.isEmpty) {
-      return null;
-    }
-
-    return double.tryParse(text);
-  }
-
-  String _formatNumber(double? value) {
-    if (value == null || value.isNaN || value.isInfinite) {
-      return '-';
-    }
-
-    final rounded = value.toStringAsFixed(2);
-
-    return rounded.replaceFirst(RegExp(r'\.?0+$'), '');
-  }
-
-  Widget _buildNumberInput(ProductInput input, AppLocalizations l10n) {
-    return TextFormField(
-      controller: _controllerFor(input.key),
-      keyboardType: TextInputType.numberWithOptions(
-        decimal: input.allowDecimal,
-      ),
-      inputFormatters: [
-        TextInputFormatter.withFunction((oldValue, newValue) {
-          final pattern = input.allowDecimal ? r'^\d*([,.]\d*)?$' : r'^\d*$';
-
-          if (RegExp(pattern).hasMatch(newValue.text)) {
-            return newValue;
-          }
-
-          return oldValue;
-        }),
-      ],
-      decoration: InputDecoration(
-        labelText: input.label(l10n),
-        border: const OutlineInputBorder(),
-      ),
-      key: Key(input.key),
-    );
-  }
-
-  Widget _buildOutputRow(ProductOutput output, AppLocalizations l10n) {
-    final color = output.highlight ? Colors.red : null;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      key: Key(output.key),
-      children: [
-        Expanded(
-          child: Text(output.label(l10n), style: TextStyle(color: color)),
+  /// Opens the calculator for [project] (or a fresh draft when `null`) as a
+  /// pushed route, and refreshes the list once it returns.
+  Future<void> _openCalculator([SavedProject? project]) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => Calculator(
+          repository: _repository,
+          initial: project,
+          onSaved: _loadSaved,
         ),
-        const SizedBox(width: 16),
-        Text(
-          _formatNumber(output.value),
-          style: TextStyle(fontWeight: FontWeight.w600, color: color),
-        ),
-      ],
+      ),
     );
+
+    await _loadSaved();
   }
 
-  Widget _buildLanguageMenu() {
-    final controller = LocaleScope.of(context);
+  Future<void> _rename(SavedProject project) async {
+    final l10n = AppLocalizations.of(context);
+    final name = await promptProjectName(
+      context,
+      title: l10n.renameDialogTitle,
+      initial: project.name,
+    );
 
-    return PopupMenuButton<Locale>(
-      icon: const Icon(Icons.language),
-      tooltip: languageName(controller.value),
-      initialValue: controller.value,
-      onSelected: (locale) => controller.value = locale,
-      itemBuilder: (context) => [
-        for (final locale in AppLocalizations.supportedLocales)
-          CheckedPopupMenuItem(
-            value: locale,
-            checked: locale.languageCode == controller.value.languageCode,
-            child: Text(languageName(locale)),
+    if (name == null) {
+      return;
+    }
+
+    final saved = await _repository.upsert(
+      project.copyWith(name: name, updatedAt: DateTime.now()),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _saved = saved);
+  }
+
+  Future<void> _delete(SavedProject project) async {
+    if (!await _confirmDelete(project)) {
+      return;
+    }
+
+    final saved = await _repository.delete(project.id);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _saved = saved);
+  }
+
+  Future<bool> _confirmDelete(SavedProject project) async {
+    final l10n = AppLocalizations.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteConfirmTitle),
+        content: Text(l10n.deleteConfirmMessage(project.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancelAction),
           ),
-      ],
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.deleteAction),
+          ),
+        ],
+      ),
     );
+
+    return confirmed ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_loaded) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // Nothing saved yet: the calculator is the whole app, with no way back to an
+    // empty list. Saving the first project repopulates the list (via onSaved).
+    if (_saved.isEmpty) {
+      return Calculator(repository: _repository, onSaved: _loadSaved);
+    }
+
     final l10n = AppLocalizations.of(context);
-    final values = {
-      for (final input in _product.inputs)
-        input.key: _readNumber(_controllerFor(input.key)),
-    };
-    final outputs = _product.computeOutputs(values);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('KnitCalc'),
-        actions: [_buildLanguageMenu()],
+        actions: const [LanguageMenu()],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openCalculator(),
+        icon: const Icon(Icons.add),
+        label: Text(l10n.newProjectAction),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            // Leave room above the first field so its floating outline label
-            // isn't clipped by the scroll view's viewport edge.
-            padding: const EdgeInsets.only(top: 8),
-            child: Column(
-              spacing: 16,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _product.id,
-                  decoration: InputDecoration(
-                    labelText: l10n.productKindLabel,
-                    border: const OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (final product in products)
-                      DropdownMenuItem(
-                        value: product.id,
-                        child: Text(product.name(l10n)),
+        child: ListView(
+          children: [
+            for (final project in _saved)
+              ListTile(
+                key: Key('saved_${project.id}'),
+                leading: project.photos.isEmpty
+                    ? null
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.memory(
+                          decodePhoto(project.photos.first),
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _product = productById(value));
-                    }
-                  },
-                ),
-                _buildCard(
-                  context,
-                  children: [
-                    for (final input in _product.inputs)
-                      _buildNumberInput(input, l10n),
-                  ],
-                ),
-                _buildCard(
-                  context,
-                  children: [
-                    for (final output in outputs) _buildOutputRow(output, l10n),
+                title: Text(project.name),
+                subtitle: Text(productById(project.productId).name(l10n)),
+                onTap: () => _openCalculator(project),
+                trailing: PopupMenuButton<void>(
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      onTap: () => _rename(project),
+                      child: Text(l10n.renameAction),
+                    ),
+                    PopupMenuItem(
+                      onTap: () => _delete(project),
+                      child: Text(l10n.deleteAction),
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildCard(BuildContext context, {required List<Widget> children}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(spacing: 16, children: children),
     );
   }
 }

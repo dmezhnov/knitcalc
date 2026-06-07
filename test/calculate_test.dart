@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:knitcalc/main.dart';
+
+/// Launches the app. With no saved projects the calculator opens automatically.
+Future<void> openCalculator(WidgetTester tester) async {
+  await tester.pumpWidget(const MyApp());
+  await tester.pumpAndSettle();
+}
 
 String? getOutputValue(WidgetTester tester, String key) {
   final List<Text> texts = tester
@@ -14,8 +21,10 @@ String? getOutputValue(WidgetTester tester, String key) {
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('calculates rectangular scarf', (WidgetTester tester) async {
-    await tester.pumpWidget(const MyApp());
+    await openCalculator(tester);
 
     await tester.tap(find.text('Прямоугольный шарф'));
     await tester.pumpAndSettle();
@@ -55,7 +64,7 @@ void main() {
   });
 
   testWidgets('calculates triangular shawl', (WidgetTester tester) async {
-    await tester.pumpWidget(const MyApp());
+    await openCalculator(tester);
 
     await tester.tap(find.text('Прямоугольный шарф'));
     await tester.pumpAndSettle();
