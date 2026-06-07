@@ -1,6 +1,8 @@
 # Miscellaneous
 *.class
 *.log
+# Downloaded OAuth client JSON (values live in lib/firebase/google_oauth_config.dart)
+client_secret_*.json
 *.pyc
 *.swp
 .DS_Store

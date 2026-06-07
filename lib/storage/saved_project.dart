@@ -17,6 +17,7 @@ class SavedProject {
     required this.updatedAt,
     this.description = '',
     this.photos = const [],
+    this.deleted = false,
   });
 
   /// Mints a new project with a unique [id] derived from the current time.
@@ -26,6 +27,7 @@ class SavedProject {
     required Map<String, String> values,
     String description = '',
     List<String> photos = const [],
+    bool deleted = false,
     DateTime? updatedAt,
   }) {
     final now = updatedAt ?? DateTime.now();
@@ -37,6 +39,7 @@ class SavedProject {
       values: values,
       description: description,
       photos: photos,
+      deleted: deleted,
       updatedAt: now,
     );
   }
@@ -54,6 +57,7 @@ class SavedProject {
       },
       description: json['description'] as String? ?? '',
       photos: [for (final photo in rawPhotos) photo as String],
+      deleted: json['deleted'] as bool? ?? false,
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
   }
@@ -76,7 +80,13 @@ class SavedProject {
   /// Attached photos, each a base64-encoded JPEG (see photo_codec.dart).
   final List<String> photos;
 
-  /// When the project was last created or modified; drives list ordering.
+  /// Whether this project has been deleted. Deletions are kept as tombstones
+  /// (rather than dropped) so they propagate to other devices during sync; the
+  /// UI filters these out.
+  final bool deleted;
+
+  /// When the project was last created or modified; drives list ordering and is
+  /// the tiebreaker for last-write-wins sync.
   final DateTime updatedAt;
 
   SavedProject copyWith({
@@ -85,6 +95,7 @@ class SavedProject {
     Map<String, String>? values,
     String? description,
     List<String>? photos,
+    bool? deleted,
     DateTime? updatedAt,
   }) {
     return SavedProject(
@@ -94,6 +105,7 @@ class SavedProject {
       values: values ?? this.values,
       description: description ?? this.description,
       photos: photos ?? this.photos,
+      deleted: deleted ?? this.deleted,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -105,6 +117,7 @@ class SavedProject {
     'values': values,
     'description': description,
     'photos': photos,
+    'deleted': deleted,
     'updatedAt': updatedAt.toIso8601String(),
   };
 }

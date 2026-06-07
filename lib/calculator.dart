@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:knitcalc/account_menu.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/language_menu.dart';
 import 'package:knitcalc/name_dialog.dart';
 import 'package:knitcalc/products/products.dart';
 import 'package:knitcalc/storage/photo_codec.dart';
-import 'package:knitcalc/storage/projects_repository.dart';
+import 'package:knitcalc/storage/projects_store.dart';
 import 'package:knitcalc/storage/saved_project.dart';
 
 /// Calculator screen: pick a product, enter the gauge and measurements, see the
@@ -20,7 +21,7 @@ class Calculator extends StatefulWidget {
     this.onSaved,
   });
 
-  final ProjectsRepository repository;
+  final ProjectsStore repository;
 
   /// The project being edited, or `null` for a new one.
   final SavedProject? initial;
@@ -259,6 +260,7 @@ class _CalculatorState extends State<Calculator> {
             onPressed: _save,
           ),
           const LanguageMenu(),
+          const AccountMenu(),
         ],
       ),
       body: SafeArea(

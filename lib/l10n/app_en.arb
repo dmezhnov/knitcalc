@@ -49,6 +49,50 @@
   "deleteConfirmMessage": "Delete \"{name}\"?",
   "projectSavedSnack": "Project saved",
 
+  "signInAction": "Sign in",
+  "googleSignInAction": "Continue with Google",
+  "signOutAction": "Sign out",
+  "registerAction": "Register",
+  "signInTitle": "Sign in",
+  "registerTitle": "Register",
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+  "confirmPasswordLabel": "Confirm password",
+  "toggleToRegister": "No account? Register",
+  "toggleToSignIn": "Already have an account? Sign in",
+  "authErrorInvalidCredentials": "Wrong email or password",
+  "authErrorEmailExists": "An account with this email already exists",
+  "authErrorWeakPassword": "Password must be at least 6 characters",
+  "authErrorInvalidEmail": "Invalid email address",
+  "authErrorPasswordMismatch": "Passwords do not match",
+  "authErrorGeneric": "Could not sign in. Please try again",
+  "syncFailedSnack": "Could not sync with the cloud",
+  "forgotPasswordAction": "Forgot password?",
+  "resetPasswordTitle": "Reset password",
+  "sendAction": "Send",
+  "resetEmailSentSnack": "Password reset email sent",
+  "verifyEmailSentTitle": "Verify your email",
+  "verifyEmailSentMessage": "We sent a link to {email}. Open it to confirm your address.",
+  "@verifyEmailSentMessage": {
+    "placeholders": {
+      "email": { "type": "String" }
+    }
+  },
+  "continueAction": "Continue",
+  "verifyEmailResentSnack": "Verification email sent",
+  "iVerifiedAction": "I've verified",
+  "resendEmailAction": "Resend email",
+  "notVerifiedYetSnack": "Email not verified yet",
+  "migrateTitle": "Move projects to your account?",
+  "migrateMessage": "You have {count} projects saved on this device. Upload them to your account?",
+  "@migrateMessage": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "migrateUploadAction": "Upload",
+  "migrateKeepLocalAction": "Keep local",
+
   "updateAvailable": "New version {version} available",
   "updateLater": "Later",
   "updateNow": "Update",

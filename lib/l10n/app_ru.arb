@@ -54,6 +54,50 @@
   },
   "projectSavedSnack": "Изделие сохранено",
 
+  "signInAction": "Войти",
+  "googleSignInAction": "Войти через Google",
+  "signOutAction": "Выйти",
+  "registerAction": "Зарегистрироваться",
+  "signInTitle": "Вход",
+  "registerTitle": "Регистрация",
+  "emailLabel": "Эл. почта",
+  "passwordLabel": "Пароль",
+  "confirmPasswordLabel": "Повторите пароль",
+  "toggleToRegister": "Нет аккаунта? Зарегистрироваться",
+  "toggleToSignIn": "Уже есть аккаунт? Войти",
+  "authErrorInvalidCredentials": "Неверная почта или пароль",
+  "authErrorEmailExists": "Аккаунт с такой почтой уже существует",
+  "authErrorWeakPassword": "Пароль должен быть не короче 6 символов",
+  "authErrorInvalidEmail": "Некорректный адрес почты",
+  "authErrorPasswordMismatch": "Пароли не совпадают",
+  "authErrorGeneric": "Не удалось войти. Попробуйте ещё раз",
+  "syncFailedSnack": "Не удалось синхронизировать с облаком",
+  "forgotPasswordAction": "Забыли пароль?",
+  "resetPasswordTitle": "Сброс пароля",
+  "sendAction": "Отправить",
+  "resetEmailSentSnack": "Письмо для сброса пароля отправлено",
+  "verifyEmailSentTitle": "Подтвердите почту",
+  "verifyEmailSentMessage": "Мы отправили письмо со ссылкой на {email}. Откройте её, чтобы подтвердить адрес.",
+  "@verifyEmailSentMessage": {
+    "placeholders": {
+      "email": { "type": "String" }
+    }
+  },
+  "continueAction": "Продолжить",
+  "verifyEmailResentSnack": "Письмо подтверждения отправлено",
+  "iVerifiedAction": "Я подтвердил(а)",
+  "resendEmailAction": "Отправить письмо ещё раз",
+  "notVerifiedYetSnack": "Почта ещё не подтверждена",
+  "migrateTitle": "Перенести изделия в аккаунт?",
+  "migrateMessage": "На устройстве сохранено изделий: {count}. Загрузить их в аккаунт?",
+  "@migrateMessage": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "migrateUploadAction": "Загрузить",
+  "migrateKeepLocalAction": "Не переносить",
+
   "updateAvailable": "Доступна новая версия {version}",
   "@updateAvailable": {
     "placeholders": {

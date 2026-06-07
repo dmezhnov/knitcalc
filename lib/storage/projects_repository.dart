@@ -10,14 +10,16 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'projects_store.dart';
 import 'saved_project.dart';
 
-class ProjectsRepository {
+class ProjectsRepository implements ProjectsStore {
   const ProjectsRepository();
 
   static const String _storageKey = 'saved_projects';
 
   /// All saved projects, newest-first by [SavedProject.updatedAt].
+  @override
   Future<List<SavedProject>> loadAll() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
@@ -38,6 +40,7 @@ class ProjectsRepository {
 
   /// Inserts [project], or replaces the existing one with the same
   /// [SavedProject.id]. Returns the resulting full list, newest-first.
+  @override
   Future<List<SavedProject>> upsert(SavedProject project) async {
     final projects = await loadAll();
     final index = projects.indexWhere((p) => p.id == project.id);
@@ -52,6 +55,7 @@ class ProjectsRepository {
   }
 
   /// Removes the project with [id] if present. Returns the remaining list.
+  @override
   Future<List<SavedProject>> delete(String id) async {
     final projects = await loadAll();
     projects.removeWhere((p) => p.id == id);
