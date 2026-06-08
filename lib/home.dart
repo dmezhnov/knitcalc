@@ -19,6 +19,8 @@ import 'package:knitcalc/update/channel.dart';
 import 'package:knitcalc/update/ui/update_banner.dart';
 import 'package:knitcalc/update/ui/update_progress.dart';
 import 'package:knitcalc/update/update_factory.dart';
+import 'package:knitcalc/update/update_info.dart';
+import 'package:knitcalc/update/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Root screen. With nothing saved it shows only the calculator (there is no
@@ -147,10 +149,26 @@ class _HomeState extends State<Home> {
     }
     _shownUpdateVersion = info.latestVersion;
 
+    _showUpdateBanner(service, info);
+  }
+
+  /// Shows the update banner and brings it back if the update flow returns
+  /// without replacing the running app — i.e. the download failed or the user
+  /// backed out of the progress dialog / install prompt. Without this the
+  /// banner would stay hidden for the rest of the session (the
+  /// [_shownUpdateVersion] guard blocks the resume re-check from re-showing it).
+  /// On web [UpdateService.startUpdate] reloads the page, so the re-show after
+  /// the await never runs there.
+  void _showUpdateBanner(UpdateService service, UpdateInfo info) {
     showUpdateBanner(
       context,
       info: info,
-      onUpdate: () => runUpdateWithProgress(context, service, info),
+      onUpdate: () async {
+        await runUpdateWithProgress(context, service, info);
+        if (mounted) {
+          _showUpdateBanner(service, info);
+        }
+      },
     );
   }
 
