@@ -164,9 +164,11 @@ class _HomeState extends State<Home> {
       context,
       info: info,
       onUpdate: () async {
-        if (info.action == UpdateAction.openUrl) {
-          // Store/external channels just open a listing; no download dialog.
-          // Surface a failure the same way runUpdateWithProgress does.
+        if (info.action == UpdateAction.openUrl ||
+            info.action == UpdateAction.runCommand) {
+          // External channels open a listing or hand off to a package manager;
+          // no in-app download dialog. On runCommand the app exits before this
+          // returns. Surface a failure the same way runUpdateWithProgress does.
           final messenger = ScaffoldMessenger.of(context);
           final l10n = AppLocalizations.of(context);
           try {
