@@ -95,6 +95,7 @@
   "migrateKeepLocalAction": "Keep local",
 
   "updateAvailable": "New version {version} available",
+  "updateAvailableGeneric": "An app update is available",
   "updateLater": "Later",
   "updateNow": "Update",
   "updateDownloadTitle": "Downloading update",

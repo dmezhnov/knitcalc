@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.8.7+29
+version: 1.8.8+30
 
 environment:
     sdk: ^3.11.4
@@ -43,6 +43,9 @@ dependencies:
     # Opens the system browser for the Google OAuth consent step (the loopback
     # redirect is then caught by our own dart:io HttpServer on desktop).
     url_launcher: ^6.3.2
+    # Google Play In-App Updates (flexible flow) for the Play channel: Play
+    # reports availability and ships the binary, avoiding store-review lag.
+    in_app_update: ^4.2.5
 
 dev_dependencies:
     flutter_test:

@@ -36,5 +36,9 @@ UpdateInfo? evaluateWebUpdate(
     return null;
   }
 
-  return UpdateInfo(latestVersion: deployed, action: UpdateAction.inApp);
+  return UpdateInfo(
+    latestVersion: deployed,
+    action: UpdateAction.inApp,
+    versionLabel: deployed.toString(),
+  );
 }

@@ -19,6 +19,7 @@ class UpdateInfo {
   const UpdateInfo({
     required this.latestVersion,
     required this.action,
+    this.versionLabel,
     this.releaseNotes,
     this.url,
     this.downloadSize,
@@ -27,6 +28,11 @@ class UpdateInfo {
 
   /// Version available in the update source.
   final AppVersion latestVersion;
+
+  /// Human-readable version shown in the banner (e.g. "1.9.0"). `null` when the
+  /// source exposes no marketing version (Play only reports a numeric version
+  /// code, RuStore none at all); the banner then shows a generic message.
+  final String? versionLabel;
 
   /// How to deliver the update to the user.
   final UpdateAction action;

@@ -93,6 +93,7 @@ UpdateInfo? evaluateGithubUpdate(
   return UpdateInfo(
     latestVersion: latest,
     action: UpdateAction.inApp,
+    versionLabel: latest.toString(),
     url: asset.downloadUrl,
     downloadSize: asset.sizeInBytes,
     releaseNotes: notes is String && notes.isNotEmpty ? notes : null,
