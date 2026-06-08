@@ -10,6 +10,16 @@ void main() {
   runApp(const MyApp());
 }
 
+/// Forces the hand (click) cursor on the Material button family. Flutter's button
+/// default is [WidgetStateMouseCursor.adaptiveClickable], which shows the click
+/// cursor only on web and the plain arrow on desktop; we want the hand on every
+/// platform so buttons feel clickable on Linux/Windows/macOS too — matching
+/// [ListTile]/[InkWell], which already default to the always-on
+/// [WidgetStateMouseCursor.clickable].
+const ButtonStyle _clickableButtonStyle = ButtonStyle(
+  mouseCursor: WidgetStateMouseCursor.clickable,
+);
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -54,6 +64,30 @@ class _MyAppState extends State<MyApp> {
               supportedLocales: AppLocalizations.supportedLocales,
               theme: ThemeData(
                 colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+                // Give the whole button family the hand cursor on desktop (see
+                // _clickableButtonStyle). FAB and popup menus expose the cursor
+                // on their own theme objects rather than a ButtonStyle.
+                iconButtonTheme: const IconButtonThemeData(
+                  style: _clickableButtonStyle,
+                ),
+                textButtonTheme: const TextButtonThemeData(
+                  style: _clickableButtonStyle,
+                ),
+                filledButtonTheme: const FilledButtonThemeData(
+                  style: _clickableButtonStyle,
+                ),
+                outlinedButtonTheme: const OutlinedButtonThemeData(
+                  style: _clickableButtonStyle,
+                ),
+                elevatedButtonTheme: const ElevatedButtonThemeData(
+                  style: _clickableButtonStyle,
+                ),
+                floatingActionButtonTheme: const FloatingActionButtonThemeData(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
+                ),
+                popupMenuTheme: const PopupMenuThemeData(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
+                ),
               ),
               home: const AppRoot(),
             );

@@ -286,6 +286,12 @@ class _CalculatorState extends State<Calculator> {
               children: [
                 DropdownButtonFormField<String>(
                   initialValue: _product.id,
+                  // Match the rest of the button family: hand cursor on desktop,
+                  // not the platform-adaptive default (arrow on desktop).
+                  // mouseCursor is the closed trigger; dropdownMenuItemMouseCursor
+                  // is the items in the open popup (each its own InkWell).
+                  mouseCursor: WidgetStateMouseCursor.clickable,
+                  dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                   decoration: InputDecoration(
                     labelText: l10n.productKindLabel,
                     border: const OutlineInputBorder(),
@@ -371,13 +377,23 @@ class _CalculatorState extends State<Calculator> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            onTap: () => _openPhoto(index, l10n),
-            child: Image.memory(
-              decodePhoto(_photos[index]),
+          // Ink.image paints the photo as the Material's decoration so the
+          // InkWell's hover highlight/splash show *on top* of it; a plain
+          // Image child would be opaque and hide the ink, leaving no visible
+          // hover. InkWell already defaults to the clickable (hand) cursor.
+          child: Material(
+            type: MaterialType.transparency,
+            child: Ink.image(
+              image: MemoryImage(decodePhoto(_photos[index])),
               width: 96,
               height: 96,
               fit: BoxFit.cover,
+              // InkWell falls back to the adaptive cursor (arrow on desktop), so
+              // ask for the hand cursor explicitly like the button family.
+              child: InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                onTap: () => _openPhoto(index, l10n),
+              ),
             ),
           ),
         ),
