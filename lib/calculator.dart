@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -55,6 +56,13 @@ class _CalculatorState extends State<Calculator> {
   /// "Save" updates it in place instead of asking for a name again.
   late String? _currentId = widget.initial?.id;
   late String? _currentName = widget.initial?.name;
+
+  // Snapshot of the last persisted content, used by [_isDirty] to warn before
+  // leaving with unsaved edits. Refreshed on every successful save.
+  late String _savedProductId = widget.initial?.productId ?? products.first.id;
+  late Map<String, String> _savedValues = {...?widget.initial?.values};
+  late String _savedDescription = widget.initial?.description ?? '';
+  late List<String> _savedPhotos = [...?widget.initial?.photos];
 
   final ImagePicker _picker = ImagePicker();
 
@@ -160,6 +168,11 @@ class _CalculatorState extends State<Calculator> {
     setState(() {
       _currentId = project.id;
       _currentName = project.name;
+      // The current content is now the persisted baseline (see _isDirty).
+      _savedProductId = project.productId;
+      _savedValues = {...project.values};
+      _savedDescription = project.description;
+      _savedPhotos = [...project.photos];
     });
 
     ScaffoldMessenger.of(
@@ -167,6 +180,53 @@ class _CalculatorState extends State<Calculator> {
     ).showSnackBar(SnackBar(content: Text(l10n.projectSavedSnack)));
 
     widget.onSaved?.call();
+  }
+
+  /// Whether the editable content differs from the last persisted snapshot.
+  /// Empty input fields are treated as absent so a fresh draft isn't "dirty"
+  /// just for having blank fields.
+  bool _isDirty() {
+    if (_product.id != _savedProductId) {
+      return true;
+    }
+    if (_description.text.trim() != _savedDescription) {
+      return true;
+    }
+    if (!listEquals(_photos, _savedPhotos)) {
+      return true;
+    }
+    return !mapEquals(_nonEmpty(_currentValues()), _nonEmpty(_savedValues));
+  }
+
+  Map<String, String> _nonEmpty(Map<String, String> values) => {
+    for (final entry in values.entries)
+      if (entry.value.trim().isNotEmpty) entry.key: entry.value,
+  };
+
+  /// Asks what to do about unsaved edits when leaving the editor: stay, leave
+  /// discarding them, or save first. Returns null (== stay) if dismissed.
+  Future<_ExitChoice?> _promptOnExit(AppLocalizations l10n) {
+    return showDialog<_ExitChoice>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.unsavedChangesTitle),
+        content: Text(l10n.unsavedChangesMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, _ExitChoice.cancel),
+            child: Text(l10n.cancelAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, _ExitChoice.discard),
+            child: Text(l10n.discardAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, _ExitChoice.save),
+            child: Text(l10n.saveAndExitAction),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Lets the user pick one or more images, downscales and encodes them, and
@@ -193,7 +253,27 @@ class _CalculatorState extends State<Calculator> {
     setState(() => _photos = [..._photos, ...encoded]);
   }
 
-  void _removePhoto(int index) {
+  Future<void> _removePhoto(int index, AppLocalizations l10n) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deletePhotoConfirmTitle),
+        content: Text(l10n.deletePhotoConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancelAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.deleteAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
     setState(() => _photos = [..._photos]..removeAt(index));
   }
 
@@ -261,80 +341,106 @@ class _CalculatorState extends State<Calculator> {
     };
     final outputs = _product.computeOutputs(values);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_currentName ?? l10n.newProjectTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save_outlined),
-            tooltip: l10n.saveAction,
-            onPressed: _save,
-          ),
-          const LanguageMenu(),
-          const AccountMenu(),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            // Leave room above the first field so its floating outline label
-            // isn't clipped by the scroll view's viewport edge.
-            padding: const EdgeInsets.only(top: 8),
-            child: Column(
-              spacing: 16,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _product.id,
-                  // Match the rest of the button family: hand cursor on desktop,
-                  // not the platform-adaptive default (arrow on desktop).
-                  // mouseCursor is the closed trigger; dropdownMenuItemMouseCursor
-                  // is the items in the open popup (each its own InkWell).
-                  mouseCursor: WidgetStateMouseCursor.clickable,
-                  dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
-                  decoration: InputDecoration(
-                    labelText: l10n.productKindLabel,
-                    border: const OutlineInputBorder(),
+    return PopScope(
+      // Block the back button / gesture while there are unsaved edits, then ask
+      // whether to discard them before actually leaving the editor.
+      canPop: !_isDirty(),
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
+        final navigator = Navigator.of(context);
+        final choice = await _promptOnExit(l10n);
+        if (choice == null || choice == _ExitChoice.cancel || !mounted) {
+          return;
+        }
+        if (choice == _ExitChoice.save) {
+          await _save();
+          // A cancelled name prompt (new project) leaves us still dirty; only
+          // leave once the save actually went through.
+          if (!mounted || _isDirty()) {
+            return;
+          }
+        }
+        navigator.pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_currentName ?? l10n.newProjectTitle),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.save_outlined),
+              tooltip: l10n.saveAction,
+              onPressed: _save,
+            ),
+            const LanguageMenu(),
+            const AccountMenu(),
+          ],
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              // Leave room above the first field so its floating outline label
+              // isn't clipped by the scroll view's viewport edge.
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                spacing: 16,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: _product.id,
+                    // Match the rest of the button family: hand cursor on desktop,
+                    // not the platform-adaptive default (arrow on desktop).
+                    // mouseCursor is the closed trigger; dropdownMenuItemMouseCursor
+                    // is the items in the open popup (each its own InkWell).
+                    mouseCursor: WidgetStateMouseCursor.clickable,
+                    dropdownMenuItemMouseCursor:
+                        WidgetStateMouseCursor.clickable,
+                    decoration: InputDecoration(
+                      labelText: l10n.productKindLabel,
+                      border: const OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final product in products)
+                        DropdownMenuItem(
+                          value: product.id,
+                          child: Text(product.name(l10n)),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _product = productById(value));
+                      }
+                    },
                   ),
-                  items: [
-                    for (final product in products)
-                      DropdownMenuItem(
-                        value: product.id,
-                        child: Text(product.name(l10n)),
-                      ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _product = productById(value));
-                    }
-                  },
-                ),
-                _buildCard(
-                  context,
-                  children: [
-                    for (final input in _product.inputs)
-                      _buildNumberInput(input, l10n),
-                  ],
-                ),
-                _buildCard(
-                  context,
-                  children: [
-                    for (final output in outputs) _buildOutputRow(output, l10n),
-                  ],
-                ),
-                TextField(
-                  controller: _description,
-                  minLines: 2,
-                  maxLines: 5,
-                  keyboardType: TextInputType.multiline,
-                  decoration: InputDecoration(
-                    labelText: l10n.descriptionLabel,
-                    border: const OutlineInputBorder(),
-                    alignLabelWithHint: true,
+                  _buildCard(
+                    context,
+                    children: [
+                      for (final input in _product.inputs)
+                        _buildNumberInput(input, l10n),
+                    ],
                   ),
-                ),
-                _buildPhotos(l10n),
-              ],
+                  _buildCard(
+                    context,
+                    children: [
+                      for (final output in outputs)
+                        _buildOutputRow(output, l10n),
+                    ],
+                  ),
+                  TextField(
+                    controller: _description,
+                    minLines: 2,
+                    maxLines: 5,
+                    keyboardType: TextInputType.multiline,
+                    decoration: InputDecoration(
+                      labelText: l10n.descriptionLabel,
+                      border: const OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  _buildPhotos(l10n),
+                ],
+              ),
             ),
           ),
         ),
@@ -405,7 +511,7 @@ class _CalculatorState extends State<Calculator> {
             icon: const Icon(Icons.cancel, color: Colors.white),
             iconSize: 20,
             visualDensity: VisualDensity.compact,
-            onPressed: () => _removePhoto(index),
+            onPressed: () => _removePhoto(index, l10n),
           ),
         ),
       ],
@@ -425,11 +531,15 @@ class _CalculatorState extends State<Calculator> {
   }
 }
 
+/// What to do with unsaved edits when leaving the editor (see [_promptOnExit]).
+enum _ExitChoice { cancel, discard, save }
+
 /// Full-screen photo viewer shown over a black backdrop. Pinch to zoom (up to
-/// 5x) and drag to pan via the [InteractiveViewer]. Tapping the backdrop around
-/// the photo — or the close button — dismisses; a tap on the photo itself does
-/// nothing. When more than one photo is attached, left/right arrows page
-/// through them (hidden at the ends).
+/// 5x) and drag to pan via the [InteractiveViewer]; double-tap the photo to
+/// zoom in on that point, double-tap again to fit. Tapping the backdrop around
+/// the photo — or the close button — dismisses; a single tap on the photo
+/// itself does nothing. When more than one photo is attached, left/right arrows
+/// page through them (hidden at the ends).
 class _PhotoViewer extends StatefulWidget {
   const _PhotoViewer({
     required this.photos,
@@ -449,7 +559,105 @@ class _PhotoViewer extends StatefulWidget {
 class _PhotoViewerState extends State<_PhotoViewer> {
   late int _index = widget.initialIndex;
 
-  void _go(int delta) => setState(() => _index += delta);
+  /// Pages through the photos: native horizontal swipe, and the target of the
+  /// arrow buttons / keyboard arrows via [_go].
+  late final PageController _pageController = PageController(
+    initialPage: widget.initialIndex,
+  );
+
+  /// Drives the current page's [InteractiveViewer] so double-tap can set the
+  /// zoom directly. Reset on every page change so each photo opens fit.
+  final TransformationController _transform = TransformationController();
+
+  /// The [PageView]'s render box, used to map the double-tap's global position
+  /// into the viewport (== scene at scale 1) so we zoom on that point.
+  final GlobalKey _viewerKey = GlobalKey();
+
+  /// Position of the last double-tap, captured on the down event because
+  /// [GestureDetector.onDoubleTap] itself carries no coordinates.
+  Offset? _doubleTapGlobal;
+
+  /// True while the current photo is zoomed past fit. Disables paging swipes so
+  /// a horizontal drag pans the zoomed photo instead of flipping the page.
+  bool _zoomed = false;
+
+  /// Scale a double-tap zooms to; pinch can still go further (up to maxScale).
+  static const double _doubleTapScale = 2.5;
+
+  @override
+  void initState() {
+    super.initState();
+    _transform.addListener(_onTransformChanged);
+  }
+
+  @override
+  void dispose() {
+    _transform.removeListener(_onTransformChanged);
+    _transform.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final zoomed = _transform.value.getMaxScaleOnAxis() > 1.01;
+    if (zoomed != _zoomed) {
+      setState(() => _zoomed = zoomed);
+    }
+  }
+
+  void _onPageChanged(int index) {
+    // Reset zoom/pan so the new photo opens fit-to-screen.
+    _transform.value = Matrix4.identity();
+    setState(() => _index = index);
+  }
+
+  void _go(int delta) {
+    final target = _index + delta;
+    if (target < 0 || target >= widget.photos.length) {
+      return;
+    }
+    _pageController.animateToPage(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      _go(-1);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      _go(1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _handleDoubleTap() {
+    // Already zoomed in → fit back to screen.
+    if (_transform.value.getMaxScaleOnAxis() > 1.01) {
+      _transform.value = Matrix4.identity();
+      return;
+    }
+
+    final box = _viewerKey.currentContext?.findRenderObject() as RenderBox?;
+    final global = _doubleTapGlobal;
+    if (box == null || global == null) {
+      return;
+    }
+    // At scale 1 the scene and viewport coincide, so the local point is the
+    // scene point to keep fixed while scaling around it.
+    final focal = box.globalToLocal(global);
+    _transform.value = Matrix4.identity()
+      ..translateByDouble(focal.dx, focal.dy, 0, 1)
+      ..scaleByDouble(_doubleTapScale, _doubleTapScale, 1, 1)
+      ..translateByDouble(-focal.dx, -focal.dy, 0, 1);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -459,59 +667,83 @@ class _PhotoViewerState extends State<_PhotoViewer> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            // Tap on the backdrop dismisses. The inner GestureDetector around
-            // the photo absorbs taps (it wins the gesture arena as the deeper
-            // hit), so tapping the photo itself does not close the viewer.
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Navigator.of(context).pop(),
-              child: InteractiveViewer(
-                // A fresh key per photo resets the zoom/pan when paging.
-                key: ValueKey(_index),
-                minScale: 1,
-                maxScale: 5,
-                child: Center(
-                  child: GestureDetector(
-                    onTap: () {},
-                    child: Image.memory(decodePhoto(widget.photos[_index])),
-                  ),
+      // Autofocus so the left/right arrow keys page without an extra click.
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: _handleKey,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              // Tap on the backdrop dismisses. The inner GestureDetector around
+              // each photo absorbs taps (it wins the gesture arena as the deeper
+              // hit), so tapping the photo itself does not close the viewer.
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(context).pop(),
+                child: PageView.builder(
+                  key: _viewerKey,
+                  controller: _pageController,
+                  // While zoomed, a horizontal drag should pan the photo, so
+                  // stop the PageView from claiming it to flip the page.
+                  physics: _zoomed
+                      ? const NeverScrollableScrollPhysics()
+                      : null,
+                  onPageChanged: _onPageChanged,
+                  itemCount: widget.photos.length,
+                  itemBuilder: (context, i) {
+                    return InteractiveViewer(
+                      // Only the visible page drives the shared controller; the
+                      // off-screen neighbours keep their own (fit) transform.
+                      transformationController: i == _index ? _transform : null,
+                      minScale: 1,
+                      maxScale: 5,
+                      child: Center(
+                        child: GestureDetector(
+                          // Absorb single taps (so the backdrop's dismiss
+                          // doesn't fire on the photo) and zoom on double-tap.
+                          onTap: () {},
+                          onDoubleTapDown: (d) =>
+                              _doubleTapGlobal = d.globalPosition,
+                          onDoubleTap: _handleDoubleTap,
+                          child: Image.memory(decodePhoto(widget.photos[i])),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
-          ),
-          if (hasPrevious)
-            Align(
-              alignment: Alignment.centerLeft,
+            if (hasPrevious)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  tooltip: l10n.previousPhotoAction,
+                  icon: const Icon(Icons.chevron_left, color: Colors.white),
+                  iconSize: 40,
+                  onPressed: () => _go(-1),
+                ),
+              ),
+            if (hasNext)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  tooltip: l10n.nextPhotoAction,
+                  icon: const Icon(Icons.chevron_right, color: Colors.white),
+                  iconSize: 40,
+                  onPressed: () => _go(1),
+                ),
+              ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 8,
               child: IconButton(
-                tooltip: l10n.previousPhotoAction,
-                icon: const Icon(Icons.chevron_left, color: Colors.white),
-                iconSize: 40,
-                onPressed: () => _go(-1),
+                tooltip: l10n.closeAction,
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ),
-          if (hasNext)
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                tooltip: l10n.nextPhotoAction,
-                icon: const Icon(Icons.chevron_right, color: Colors.white),
-                iconSize: 40,
-                onPressed: () => _go(1),
-              ),
-            ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 8,
-            child: IconButton(
-              tooltip: l10n.closeAction,
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
