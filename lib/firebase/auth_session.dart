@@ -89,7 +89,7 @@ class AuthSession {
   bool get needsRefresh =>
       DateTime.now().add(const Duration(minutes: 5)).isAfter(expiresAt);
 
-  AuthSession copyWith({bool? emailVerified}) {
+  AuthSession copyWith({bool? emailVerified, String? photoUrl}) {
     return AuthSession(
       uid: uid,
       email: email,
@@ -97,7 +97,7 @@ class AuthSession {
       refreshToken: refreshToken,
       expiresAt: expiresAt,
       emailVerified: emailVerified ?? this.emailVerified,
-      photoUrl: photoUrl,
+      photoUrl: photoUrl ?? this.photoUrl,
     );
   }
 

@@ -9,7 +9,12 @@ import 'package:knitcalc/l10n/app_localizations.dart';
 /// email and a sign-out item. Rebuilds with [AuthScope] when the session
 /// changes.
 class AccountMenu extends StatelessWidget {
-  const AccountMenu({super.key});
+  const AccountMenu({super.key, this.onSync});
+
+  /// When provided (and signed in), adds a "Sync" item that runs this — used by
+  /// the project list to re-sync with the cloud. Omitted where there's nothing
+  /// to sync (e.g. the calculator screen).
+  final VoidCallback? onSync;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +47,8 @@ class AccountMenu extends StatelessWidget {
           ),
         ),
         const PopupMenuDivider(),
+        if (onSync != null)
+          PopupMenuItem(onTap: onSync, child: Text(l10n.syncAction)),
         PopupMenuItem(onTap: auth.signOut, child: Text(l10n.signOutAction)),
       ],
     );

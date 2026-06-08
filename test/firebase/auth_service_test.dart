@@ -18,6 +18,10 @@ class Calls {
   String? lastOobType;
   String? lastOobEmail;
   bool verified = false;
+
+  /// What the mocked `accounts:lookup` reports back for the profile.
+  String? lookupPhotoUrl;
+  bool lookupIsGoogle = false;
 }
 
 void main() {
@@ -69,7 +73,15 @@ void main() {
           return http.Response(
             jsonEncode({
               'users': [
-                {'emailVerified': calls.verified},
+                {
+                  'emailVerified': calls.verified,
+                  if (calls.lookupPhotoUrl != null)
+                    'photoUrl': calls.lookupPhotoUrl,
+                  if (calls.lookupIsGoogle)
+                    'providerUserInfo': [
+                      {'providerId': 'google.com'},
+                    ],
+                },
               ],
             }),
             200,
@@ -218,5 +230,52 @@ void main() {
 
     expect(verified, isTrue);
     expect(built.service.emailVerified, isTrue);
+  });
+
+  GoogleSignInFlow googleAuthenticator() => GoogleAuthenticator(
+    config: const GoogleOAuthConfig(
+      clientId: 'C',
+      redirectUri: 'http://localhost:8421',
+      callbackUrlScheme: 'http://localhost:8421',
+    ),
+    browser: ({required url, required callbackUrlScheme}) async {
+      final state = Uri.parse(url).queryParameters['state'];
+      return 'http://localhost:8421/?code=CODE&state=$state';
+    },
+    httpClient: MockClient(
+      (request) async => http.Response(jsonEncode({'id_token': 'G'}), 200),
+    ),
+  );
+
+  test('refreshProfile updates a changed Google avatar', () async {
+    final built = build();
+    await built.service.signInWithGoogle(authenticator: googleAuthenticator());
+    expect(built.service.photoUrl, isNull);
+
+    built.calls
+      ..lookupIsGoogle = true
+      ..lookupPhotoUrl = 'https://lh3.googleusercontent.com/new';
+
+    var notified = 0;
+    built.service.addListener(() => notified++);
+
+    await built.service.refreshProfile();
+
+    expect(built.service.photoUrl, 'https://lh3.googleusercontent.com/new');
+    expect(notified, greaterThan(0));
+  });
+
+  test('refreshProfile leaves a password account avatar untouched', () async {
+    final built = build();
+    await built.service.signIn('a@b.com', 'pw');
+
+    // A non-Google lookup must not adopt a stray avatar onto the account.
+    built.calls
+      ..lookupIsGoogle = false
+      ..lookupPhotoUrl = 'https://example.com/should-be-ignored';
+
+    await built.service.refreshProfile();
+
+    expect(built.service.photoUrl, isNull);
   });
 }

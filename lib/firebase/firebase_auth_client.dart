@@ -113,18 +113,36 @@ class FirebaseAuthClient {
   }
 
   /// Looks up the current `emailVerified` state for the user holding [idToken].
-  Future<bool> fetchEmailVerified(String idToken) async {
+  Future<bool> fetchEmailVerified(String idToken) async =>
+      (await lookupAccount(idToken)).emailVerified;
+
+  /// Looks up the current profile for the user holding [idToken]: the
+  /// verification flag, the avatar URL, and whether the account is federated
+  /// through Google (so callers know the avatar is provider-managed).
+  Future<({bool emailVerified, String? photoUrl, bool isGoogle})> lookupAccount(
+    String idToken,
+  ) async {
     final json = await _post(
       '$_identityBase/accounts:lookup?key=${config.apiKey}',
       {'idToken': idToken},
     );
 
     final users = json['users'];
-    if (users is List && users.isNotEmpty && users.first is Map) {
-      return (users.first as Map)['emailVerified'] as bool? ?? false;
+    if (users is! List || users.isEmpty || users.first is! Map) {
+      return (emailVerified: false, photoUrl: null, isGoogle: false);
     }
 
-    return false;
+    final user = users.first as Map;
+    final providers = user['providerUserInfo'];
+    final isGoogle =
+        providers is List &&
+        providers.any((p) => p is Map && p['providerId'] == 'google.com');
+
+    return (
+      emailVerified: user['emailVerified'] as bool? ?? false,
+      photoUrl: user['photoUrl'] as String?,
+      isGoogle: isGoogle,
+    );
   }
 
   Future<Map<String, dynamic>> _post(
