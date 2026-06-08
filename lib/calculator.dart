@@ -197,6 +197,17 @@ class _CalculatorState extends State<Calculator> {
     setState(() => _photos = [..._photos]..removeAt(index));
   }
 
+  /// Opens the tapped photo in a full-screen, pinch-to-zoom viewer that can page
+  /// through the other attached photos.
+  void _openPhoto(int index, AppLocalizations l10n) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (context) =>
+          _PhotoViewer(photos: _photos, initialIndex: index, l10n: l10n),
+    );
+  }
+
   Widget _buildNumberInput(ProductInput input, AppLocalizations l10n) {
     return TextFormField(
       controller: _controllerFor(input.key),
@@ -360,11 +371,14 @@ class _CalculatorState extends State<Calculator> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.memory(
-            decodePhoto(_photos[index]),
-            width: 96,
-            height: 96,
-            fit: BoxFit.cover,
+          child: InkWell(
+            onTap: () => _openPhoto(index, l10n),
+            child: Image.memory(
+              decodePhoto(_photos[index]),
+              width: 96,
+              height: 96,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
         Positioned(
@@ -391,6 +405,98 @@ class _CalculatorState extends State<Calculator> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(spacing: 16, children: children),
+    );
+  }
+}
+
+/// Full-screen photo viewer shown over a black backdrop. Pinch to zoom (up to
+/// 5x) and drag to pan via the [InteractiveViewer]. Tapping the backdrop around
+/// the photo — or the close button — dismisses; a tap on the photo itself does
+/// nothing. When more than one photo is attached, left/right arrows page
+/// through them (hidden at the ends).
+class _PhotoViewer extends StatefulWidget {
+  const _PhotoViewer({
+    required this.photos,
+    required this.initialIndex,
+    required this.l10n,
+  });
+
+  /// The attached photos as base64 JPEG strings (see photo_codec.dart).
+  final List<String> photos;
+  final int initialIndex;
+  final AppLocalizations l10n;
+
+  @override
+  State<_PhotoViewer> createState() => _PhotoViewerState();
+}
+
+class _PhotoViewerState extends State<_PhotoViewer> {
+  late int _index = widget.initialIndex;
+
+  void _go(int delta) => setState(() => _index += delta);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    final hasPrevious = _index > 0;
+    final hasNext = _index < widget.photos.length - 1;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            // Tap on the backdrop dismisses. The inner GestureDetector around
+            // the photo absorbs taps (it wins the gesture arena as the deeper
+            // hit), so tapping the photo itself does not close the viewer.
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(context).pop(),
+              child: InteractiveViewer(
+                // A fresh key per photo resets the zoom/pan when paging.
+                key: ValueKey(_index),
+                minScale: 1,
+                maxScale: 5,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {},
+                    child: Image.memory(decodePhoto(widget.photos[_index])),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (hasPrevious)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                tooltip: l10n.previousPhotoAction,
+                icon: const Icon(Icons.chevron_left, color: Colors.white),
+                iconSize: 40,
+                onPressed: () => _go(-1),
+              ),
+            ),
+          if (hasNext)
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: l10n.nextPhotoAction,
+                icon: const Icon(Icons.chevron_right, color: Colors.white),
+                iconSize: 40,
+                onPressed: () => _go(1),
+              ),
+            ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 8,
+            child: IconButton(
+              tooltip: l10n.closeAction,
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

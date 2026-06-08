@@ -173,16 +173,19 @@ run = "mise run dev-{{ os() }}"
 [tasks.dev-linux]
 hide = true
 run = '''
-# Flutter's GTK embedder prints one harmless line on every launch:
+# Flutter's GTK embedder prints harmless noise we filter out of its output:
 #   "Atk-CRITICAL **: atk_socket_embed: assertion 'plug_id != NULL' failed"
-# It's an upstream engine bug (the accessibility plug isn't registered when GTK
-# embeds it) and fires once at startup. NO a11y env var suppresses it — tested:
-# NO_AT_BRIDGE=1 and GTK_A11Y=none both leave it untouched. The only way to hide
-# it is to filter that exact line out of flutter's output. flutter forwards the
-# app's stderr onto its OWN stdout (interleaved with the interactive UI), so we
-# run flutter under a pty (util-linux `script`) — which keeps colours and the
-# hot-reload key UI working — and grep out just that one line. `script -e`
-# propagates flutter's exit code; stdin is forwarded so r/R/q still work.
+#     — upstream engine a11y bug; fires once at startup. NO a11y env var
+#       suppresses it (tested NO_AT_BRIDGE=1 and GTK_A11Y=none, both no-ops).
+#   "Gdk-WARNING **: Error converting selection from UTF8_STRING"
+#     — GTK clipboard/PRIMARY-selection conversion warning; can flood by the
+#       hundreds while interacting with a text field. Engine-level (GdkClipboard),
+#       not fixable from Dart, and harmless.
+# The only way to hide them is to filter those lines out of flutter's output.
+# flutter forwards the app's stderr onto its OWN stdout (interleaved with the
+# interactive UI), so we run flutter under a pty (util-linux `script`) — which
+# keeps colours and the hot-reload key UI working — and grep the lines away.
+# `script -e` propagates flutter's exit code; stdin is forwarded so r/R/q work.
 
 # Same NixOS toolchain workaround as build-linux; LD_LIBRARY_PATH also lets the
 # launched app find the GTK stack at run time.
@@ -195,11 +198,11 @@ if [ -e /etc/NIXOS ] && command -v nix-shell >/dev/null 2>&1; then
       done
       export NIX_LDFLAGS="$NIX_LDFLAGS -rpath-link $libdirs"
       export LD_LIBRARY_PATH=$libdirs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-      script -qefc "flutter run" /dev/null | grep --line-buffered -v atk_socket_embed
+      script -qefc "flutter run" /dev/null | grep --line-buffered -vE "atk_socket_embed|Error converting selection from UTF8_STRING"
     '
 fi
 
-script -qefc "flutter run" /dev/null | grep --line-buffered -v atk_socket_embed
+script -qefc "flutter run" /dev/null | grep --line-buffered -vE "atk_socket_embed|Error converting selection from UTF8_STRING"
 '''
 
 [tasks.dev-macos]
