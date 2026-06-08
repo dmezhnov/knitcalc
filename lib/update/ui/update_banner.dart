@@ -4,11 +4,17 @@ import 'package:knitcalc/update/ui/byte_format.dart';
 import 'package:knitcalc/update/update_info.dart';
 
 /// Banner text: announces the new version and, when known, how much the update
-/// will download (e.g. "Доступна новая версия 1.5.0 · 12 МБ").
+/// will download (e.g. "Доступна новая версия 1.5.0 · 12 МБ"). Sources without a
+/// marketing version (e.g. the Play in-app update) fall back to a generic line.
 String _bannerText(AppLocalizations l10n, UpdateInfo info) {
+  final label = info.versionLabel;
+  if (label == null) {
+    return l10n.updateAvailableGeneric;
+  }
+
   final size = info.downloadSize;
   final suffix = size != null ? ' · ${l10n.formatBytes(size)}' : '';
-  return '${l10n.updateAvailable('${info.latestVersion}')}$suffix';
+  return '${l10n.updateAvailable(label)}$suffix';
 }
 
 /// Non-intrusive banner offering the user an available update.

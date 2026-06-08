@@ -164,7 +164,19 @@ class _HomeState extends State<Home> {
       context,
       info: info,
       onUpdate: () async {
-        await runUpdateWithProgress(context, service, info);
+        if (info.action == UpdateAction.openUrl) {
+          // Store/external channels just open a listing; no download dialog.
+          // Surface a failure the same way runUpdateWithProgress does.
+          final messenger = ScaffoldMessenger.of(context);
+          final l10n = AppLocalizations.of(context);
+          try {
+            await service.startUpdate(info);
+          } on Object {
+            messenger.showSnackBar(SnackBar(content: Text(l10n.updateFailed)));
+          }
+        } else {
+          await runUpdateWithProgress(context, service, info);
+        }
         if (mounted) {
           _showUpdateBanner(service, info);
         }

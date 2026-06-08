@@ -4,6 +4,8 @@ import 'package:knitcalc/update/impl/android/android_update_service.dart';
 import 'package:knitcalc/update/impl/linux/linux_update_service.dart';
 import 'package:knitcalc/update/impl/macos/macos_update_service.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
+import 'package:knitcalc/update/impl/store/ios_app_store_service.dart';
+import 'package:knitcalc/update/impl/store/play_update_service.dart';
 import 'package:knitcalc/update/impl/web/web_update_service.dart';
 import 'package:knitcalc/update/impl/windows/windows_update_service.dart';
 import 'package:knitcalc/update/update_service.dart';
@@ -24,14 +26,20 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.androidSideload:
       return createAndroidUpdateService(currentAppVersion());
 
-    // No store presence yet, so Play/RuStore installs update through the
-    // store itself; nothing for the app to do until those listings exist.
-    // TODO(update): Phase 3 follow-up — in_app_update for Play.
+    // Google Play: Play itself reports update availability and ships the
+    // binary; run the flexible in-app update flow (no GitHub, no review lag).
     case Channel.androidPlay:
-    // TODO(update): Phase 3 follow-up — RuStore SDK.
-    case Channel.androidRustore:
-    // TODO(update): Phase 5 — upgrader (iTunes Lookup + deep link).
+      return createPlayUpdateService();
+
+    // App Store: ask iTunes Lookup for the live store version, then open the
+    // listing to update there.
     case Channel.iosAppStore:
+      return createIosAppStoreService(currentAppVersion());
+
+    // RuStore in-app update is pending a minSdk 24 bump and on-device build
+    // verification; until then RuStore installs update through the store.
+    // TODO(update): wire flutter_rustore_update once minSdk is raised to 24.
+    case Channel.androidRustore:
       return const NoopUpdateService();
 
     // Manually installed macOS app bundle: download the new zip from GitHub
