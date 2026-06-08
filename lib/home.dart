@@ -14,6 +14,7 @@ import 'package:knitcalc/storage/projects_repository.dart';
 import 'package:knitcalc/storage/projects_store.dart';
 import 'package:knitcalc/storage/saved_project.dart';
 import 'package:knitcalc/storage/synced_projects_store.dart';
+import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/channel.dart';
 import 'package:knitcalc/update/ui/update_banner.dart';
 import 'package:knitcalc/update/ui/update_progress.dart';
@@ -53,13 +54,35 @@ class _HomeState extends State<Home> {
   /// flashing the empty-state calculator before any saved projects appear.
   bool _loaded = false;
 
+  /// Re-checks for updates whenever the app returns to the foreground, so a
+  /// long-running session still notices a release without a restart.
+  late final AppLifecycleListener _lifecycle;
+
+  /// Minimum gap between update checks. The startup check covers fresh
+  /// launches, so this in-memory throttle need not survive a restart; it only
+  /// stops repeated resumes from hammering the GitHub releases API.
+  static const Duration _updateCheckInterval = Duration(hours: 6);
+  DateTime? _lastUpdateCheck;
+
+  /// The version already surfaced via a banner this session. A resume re-check
+  /// that returns the same release skips re-showing, so banners never stack.
+  AppVersion? _shownUpdateVersion;
+
   @override
   void initState() {
     super.initState();
 
+    _lifecycle = AppLifecycleListener(onResume: _maybeCheckForUpdate);
+
     // Check for an update once the first frame is on screen. Off the web target
     // the factory returns a no-op service, so this is harmless there.
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   @override
@@ -94,7 +117,21 @@ class _HomeState extends State<Home> {
     );
   }
 
+  /// Throttled entry point for the resume trigger: skips the check when the
+  /// last one was recent enough to keep within [_updateCheckInterval].
+  void _maybeCheckForUpdate() {
+    final last = _lastUpdateCheck;
+    if (last != null &&
+        DateTime.now().difference(last) < _updateCheckInterval) {
+      return;
+    }
+
+    _checkForUpdate();
+  }
+
   Future<void> _checkForUpdate() async {
+    _lastUpdateCheck = DateTime.now();
+
     final channel = await detectChannel();
     final service = createUpdateService(channel);
     final info = await service.checkForUpdate();
@@ -102,6 +139,13 @@ class _HomeState extends State<Home> {
     if (info == null || !mounted) {
       return;
     }
+
+    // A resume re-check can return the release we already surfaced; don't stack
+    // a second banner for the same version.
+    if (info.latestVersion == _shownUpdateVersion) {
+      return;
+    }
+    _shownUpdateVersion = info.latestVersion;
 
     showUpdateBanner(
       context,
