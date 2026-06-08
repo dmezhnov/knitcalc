@@ -26,22 +26,34 @@ enum Channel {
   /// macOS from the Mac App Store.
   macosAppStore,
 
+  /// macOS, installed via Homebrew Cask — updated with `brew upgrade --cask`.
+  macosHomebrew,
+
   /// macOS, installed manually (.zip) — download a new .app from GitHub.
   macosManual,
 
   /// Windows from the Microsoft Store (MSIX) — updated by the store itself.
   windowsStore,
 
+  /// Windows, installed via winget — updated with `winget upgrade`.
+  windowsWinget,
+
   /// Windows, installed manually (.zip) — download a new zip from GitHub.
   windowsManual,
 
-  /// Linux under snap or flatpak — updated by the daemon.
+  /// Linux under snap — updated with `snap refresh`.
+  linuxSnap,
+
+  /// Linux under flatpak — updated with `flatpak update`.
+  linuxFlatpak,
+
+  /// Linux under an unidentified external manager — left to the daemon.
   linuxManaged,
 
   /// Linux AppImage — replace the file via GitHub.
   linuxAppImage,
 
-  /// Linux from a .deb — updated via the package manager.
+  /// Linux from a .deb — updated with `apt-get install --only-upgrade`.
   linuxDpkg,
 
   /// Linux from a tarball — download a new tar.gz from GitHub.
@@ -95,12 +107,12 @@ Future<Channel> detectChannel() async {
 
   if (Platform.isMacOS) {
     // TODO(update): check for the presence of _MASReceipt for macosAppStore.
-    return Channel.macosManual;
+    return macosChannelForExecutable(Platform.resolvedExecutable);
   }
 
   if (Platform.isWindows) {
     // TODO(update): GetCurrentPackageFullName() -> windowsStore when MSIX.
-    return Channel.windowsManual;
+    return windowsChannelForExecutable(Platform.resolvedExecutable);
   }
 
   if (Platform.isLinux) {
@@ -148,18 +160,63 @@ Channel androidChannelForInstaller(String? installer) {
   }
 }
 
+/// Maps a Windows executable path to its [Channel].
+///
+/// winget installs portable/zip packages under `…\WinGet\Packages\<id>\…`, so
+/// an executable living there is owned by winget and must update through it
+/// (`winget upgrade`) rather than swapping its own files behind winget's back.
+/// Anything else is treated as a manually unzipped bundle (GitHub self-update).
+Channel windowsChannelForExecutable(String executablePath) {
+  final normalized = executablePath.toLowerCase().replaceAll('/', '\\');
+
+  if (normalized.contains('\\winget\\packages\\')) {
+    return Channel.windowsWinget;
+  }
+
+  return Channel.windowsManual;
+}
+
+/// Maps a macOS executable path to its [Channel].
+///
+/// Homebrew Cask installs an app under `…/Caskroom/<name>/…` (the copy in
+/// `/Applications` is a clone or symlink of it), so an executable resolving into
+/// a Caskroom is owned by Homebrew and updates with `brew upgrade --cask`.
+/// Anything else is a manually unzipped `.app` (GitHub self-update).
+Channel macosChannelForExecutable(String executablePath) {
+  if (executablePath.contains('/Caskroom/')) {
+    return Channel.macosHomebrew;
+  }
+
+  return Channel.macosManual;
+}
+
 /// Detects the Linux install format entirely in Dart, without platform code.
 Channel _detectLinuxChannel() {
   final env = Platform.environment;
 
-  if (env.containsKey('SNAP') || File('/.flatpak-info').existsSync()) {
-    return Channel.linuxManaged;
+  if (env.containsKey('SNAP')) {
+    return Channel.linuxSnap;
+  }
+
+  if (File('/.flatpak-info').existsSync()) {
+    return Channel.linuxFlatpak;
   }
 
   if (env.containsKey('APPIMAGE')) {
     return Channel.linuxAppImage;
   }
 
-  // TODO(update): distinguish a dpkg install from a tarball (dpkg-query by path).
+  // A bundle living under the system prefix came from a .deb (dpkg/apt); a
+  // bundle anywhere else (home dir, /opt) is an unpacked tarball.
+  if (linuxIsSystemInstall(Platform.resolvedExecutable)) {
+    return Channel.linuxDpkg;
+  }
+
   return Channel.linuxTarball;
 }
+
+/// Whether a Linux executable path sits under the system package prefix and is
+/// therefore owned by the distro package manager (apt/dpkg) rather than an
+/// unpacked tarball the user dropped in their home directory or `/opt`.
+bool linuxIsSystemInstall(String executablePath) =>
+    executablePath.startsWith('/usr/');

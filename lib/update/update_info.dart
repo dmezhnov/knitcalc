@@ -9,6 +9,11 @@ enum UpdateAction {
   /// An external page must be opened: a store or a GitHub Release.
   openUrl,
 
+  /// A package manager owns the update: run its upgrade command (e.g.
+  /// `winget upgrade`, `brew upgrade --cask`) in a visible terminal, then quit
+  /// so the manager can replace the running files. No in-app download.
+  runCommand,
+
   /// Updates are managed by an external daemon (snap/flatpak) or by the store
   /// itself — there is nothing for the app to do.
   managedExternally,

@@ -4,6 +4,12 @@ import 'package:knitcalc/update/impl/android/android_update_service.dart';
 import 'package:knitcalc/update/impl/linux/linux_update_service.dart';
 import 'package:knitcalc/update/impl/macos/macos_update_service.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
+import 'package:knitcalc/update/impl/pm/package_manager_service.dart';
+import 'package:knitcalc/update/impl/pm/specs/apt_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/flatpak_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/homebrew_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
 import 'package:knitcalc/update/impl/store/ios_app_store_service.dart';
 import 'package:knitcalc/update/impl/store/play_update_service.dart';
 import 'package:knitcalc/update/impl/web/web_update_service.dart';
@@ -42,6 +48,20 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.androidRustore:
       return const NoopUpdateService();
 
+    // Package-manager installs: the manager owns updates — probe it for
+    // availability (no GitHub, no lag) and run its upgrade command in a
+    // terminal. Package ids inside the specs are placeholders until published.
+    case Channel.windowsWinget:
+      return createPackageManagerUpdateService(wingetSpec());
+    case Channel.macosHomebrew:
+      return createPackageManagerUpdateService(homebrewSpec());
+    case Channel.linuxSnap:
+      return createPackageManagerUpdateService(snapSpec());
+    case Channel.linuxFlatpak:
+      return createPackageManagerUpdateService(flatpakSpec());
+    case Channel.linuxDpkg:
+      return createPackageManagerUpdateService(aptSpec());
+
     // Manually installed macOS app bundle: download the new zip from GitHub
     // Releases and swap the .app in via a detached script after the app exits.
     case Channel.macosManual:
@@ -57,10 +77,9 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.linuxTarball:
       return createLinuxUpdateService(currentAppVersion());
 
-    // TODO(update): Phase 5 — AppImage self-replace and dpkg via the package
-    // manager. No such release assets exist yet, so they stay no-op for now.
+    // TODO(update): Phase 5 — AppImage self-replace. No such release asset
+    // exists yet, so it stays no-op for now.
     case Channel.linuxAppImage:
-    case Channel.linuxDpkg:
     // Externally managed or unknown: nothing for the app to do.
     case Channel.macosAppStore:
     case Channel.windowsStore:
