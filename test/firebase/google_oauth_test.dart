@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -162,6 +163,30 @@ void main() {
         auth.obtainIdToken(),
         throwsA(isA<GoogleAuthException>()),
       );
+    });
+
+    test('cancel aborts a pending obtainIdToken via onCancel', () async {
+      // Mirrors the io entry point: onCancel fires a signal the browser leg
+      // races against the redirect, so cancel() surfaces as a cancellation.
+      final cancelled = Completer<void>();
+      final auth = GoogleAuthenticator(
+        config: config,
+        browser: ({required url, required callbackUrlScheme}) async {
+          await cancelled.future;
+          throw const GoogleAuthCancelledException();
+        },
+        onCancel: () {
+          if (!cancelled.isCompleted) {
+            cancelled.complete();
+          }
+        },
+        httpClient: MockClient((request) async => http.Response('{}', 200)),
+      );
+
+      final pending = auth.obtainIdToken();
+      auth.cancel();
+
+      await expectLater(pending, throwsA(isA<GoogleAuthCancelledException>()));
     });
 
     test(

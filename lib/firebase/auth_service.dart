@@ -27,6 +27,9 @@ class AuthService extends ChangeNotifier {
 
   AuthSession? _session;
 
+  /// The Google flow currently running, so [cancelGoogleSignIn] can abort it.
+  GoogleSignInFlow? _googleFlow;
+
   AuthSession? get session => _session;
   bool get isSignedIn => _session != null;
   String? get uid => _session?.uid;
@@ -81,14 +84,23 @@ class AuthService extends ChangeNotifier {
   /// exchanges it for a Firebase session. Google accounts are pre-verified.
   Future<void> signInWithGoogle({GoogleSignInFlow? authenticator}) async {
     final google = authenticator ?? defaultGoogleAuthenticator();
-    final idToken = await google.obtainIdToken();
-    final session = await _client.signInWithGoogle(
-      googleIdToken: idToken,
-      requestUri: google.config.redirectUri,
-    );
+    _googleFlow = google;
+    try {
+      final idToken = await google.obtainIdToken();
+      final session = await _client.signInWithGoogle(
+        googleIdToken: idToken,
+        requestUri: google.config.redirectUri,
+      );
 
-    await _adopt(session);
+      await _adopt(session);
+    } finally {
+      _googleFlow = null;
+    }
   }
+
+  /// Aborts an in-flight [signInWithGoogle] (e.g. the user closed the consent
+  /// browser); the pending call then throws [GoogleAuthCancelledException].
+  void cancelGoogleSignIn() => _googleFlow?.cancel();
 
   /// (Re)sends the verification email for the signed-in user.
   Future<void> sendVerificationEmail() async {

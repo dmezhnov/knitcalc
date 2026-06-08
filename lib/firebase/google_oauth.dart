@@ -102,6 +102,11 @@ abstract interface class GoogleSignInFlow {
   /// Runs the sign-in and returns the Google `id_token`, or throws
   /// [GoogleAuthException] on cancellation or failure.
   Future<String> obtainIdToken();
+
+  /// Aborts an in-flight [obtainIdToken]: the pending call completes with a
+  /// [GoogleAuthCancelledException]. Used when the user closes the consent
+  /// browser, which fires no redirect and gives the app no other signal.
+  void cancel();
 }
 
 /// Drives the Google sign-in flow and returns the Google `id_token`.
@@ -110,6 +115,7 @@ class GoogleAuthenticator implements GoogleSignInFlow {
     required this.config,
     required this.browser,
     this.closeBrowser,
+    this.onCancel,
     http.Client? httpClient,
     Random? random,
   }) : _http = httpClient ?? http.Client(),
@@ -118,6 +124,11 @@ class GoogleAuthenticator implements GoogleSignInFlow {
   @override
   final GoogleOAuthConfig config;
   final OAuthBrowser browser;
+
+  /// Aborts the browser leg when [cancel] is called. The loopback flow wires
+  /// this to a signal it races against the redirect (see the io entry point);
+  /// null when the platform has nothing to interrupt.
+  final void Function()? onCancel;
 
   /// Dismisses the consent browser once the redirect is captured, if the
   /// platform opened an in-app one (mobile). Called *before* the token
@@ -167,6 +178,9 @@ class GoogleAuthenticator implements GoogleSignInFlow {
 
     return _exchangeCode(code, verifier);
   }
+
+  @override
+  void cancel() => onCancel?.call();
 
   Future<String> _exchangeCode(String code, String verifier) async {
     final response = await _postWithRetry(
@@ -242,6 +256,14 @@ class GoogleAuthException implements Exception {
 
   @override
   String toString() => 'GoogleAuthException($message)';
+}
+
+/// Sign-in aborted before completing — the user closed the consent browser or
+/// [GoogleSignInFlow.cancel] was called. A subtype of [GoogleAuthException] so
+/// existing `catch`/`throwsA` sites still match, while the UI can single it out
+/// and treat it as a silent cancel rather than a failure.
+class GoogleAuthCancelledException extends GoogleAuthException {
+  const GoogleAuthCancelledException() : super('sign-in cancelled');
 }
 
 /// base64url without padding, as required for PKCE values.
