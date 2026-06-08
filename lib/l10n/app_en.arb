@@ -62,6 +62,7 @@
   "googleSignInAction": "Continue with Google",
   "googleSignInWaiting": "Waiting for Google sign-in…",
   "signOutAction": "Sign out",
+  "syncAction": "Sync",
   "registerAction": "Register",
   "signInTitle": "Sign in",
   "registerTitle": "Register",

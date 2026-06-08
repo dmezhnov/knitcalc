@@ -131,6 +131,49 @@ class AuthService extends ChangeNotifier {
     return verified;
   }
 
+  /// Re-fetches the profile from the backend and, for Google accounts, updates
+  /// the cached avatar when it changed (also refreshing the verification flag).
+  /// A no-op when signed out or when the lookup fails. Notifies listeners only
+  /// when something actually changed, so the avatar repaints in place.
+  ///
+  /// Caveat: `accounts:lookup` returns Firebase's stored profile, which it only
+  /// refreshes from Google at federated sign-in (`signInWithIdp`) — it does not
+  /// poll Google. So a Google avatar changed after sign-in is picked up only on
+  /// the next Google sign-in (or via another device that re-signed in). This
+  /// catches server-side changes Firebase already knows about, not brand-new
+  /// ones.
+  // TODO: To reflect a freshly changed Google avatar without a re-login, query
+  // Google directly (oauth2/v3/userinfo or People API) for its `picture` and
+  // adopt that. Requires keeping a Google access/refresh token: request offline
+  // access + the `profile` scope during sign-in, persist the refresh token in
+  // AuthSession, exchange it for a short-lived access token here, then call
+  // userinfo. Weigh the extra secret on-device and OAuth complexity against the
+  // benefit before doing this.
+  Future<void> refreshProfile() async {
+    final token = await freshIdToken();
+    final current = _session;
+    if (token == null || current == null) {
+      return;
+    }
+
+    final ({bool emailVerified, String? photoUrl, bool isGoogle}) info;
+    try {
+      info = await _client.lookupAccount(token);
+    } on FirebaseAuthException {
+      return;
+    }
+
+    // Only Google supplies an avatar; don't touch a password account's (null).
+    final photoUrl = info.isGoogle ? info.photoUrl : current.photoUrl;
+
+    if (current.emailVerified != info.emailVerified ||
+        current.photoUrl != photoUrl) {
+      await _adopt(
+        current.copyWith(emailVerified: info.emailVerified, photoUrl: photoUrl),
+      );
+    }
+  }
+
   Future<void> signOut() async {
     _session = null;
     final prefs = await SharedPreferences.getInstance();

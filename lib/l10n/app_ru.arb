@@ -67,6 +67,7 @@
   "googleSignInAction": "Войти через Google",
   "googleSignInWaiting": "Ожидание входа через Google…",
   "signOutAction": "Выйти",
+  "syncAction": "Синхронизировать",
   "registerAction": "Зарегистрироваться",
   "signInTitle": "Вход",
   "registerTitle": "Регистрация",

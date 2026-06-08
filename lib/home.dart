@@ -70,6 +70,10 @@ class _HomeState extends State<Home> {
   /// that returns the same release skips re-showing, so banners never stack.
   AppVersion? _shownUpdateVersion;
 
+  /// Drives the pull-to-refresh indicator so the account menu's "Sync" item can
+  /// trigger the same gesture (spinner + [_sync]) without a real pull.
+  final _refreshKey = GlobalKey<RefreshIndicatorState>();
+
   @override
   void initState() {
     super.initState();
@@ -189,18 +193,15 @@ class _HomeState extends State<Home> {
   /// Loads the project list for the active store. For a synced store it first
   /// offers to migrate any local projects, then pulls and merges from the cloud,
   /// falling back to the cache (with a notice) when offline.
-  Future<void> _refresh() async {
-    setState(() => _loaded = false);
-
+  Future<List<SavedProject>> _loadProjects() async {
     final store = _store;
-    List<SavedProject> projects;
 
     if (store is SyncedProjectsStore) {
       await _maybeMigrate(store);
       try {
-        projects = await store.sync();
+        return await store.sync();
       } on FirestoreException {
-        projects = await store.loadAll();
+        final cached = await store.loadAll();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -208,10 +209,19 @@ class _HomeState extends State<Home> {
             ),
           );
         }
+        return cached;
       }
-    } else {
-      projects = await store.loadAll();
     }
+
+    return store.loadAll();
+  }
+
+  /// Reloads the list with the full-screen loader, used on first open and after
+  /// returning from the editor.
+  Future<void> _refresh() async {
+    setState(() => _loaded = false);
+
+    final projects = await _loadProjects();
 
     if (!mounted) {
       return;
@@ -221,6 +231,24 @@ class _HomeState extends State<Home> {
       _saved = projects;
       _loaded = true;
     });
+  }
+
+  /// Pull-to-refresh: re-syncs while the list stays visible, so the
+  /// [RefreshIndicator]'s own spinner at the top conveys progress instead of
+  /// the full-screen loader. Alongside the data pull it refreshes the Google
+  /// avatar (if it changed) and re-checks for an app update.
+  Future<void> _sync() async {
+    // Pick up a changed Google avatar (no-op for password accounts).
+    await AuthScope.of(context).refreshProfile();
+
+    final projects = await _loadProjects();
+
+    if (mounted) {
+      setState(() => _saved = projects);
+    }
+
+    // Surface a newer release the same way the startup/resume check does.
+    await _checkForUpdate();
   }
 
   /// On the first sign-in on this device, offers to upload any projects saved
@@ -370,10 +398,59 @@ class _HomeState extends State<Home> {
 
     final l10n = AppLocalizations.of(context);
 
+    // Pull-to-refresh re-syncs with the cloud, so it only applies when signed
+    // in; a local-only store has nothing to pull from.
+    final synced = _store is SyncedProjectsStore;
+
+    final list = ListView(
+      // When synced, stay scrollable so the list can be pulled down even with
+      // few projects; locally there's no refresh, so use the default physics.
+      physics: synced ? const AlwaysScrollableScrollPhysics() : null,
+      children: [
+        for (final project in _saved)
+          ListTile(
+            key: Key('saved_${project.id}'),
+            leading: project.photos.isEmpty
+                ? null
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.memory(
+                      decodePhoto(project.photos.first),
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+            title: Text(project.name),
+            subtitle: Text(productById(project.productId).name(l10n)),
+            onTap: () => _openCalculator(project),
+            trailing: PopupMenuButton<void>(
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  onTap: () => _rename(project),
+                  child: Text(l10n.renameAction),
+                ),
+                PopupMenuItem(
+                  onTap: () => _delete(project),
+                  child: Text(l10n.deleteAction),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('KnitCalc'),
-        actions: const [LanguageMenu(), AccountMenu()],
+        actions: [
+          const LanguageMenu(),
+          // Only signed-in (synced) shows the "Sync" item; it shows the same
+          // refresh spinner the pull gesture does.
+          AccountMenu(
+            onSync: synced ? () => _refreshKey.currentState?.show() : null,
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openCalculator(),
@@ -381,40 +458,9 @@ class _HomeState extends State<Home> {
         label: Text(l10n.newProjectAction),
       ),
       body: SafeArea(
-        child: ListView(
-          children: [
-            for (final project in _saved)
-              ListTile(
-                key: Key('saved_${project.id}'),
-                leading: project.photos.isEmpty
-                    ? null
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.memory(
-                          decodePhoto(project.photos.first),
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                title: Text(project.name),
-                subtitle: Text(productById(project.productId).name(l10n)),
-                onTap: () => _openCalculator(project),
-                trailing: PopupMenuButton<void>(
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      onTap: () => _rename(project),
-                      child: Text(l10n.renameAction),
-                    ),
-                    PopupMenuItem(
-                      onTap: () => _delete(project),
-                      child: Text(l10n.deleteAction),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+        child: synced
+            ? RefreshIndicator(key: _refreshKey, onRefresh: _sync, child: list)
+            : list,
       ),
     );
   }

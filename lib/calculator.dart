@@ -371,7 +371,9 @@ class _CalculatorState extends State<Calculator> {
             IconButton(
               icon: const Icon(Icons.save_outlined),
               tooltip: l10n.saveAction,
-              onPressed: _save,
+              // Disabled (greyed out) when nothing changed, except for a draft
+              // that has never been saved — that first save is always allowed.
+              onPressed: _currentId == null || _isDirty() ? _save : null,
             ),
             const LanguageMenu(),
             const AccountMenu(),
@@ -437,6 +439,8 @@ class _CalculatorState extends State<Calculator> {
                       border: const OutlineInputBorder(),
                       alignLabelWithHint: true,
                     ),
+                    // Rebuild so the save button reflects unsaved changes.
+                    onChanged: (_) => setState(() {}),
                   ),
                   _buildPhotos(l10n),
                 ],
@@ -558,6 +562,14 @@ class _PhotoViewer extends StatefulWidget {
 
 class _PhotoViewerState extends State<_PhotoViewer> {
   late int _index = widget.initialIndex;
+
+  /// Photos decoded once and cached, so paging reuses the same byte instances.
+  /// Decoding inside [build] would hand [Image.memory] a fresh list each
+  /// rebuild, defeating the image cache and re-decoding the JPEG — a blank
+  /// frame that flickers while paging.
+  late final List<Uint8List> _decoded = [
+    for (final photo in widget.photos) decodePhoto(photo),
+  ];
 
   /// Pages through the photos: native horizontal swipe, and the target of the
   /// arrow buttons / keyboard arrows via [_go].
@@ -705,7 +717,12 @@ class _PhotoViewerState extends State<_PhotoViewer> {
                           onDoubleTapDown: (d) =>
                               _doubleTapGlobal = d.globalPosition,
                           onDoubleTap: _handleDoubleTap,
-                          child: Image.memory(decodePhoto(widget.photos[i])),
+                          // Keep the previous frame until the next is ready so
+                          // paging doesn't flash blank between photos.
+                          child: Image.memory(
+                            _decoded[i],
+                            gaplessPlayback: true,
+                          ),
                         ),
                       ),
                     );
