@@ -16,6 +16,7 @@ class WebGoogleSignInFlow implements GoogleSignInFlow {
   WebGoogleSignInFlow({
     required this.config,
     required this.browser,
+    this.onCancel,
     Random? random,
   }) : _random = random ?? Random.secure();
 
@@ -23,6 +24,11 @@ class WebGoogleSignInFlow implements GoogleSignInFlow {
   final GoogleOAuthConfig config;
 
   final OAuthBrowser browser;
+
+  /// Aborts the popup leg when [cancel] is called; the web entry point wires it
+  /// to a signal the popup browser races against the redirect.
+  final void Function()? onCancel;
+
   final Random _random;
 
   @override
@@ -57,4 +63,7 @@ class WebGoogleSignInFlow implements GoogleSignInFlow {
 
     return idToken;
   }
+
+  @override
+  void cancel() => onCancel?.call();
 }

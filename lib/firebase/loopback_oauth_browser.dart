@@ -36,6 +36,7 @@ Future<String> loopbackOAuthBrowser({
   required String url,
   required String callbackUrlScheme,
   LaunchMode launchMode = LaunchMode.externalApplication,
+  Future<void>? cancel,
 }) async {
   final callback = Uri.parse(callbackUrlScheme);
   final server = await HttpServer.bind(
@@ -49,10 +50,36 @@ Future<String> loopbackOAuthBrowser({
       throw const GoogleAuthException('could not open the browser');
     }
 
-    final request = await server.first.timeout(
-      const Duration(minutes: 5),
-      onTimeout: () => throw const GoogleAuthException('sign-in timed out'),
-    );
+    // Resolve on the first redirect, the timeout, or an explicit cancel. The
+    // external browser gives the app no signal when the user closes the consent
+    // tab — without [cancel] the call would just sit on the redirect for the
+    // full timeout (the "stuck on the spinner" the UI guards against with a
+    // cancel button).
+    final completer = Completer<HttpRequest>();
+    final subscription = server.listen((request) {
+      if (!completer.isCompleted) {
+        completer.complete(request);
+      }
+    });
+    if (cancel != null) {
+      unawaited(
+        cancel.then((_) {
+          if (!completer.isCompleted) {
+            completer.completeError(const GoogleAuthCancelledException());
+          }
+        }),
+      );
+    }
+
+    final HttpRequest request;
+    try {
+      request = await completer.future.timeout(
+        const Duration(minutes: 5),
+        onTimeout: () => throw const GoogleAuthException('sign-in timed out'),
+      );
+    } finally {
+      await subscription.cancel();
+    }
     final result = request.requestedUri.toString();
 
     request.response

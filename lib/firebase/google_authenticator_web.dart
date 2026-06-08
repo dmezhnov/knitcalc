@@ -23,15 +23,30 @@ GoogleSignInFlow defaultGoogleAuthenticator() {
   // Google rejects with `redirect_uri_mismatch`. `baseURI` ends in `/`.
   final redirect = '${web.document.baseURI}$webOAuthCallbackPath';
 
+  // Lets the UI abort a sign-in waiting on the popup: closing the popup fires no
+  // message, so the browser leg races the redirect against this signal.
+  final cancelled = Completer<void>();
+
   return WebGoogleSignInFlow(
     config: webGoogleConfig(redirect),
-    browser: _webPopupOAuthBrowser,
+    browser: ({required url, required callbackUrlScheme}) =>
+        _webPopupOAuthBrowser(
+          url: url,
+          callbackUrlScheme: callbackUrlScheme,
+          cancel: cancelled.future,
+        ),
+    onCancel: () {
+      if (!cancelled.isCompleted) {
+        cancelled.complete();
+      }
+    },
   );
 }
 
 Future<String> _webPopupOAuthBrowser({
   required String url,
   required String callbackUrlScheme,
+  Future<void>? cancel,
 }) async {
   final origin = web.window.location.origin;
   final completer = Completer<String>();
@@ -61,6 +76,15 @@ Future<String> _webPopupOAuthBrowser({
 
   final listener = onMessage.toJS;
   web.window.addEventListener('message', listener);
+  if (cancel != null) {
+    unawaited(
+      cancel.then((_) {
+        if (!completer.isCompleted) {
+          completer.completeError(const GoogleAuthCancelledException());
+        }
+      }),
+    );
+  }
   try {
     return await completer.future.timeout(
       const Duration(minutes: 5),

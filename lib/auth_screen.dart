@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:knitcalc/firebase/auth_scope.dart';
 import 'package:knitcalc/firebase/firebase_auth_client.dart';
+import 'package:knitcalc/firebase/google_oauth.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/language_menu.dart';
 
@@ -23,6 +24,11 @@ class _AuthScreenState extends State<AuthScreen> {
   /// Whether the form registers a new account rather than signing in.
   bool _register = false;
   bool _busy = false;
+
+  /// True while the Google flow is open (its consent browser is up). Drives the
+  /// cancel affordance: an external/popup browser fires no signal when the user
+  /// closes it, so the screen would otherwise sit on a spinner until timeout.
+  bool _googleBusy = false;
   String? _error;
 
   @override
@@ -85,6 +91,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     setState(() {
       _busy = true;
+      _googleBusy = true;
       _error = null;
     });
 
@@ -93,20 +100,25 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) {
         Navigator.of(context).pop(true);
       }
+    } on GoogleAuthCancelledException {
+      // The user closed the consent browser or pressed cancel — not an error.
     } on PlatformException catch (e) {
       // A user-dismissed browser sheet is not an error; anything else is.
-      if (mounted) {
-        setState(() {
-          _error = e.code == 'CANCELED' ? null : '${l10n.authErrorGeneric}: $e';
-          _busy = false;
-        });
+      if (mounted && e.code != 'CANCELED') {
+        setState(() => _error = '${l10n.authErrorGeneric}: $e');
       }
     } catch (e, stack) {
       debugPrint('Google sign-in failed: $e\n$stack');
       if (mounted) {
+        setState(() => _error = '${l10n.authErrorGeneric}: $e');
+      }
+    } finally {
+      // On success the route is already popped (unmounted); otherwise clear the
+      // busy state so the form is usable again.
+      if (mounted) {
         setState(() {
-          _error = '${l10n.authErrorGeneric}: $e';
           _busy = false;
+          _googleBusy = false;
         });
       }
     }
@@ -228,7 +240,9 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         FilledButton(
           onPressed: _busy ? null : _submit,
-          child: _busy
+          // The spinner is for the email submit; while Google is open the
+          // button just stays disabled with its label.
+          child: _busy && !_googleBusy
               ? const SizedBox(
                   height: 20,
                   width: 20,
@@ -236,11 +250,26 @@ class _AuthScreenState extends State<AuthScreen> {
                 )
               : Text(_register ? l10n.registerAction : l10n.signInAction),
         ),
-        OutlinedButton.icon(
-          onPressed: _busy ? null : _signInWithGoogle,
-          icon: const Icon(Icons.login),
-          label: Text(l10n.googleSignInAction),
-        ),
+        if (_googleBusy) ...[
+          OutlinedButton.icon(
+            onPressed: null,
+            icon: const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            label: Text(l10n.googleSignInWaiting),
+          ),
+          TextButton(
+            onPressed: () => AuthScope.of(context).cancelGoogleSignIn(),
+            child: Text(l10n.cancelAction),
+          ),
+        ] else
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _signInWithGoogle,
+            icon: const Icon(Icons.login),
+            label: Text(l10n.googleSignInAction),
+          ),
         if (!_register)
           TextButton(
             onPressed: _busy ? null : _resetPassword,

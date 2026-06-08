@@ -5,6 +5,7 @@
 /// app (and its loopback server) stays alive, then dismisses the tab.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:url_launcher/url_launcher.dart';
@@ -16,6 +17,11 @@ import 'loopback_oauth_browser.dart';
 GoogleSignInFlow defaultGoogleAuthenticator() {
   final mobile = Platform.isAndroid || Platform.isIOS;
 
+  // Lets the UI abort a sign-in that is waiting on the loopback redirect: the
+  // user can close the external consent browser, which fires no callback, so
+  // the browser leg races the redirect against this signal.
+  final cancelled = Completer<void>();
+
   return GoogleAuthenticator(
     config: desktopLoopbackConfig(),
     browser: ({required url, required callbackUrlScheme}) =>
@@ -25,9 +31,15 @@ GoogleSignInFlow defaultGoogleAuthenticator() {
           launchMode: mobile
               ? LaunchMode.inAppBrowserView
               : LaunchMode.externalApplication,
+          cancel: cancelled.future,
         ),
     // Mobile opens an in-app tab that must be dismissed; do it after the token
     // exchange so closing it doesn't drop the network mid-request.
     closeBrowser: mobile ? closeInAppWebView : null,
+    onCancel: () {
+      if (!cancelled.isCompleted) {
+        cancelled.complete();
+      }
+    },
   );
 }

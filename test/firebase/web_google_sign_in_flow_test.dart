@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:knitcalc/firebase/google_oauth.dart';
@@ -44,6 +46,27 @@ void main() {
       result.obtainIdToken(),
       throwsA(isA<GoogleAuthException>()),
     );
+  });
+
+  test('cancel aborts a pending obtainIdToken via onCancel', () async {
+    final cancelled = Completer<void>();
+    final result = WebGoogleSignInFlow(
+      config: config,
+      browser: ({required url, required callbackUrlScheme}) async {
+        await cancelled.future;
+        throw const GoogleAuthCancelledException();
+      },
+      onCancel: () {
+        if (!cancelled.isCompleted) {
+          cancelled.complete();
+        }
+      },
+    );
+
+    final pending = result.obtainIdToken();
+    result.cancel();
+
+    await expectLater(pending, throwsA(isA<GoogleAuthCancelledException>()));
   });
 
   test('throws when the fragment carries an error', () async {
