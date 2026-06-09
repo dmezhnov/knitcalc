@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knitcalc/update/impl/pm/specs/apt_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/chocolatey_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/flatpak_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/homebrew_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/scoop_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
 
@@ -38,6 +40,73 @@ Knit Calc App  Dmezhnov.KnitCalc 1.8.7   1.9.0     winget
           'No installed package found matching input criteria.',
           packageId: id,
         ),
+        isNull,
+      );
+    });
+  });
+
+  group('parseScoopStatus', () {
+    test('reads the Latest Version column of the app row', () {
+      const out = '''
+Scoop is up to date.
+
+Name     Installed Version Latest Version Missing Dependencies Info
+----     ----------------- -------------- -------------------- ----
+knitcalc 1.8.7             1.8.8
+''';
+      expect(parseScoopStatus(out, appName: 'knitcalc'), '1.8.8');
+    });
+
+    test('returns null when everything is up to date', () {
+      expect(
+        parseScoopStatus('Everything is ok!', appName: 'knitcalc'),
+        isNull,
+      );
+      expect(parseScoopStatus('', appName: 'knitcalc'), isNull);
+    });
+
+    test('ignores rows without a latest version (held/failed)', () {
+      // The Latest Version column is empty, so the Info text shifts into the
+      // third token; it must not be mistaken for a version.
+      const out = '''
+Name     Installed Version Latest Version Missing Dependencies Info
+----     ----------------- -------------- -------------------- ----
+knitcalc 1.8.7                                                  Held package
+''';
+      expect(parseScoopStatus(out, appName: 'knitcalc'), isNull);
+    });
+
+    test('ignores rows of other apps', () {
+      const out = '''
+Name  Installed Version Latest Version Missing Dependencies Info
+----  ----------------- -------------- -------------------- ----
+other 1.0.0             2.0.0
+''';
+      expect(parseScoopStatus(out, appName: 'knitcalc'), isNull);
+    });
+  });
+
+  group('parseChocoOutdated', () {
+    test('reads the available field of the package line', () {
+      const out = '''
+Chocolatey v2.2.2
+knitcalc|1.8.7|1.8.8|false
+other|1.0.0|2.0.0|false
+''';
+      expect(parseChocoOutdated(out, packageId: 'knitcalc'), '1.8.8');
+    });
+
+    test('returns null when the package is not outdated', () {
+      expect(
+        parseChocoOutdated('other|1.0.0|2.0.0|false', packageId: 'knitcalc'),
+        isNull,
+      );
+      expect(parseChocoOutdated('', packageId: 'knitcalc'), isNull);
+    });
+
+    test('returns null when the package is pinned', () {
+      expect(
+        parseChocoOutdated('knitcalc|1.8.7|1.8.8|true', packageId: 'knitcalc'),
         isNull,
       );
     });

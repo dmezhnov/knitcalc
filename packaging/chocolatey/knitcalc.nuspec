@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- {{VERSION}} is filled in by the publish workflow (bare semver, no +build:
+     the Chocolatey gallery rejects build metadata) before `choco pack`. -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>knitcalc</id>
+    <version>{{VERSION}}</version>
+    <title>KnitCalc</title>
+    <authors>Dmitry Mezhnov</authors>
+    <owners>dmezhnov</owners>
+    <projectUrl>https://github.com/dmezhnov/knitcalc</projectUrl>
+    <packageSourceUrl>https://github.com/dmezhnov/knitcalc/tree/main/packaging/chocolatey</packageSourceUrl>
+    <projectSourceUrl>https://github.com/dmezhnov/knitcalc</projectSourceUrl>
+    <licenseUrl>https://github.com/dmezhnov/knitcalc/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <summary>Knitting calculator</summary>
+    <description>KnitCalc is a knitting calculator: gauge conversion, increases/decreases distribution, yarn estimation and project notes with photos.</description>
+    <tags>knitting calculator craft knitcalc</tags>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
