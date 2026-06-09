@@ -120,7 +120,15 @@ class _HomeState extends State<Home> {
 
     if (remove ?? false) {
       try {
-        await uninstallLegacyApp();
+        final outcome = await uninstallLegacyApp();
+        // Diagnostic round: always surface the platform outcome. If the system
+        // uninstaller opens, "launched:…" is harmlessly hidden behind it; if it
+        // silently no-ops, the snackbar still tells us what was resolved.
+        if (mounted && outcome != null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Удаление: $outcome')));
+        }
       } on PlatformException catch (e) {
         // Don't fail silently: show why the system uninstaller couldn't open.
         if (mounted) {
