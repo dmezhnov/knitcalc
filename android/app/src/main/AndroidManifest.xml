@@ -53,5 +53,9 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- The pre-rename package id, so we can detect a leftover install of the
+             old app (different applicationId = a separate app) and offer to
+             uninstall it. Required for getPackageInfo visibility on Android 11+. -->
+        <package android:name="com.example.knitcalc"/>
     </queries>
 </manifest>

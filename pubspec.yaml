@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.8.18+41
+version: 1.8.19+42
 
 environment:
     sdk: ^3.11.4
@@ -43,6 +43,10 @@ dependencies:
     # Opens the system browser for the Google OAuth consent step (the loopback
     # redirect is then caught by our own dart:io HttpServer on desktop).
     url_launcher: ^6.3.2
+    # Android-only: native account picker (Credential Manager) for "Sign in with
+    # Google". Called strictly behind Platform.isAndroid; other platforms keep
+    # the loopback/implicit browser flow. Pulls inert impls on ios/macos/web.
+    google_sign_in: ^7.2.0
     # Google Play In-App Updates (flexible flow) for the Play channel: Play
     # reports availability and ships the binary, avoiding store-review lag.
     in_app_update: ^4.2.5

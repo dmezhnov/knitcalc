@@ -25,7 +25,7 @@ val releaseStoreFile = signingValue("ANDROID_KEYSTORE_PATH", "storeFile")
 val hasReleaseSigning = releaseStoreFile != null
 
 android {
-    namespace = "com.example.knitcalc"
+    namespace = "io.github.dmezhnov.knitcalc"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -39,8 +39,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.knitcalc"
+        applicationId = "io.github.dmezhnov.knitcalc"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

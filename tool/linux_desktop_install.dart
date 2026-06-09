@@ -18,7 +18,7 @@ import 'package:image/image.dart' as img;
 /// id/prgname set in linux/runner/my_application.cc — Wayland matches the window
 /// to its icon by this app_id, so the .desktop basename and StartupWMClass use
 /// it verbatim.
-const String appId = 'com.example.knitcalc';
+const String appId = 'io.github.dmezhnov.knitcalc';
 const String bundleDir = 'build/linux/x64/release/bundle';
 const String sourceIcon = 'snap/gui/knitcalc.png';
 
@@ -97,10 +97,10 @@ const String _installScript = '''
 #!/bin/sh
 # Installs KnitCalc desktop integration for the current user: copies the icon
 # theme PNGs and a .desktop launcher into ~/.local/share so the window gets a
-# taskbar icon (matched by app_id com.example.knitcalc) and a menu entry.
+# taskbar icon (matched by app_id io.github.dmezhnov.knitcalc) and a menu entry.
 set -e
 here=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)
-app_id=com.example.knitcalc
+app_id=io.github.dmezhnov.knitcalc
 data=\${XDG_DATA_HOME:-\$HOME/.local/share}
 
 cp -a "\$here/desktop/icons/hicolor/." "\$data/icons/hicolor/"
@@ -124,7 +124,7 @@ const String _uninstallScript = '''
 #!/bin/sh
 # Removes the per-user KnitCalc desktop integration installed by install.sh.
 set -e
-app_id=com.example.knitcalc
+app_id=io.github.dmezhnov.knitcalc
 data=\${XDG_DATA_HOME:-\$HOME/.local/share}
 
 rm -f "\$data/applications/\$app_id.desktop"
