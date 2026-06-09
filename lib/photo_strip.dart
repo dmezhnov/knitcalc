@@ -92,13 +92,26 @@ class _PhotoStripState extends State<PhotoStrip> {
   }
 
   /// Opens the tapped photo in a full-screen, pinch-to-zoom viewer that can page
-  /// through the other attached photos.
+  /// through the other attached photos and delete them. The viewer pages in the
+  /// same newest-first order as the thumbnails, so swiping matches the strip;
+  /// deletions are flipped back to storage order and reported through
+  /// [widget.onChanged], keeping the strip and viewer in sync.
   void _openPhoto(int index, AppLocalizations l10n) {
+    // Thumbnails are displayed newest-first (the strip walks indices in
+    // reverse), so hand the viewer the reversed list and the matching position.
+    final displayed = widget.photos.reversed.toList();
+    final displayIndex = widget.photos.length - 1 - index;
     showDialog<void>(
       context: context,
       barrierColor: Colors.black,
-      builder: (context) =>
-          _PhotoViewer(photos: widget.photos, initialIndex: index, l10n: l10n),
+      builder: (context) => _PhotoViewer(
+        photos: displayed,
+        initialIndex: displayIndex,
+        l10n: l10n,
+        // The viewer reports the remaining photos in display (newest-first)
+        // order; flip back to storage order before persisting.
+        onChanged: (remaining) => widget.onChanged(remaining.reversed.toList()),
+      ),
     );
   }
 
@@ -307,18 +320,24 @@ class _PhotoStripState extends State<PhotoStrip> {
 /// zoom in on that point, double-tap again to fit. Tapping the backdrop around
 /// the photo — or the close button — dismisses; a single tap on the photo
 /// itself does nothing. When more than one photo is attached, left/right arrows
-/// page through them (hidden at the ends).
+/// page through them (hidden at the ends). A delete button removes the current
+/// photo (after confirming), pages to a neighbour, and closes when the last one
+/// is gone; every change is reported through [onChanged].
 class _PhotoViewer extends StatefulWidget {
   const _PhotoViewer({
     required this.photos,
     required this.initialIndex,
     required this.l10n,
+    required this.onChanged,
   });
 
   /// The attached photos as base64 JPEG strings (see photo_codec.dart).
   final List<String> photos;
   final int initialIndex;
   final AppLocalizations l10n;
+
+  /// Called with the remaining photos whenever one is deleted from the viewer.
+  final ValueChanged<List<String>> onChanged;
 
   @override
   State<_PhotoViewer> createState() => _PhotoViewerState();
@@ -327,12 +346,16 @@ class _PhotoViewer extends StatefulWidget {
 class _PhotoViewerState extends State<_PhotoViewer> {
   late int _index = widget.initialIndex;
 
+  /// Mutable copy of the attached photos so deletions update what the viewer
+  /// pages through; the trimmed list is handed back to the parent via onChanged.
+  late final List<String> _photos = [...widget.photos];
+
   /// Photos decoded once and cached, so paging reuses the same byte instances.
   /// Decoding inside [build] would hand [Image.memory] a fresh list each
   /// rebuild, defeating the image cache and re-decoding the JPEG — a blank
-  /// frame that flickers while paging.
+  /// frame that flickers while paging. Kept in step with [_photos] on delete.
   late final List<Uint8List> _decoded = [
-    for (final photo in widget.photos) decodePhoto(photo),
+    for (final photo in _photos) decodePhoto(photo),
   ];
 
   /// Pages through the photos: native horizontal swipe, and the target of the
@@ -389,7 +412,7 @@ class _PhotoViewerState extends State<_PhotoViewer> {
 
   void _go(int delta) {
     final target = _index + delta;
-    if (target < 0 || target >= widget.photos.length) {
+    if (target < 0 || target >= _photos.length) {
       return;
     }
     _pageController.animateToPage(
@@ -399,8 +422,66 @@ class _PhotoViewerState extends State<_PhotoViewer> {
     );
   }
 
+  /// Deletes the photo currently on screen after confirming. Reports the
+  /// remaining photos to the parent, then pages to a neighbour — or closes the
+  /// viewer when nothing is left.
+  Future<void> _deleteCurrent() async {
+    final l10n = widget.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deletePhotoConfirmTitle),
+        content: Text(l10n.deletePhotoConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancelAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.deleteAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final removed = _index;
+    setState(() {
+      _photos.removeAt(removed);
+      _decoded.removeAt(removed);
+      // Reset zoom/pan so the photo sliding into view opens fit-to-screen.
+      _transform.value = Matrix4.identity();
+      if (_photos.isNotEmpty) {
+        // Stay on the same slot (now showing the next photo); step back when the
+        // last one was removed.
+        _index = removed.clamp(0, _photos.length - 1);
+      }
+    });
+    widget.onChanged([..._photos]);
+
+    if (_photos.isEmpty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    // Realign the controller to the new slot once the shorter PageView is laid
+    // out (it can't be driven mid-rebuild).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pageController.hasClients) {
+        _pageController.jumpToPage(_index);
+      }
+    });
+  }
+
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    // While zoomed in, arrows pan the photo rather than paging, matching the
+    // hidden chevrons and the disabled swipe physics.
+    if (_zoomed) {
       return KeyEventResult.ignored;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
@@ -438,8 +519,27 @@ class _PhotoViewerState extends State<_PhotoViewer> {
   @override
   Widget build(BuildContext context) {
     final l10n = widget.l10n;
-    final hasPrevious = _index > 0;
-    final hasNext = _index < widget.photos.length - 1;
+    // Hide every overlay control while zoomed in, so nothing covers the photo
+    // being inspected; paging/keys are disabled to match (see _handleKey and the
+    // PageView physics).
+    final showControls = !_zoomed;
+    final hasPrevious = showControls && _index > 0;
+    final hasNext = showControls && _index < _photos.length - 1;
+
+    // The default IconButton hover/press tint is dark — invisible on the black
+    // backdrop — so paint a white translucent overlay for hover, focus and press.
+    final overlayStyle = ButtonStyle(
+      overlayColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return Colors.white24;
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return Colors.white12;
+        }
+        return null;
+      }),
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -465,7 +565,7 @@ class _PhotoViewerState extends State<_PhotoViewer> {
                       ? const NeverScrollableScrollPhysics()
                       : null,
                   onPageChanged: _onPageChanged,
-                  itemCount: widget.photos.length,
+                  itemCount: _photos.length,
                   itemBuilder: (context, i) {
                     return InteractiveViewer(
                       // Only the visible page drives the shared controller; the
@@ -501,6 +601,7 @@ class _PhotoViewerState extends State<_PhotoViewer> {
                   tooltip: l10n.previousPhotoAction,
                   icon: const Icon(Icons.chevron_left, color: Colors.white),
                   iconSize: 40,
+                  style: overlayStyle,
                   onPressed: () => _go(-1),
                 ),
               ),
@@ -511,18 +612,32 @@ class _PhotoViewerState extends State<_PhotoViewer> {
                   tooltip: l10n.nextPhotoAction,
                   icon: const Icon(Icons.chevron_right, color: Colors.white),
                   iconSize: 40,
+                  style: overlayStyle,
                   onPressed: () => _go(1),
                 ),
               ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              right: 8,
-              child: IconButton(
-                tooltip: l10n.closeAction,
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
+            if (showControls)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                left: 8,
+                child: IconButton(
+                  tooltip: l10n.removePhotoAction,
+                  icon: const Icon(Icons.delete_outline, color: Colors.white),
+                  style: overlayStyle,
+                  onPressed: _deleteCurrent,
+                ),
               ),
-            ),
+            if (showControls)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                right: 8,
+                child: IconButton(
+                  tooltip: l10n.closeAction,
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  style: overlayStyle,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
           ],
         ),
       ),

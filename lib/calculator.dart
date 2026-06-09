@@ -43,6 +43,12 @@ class _CalculatorState extends State<Calculator> {
   /// the screen so values survive switching between products.
   final Map<String, TextEditingController> _controllers = {};
 
+  /// Editable project name, shown as the AppBar title once the project exists
+  /// (a fresh draft is named in the save dialog instead).
+  late final TextEditingController _name = TextEditingController(
+    text: widget.initial?.name ?? '',
+  );
+
   /// Free-text note, separate from the product inputs.
   late final TextEditingController _description = TextEditingController(
     text: widget.initial?.description ?? '',
@@ -55,6 +61,7 @@ class _CalculatorState extends State<Calculator> {
   /// "Save" updates it in place instead of asking for a name again.
   late String? _currentId = widget.initial?.id;
   late String? _currentName = widget.initial?.name;
+  late String _savedName = widget.initial?.name ?? '';
 
   // Snapshot of the last persisted content, used by [_isDirty] to warn before
   // leaving with unsaved edits. Refreshed on every successful save.
@@ -81,6 +88,7 @@ class _CalculatorState extends State<Calculator> {
     for (final controller in _controllers.values) {
       controller.dispose();
     }
+    _name.dispose();
     _description.dispose();
 
     super.dispose();
@@ -147,7 +155,10 @@ class _CalculatorState extends State<Calculator> {
       description = details.description;
       photos = details.photos;
     } else {
-      name = _currentName!;
+      // Keep the previous name if the field was blanked, so an existing project
+      // can never lose its name to an accidental empty edit.
+      final typed = _name.text.trim();
+      name = typed.isEmpty ? _currentName! : typed;
       description = _description.text.trim();
       photos = _photos;
     }
@@ -180,10 +191,13 @@ class _CalculatorState extends State<Calculator> {
       _currentId = project.id;
       _currentName = project.name;
       // Adopt what the new-project dialog collected so the now-visible inline
-      // fields show it (a no-op when updating an existing project in place).
+      // fields show it (a no-op when updating an existing project in place), and
+      // reflect the possibly-reverted name back into the editable title field.
+      _name.text = project.name;
       _description.text = project.description;
       _photos = [...project.photos];
       // The current content is now the persisted baseline (see _isDirty).
+      _savedName = project.name;
       _savedProductId = project.productId;
       _savedValues = {...project.values};
       _savedDescription = project.description;
@@ -202,6 +216,9 @@ class _CalculatorState extends State<Calculator> {
   /// just for having blank fields.
   bool _isDirty() {
     if (_product.id != _savedProductId) {
+      return true;
+    }
+    if (_name.text.trim() != _savedName) {
       return true;
     }
     if (_description.text.trim() != _savedDescription) {
@@ -322,7 +339,33 @@ class _CalculatorState extends State<Calculator> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_currentName ?? l10n.newProjectTitle),
+          // A fresh draft has no name yet (collected in the save dialog); an
+          // existing project shows its name as an editable field right in the
+          // title bar, so tapping it lets you rename in place.
+          title: _currentId == null
+              ? Text(l10n.newProjectTitle)
+              : TextField(
+                  controller: _name,
+                  style:
+                      Theme.of(context).appBarTheme.titleTextStyle ??
+                      Theme.of(context).textTheme.titleLarge,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    // A faint underline: just enough to read as an editable
+                    // field without competing with the title text.
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    hintText: l10n.projectNameLabel,
+                  ),
+                  textInputAction: TextInputAction.done,
+                  // Rebuild so the save button reflects the renamed (dirty) state.
+                  onChanged: (_) => setState(() {}),
+                ),
           actions: [
             IconButton(
               icon: const Icon(Icons.save_outlined),
