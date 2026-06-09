@@ -57,7 +57,15 @@ import UIKit
     }
 
     let granted: (PHAuthorizationStatus) -> Void = { status in
-      if status == .authorized || status == .limited {
+      // .limited exists only on iOS 14+, so it must stay behind #available
+      // even though the add-only request below already implies iOS 14.
+      let allowed: Bool
+      if #available(iOS 14, *) {
+        allowed = status == .authorized || status == .limited
+      } else {
+        allowed = status == .authorized
+      }
+      if allowed {
         performSave()
       } else {
         DispatchQueue.main.async { result(false) }
