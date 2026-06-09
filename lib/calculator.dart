@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:knitcalc/account_menu.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/language_menu.dart';
-import 'package:knitcalc/name_dialog.dart';
+import 'package:knitcalc/new_project_dialog.dart';
 import 'package:knitcalc/products/products.dart';
 import 'package:knitcalc/storage/photo_codec.dart';
 import 'package:knitcalc/storage/projects_store.dart';
@@ -139,36 +139,50 @@ class _CalculatorState extends State<Calculator> {
       input.key: _controllerFor(input.key).text,
   };
 
-  /// Saves the current fields. On the first save it asks for a name; afterwards
-  /// it updates the loaded project in place.
+  /// Saves the current fields. The first save of a fresh draft asks for the
+  /// name, description and photos in one dialog (the inline description/photo
+  /// fields stay hidden until then); afterwards it updates the loaded project
+  /// in place using the now-visible inline fields.
   Future<void> _save() async {
     final l10n = AppLocalizations.of(context);
-    var name = _currentName;
-
-    if (name == null) {
-      name = await promptProjectName(context, title: l10n.saveDialogTitle);
-
-      if (name == null) {
-        return;
-      }
-    }
 
     final existingId = _currentId;
+    final String name;
+    final String description;
+    final List<String> photos;
+
+    if (existingId == null) {
+      final details = await promptNewProjectDetails(
+        context,
+        title: l10n.saveDialogTitle,
+      );
+      if (details == null) {
+        return;
+      }
+      name = details.name;
+      description = details.description;
+      photos = details.photos;
+    } else {
+      name = _currentName!;
+      description = _description.text.trim();
+      photos = _photos;
+    }
+
     final project = existingId == null
         ? SavedProject.create(
             name: name,
             productId: _product.id,
             values: _currentValues(),
-            description: _description.text.trim(),
-            photos: _photos,
+            description: description,
+            photos: photos,
           )
         : SavedProject(
             id: existingId,
             name: name,
             productId: _product.id,
             values: _currentValues(),
-            description: _description.text.trim(),
-            photos: _photos,
+            description: description,
+            photos: photos,
             updatedAt: DateTime.now(),
           );
 
@@ -181,6 +195,10 @@ class _CalculatorState extends State<Calculator> {
     setState(() {
       _currentId = project.id;
       _currentName = project.name;
+      // Adopt what the new-project dialog collected so the now-visible inline
+      // fields show it (a no-op when updating an existing project in place).
+      _description.text = project.description;
+      _photos = [...project.photos];
       // The current content is now the persisted baseline (see _isDirty).
       _savedProductId = project.productId;
       _savedValues = {...project.values};
@@ -402,6 +420,26 @@ class _CalculatorState extends State<Calculator> {
               child: Column(
                 spacing: 16,
                 children: [
+                  // The description and photos belong to a saved item: a fresh
+                  // draft collects them in the save dialog, so they only appear
+                  // inline once the project exists. Shown first: photos, then
+                  // the description, then the product picker and its fields.
+                  if (_currentId != null) ...[
+                    _buildPhotos(l10n),
+                    TextField(
+                      controller: _description,
+                      minLines: 2,
+                      maxLines: 5,
+                      keyboardType: TextInputType.multiline,
+                      decoration: InputDecoration(
+                        labelText: l10n.descriptionLabel,
+                        border: const OutlineInputBorder(),
+                        alignLabelWithHint: true,
+                      ),
+                      // Rebuild so the save button reflects unsaved changes.
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
                   DropdownButtonFormField<String>(
                     initialValue: _product.id,
                     // Match the rest of the button family: hand cursor on desktop,
@@ -442,20 +480,6 @@ class _CalculatorState extends State<Calculator> {
                         _buildOutputRow(output, l10n),
                     ],
                   ),
-                  TextField(
-                    controller: _description,
-                    minLines: 2,
-                    maxLines: 5,
-                    keyboardType: TextInputType.multiline,
-                    decoration: InputDecoration(
-                      labelText: l10n.descriptionLabel,
-                      border: const OutlineInputBorder(),
-                      alignLabelWithHint: true,
-                    ),
-                    // Rebuild so the save button reflects unsaved changes.
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  _buildPhotos(l10n),
                 ],
               ),
             ),
