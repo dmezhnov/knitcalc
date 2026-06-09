@@ -1,0 +1,8 @@
+# Version manifest for the first winget-pkgs submission; later versions are
+# generated and submitted by the publish workflow via wingetcreate.
+# {{VERSION}} is the bare semver (no +build).
+PackageIdentifier: Dmezhnov.KnitCalc
+PackageVersion: '{{VERSION}}'
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0

@@ -129,6 +129,9 @@ jobs:
         runs-on: windows-latest
         needs: linux-android-web
 
+        outputs:
+            sha256: ${{ steps.package.outputs.sha256 }}
+
         steps:
             - name: Checkout test branch
               uses: actions/checkout@v5
@@ -152,11 +155,16 @@ jobs:
               working-directory: tool/updater
 
             - name: Package Windows bundle
+              id: package
               shell: pwsh
               run: |
                   Remove-Item -Recurse -Force release -ErrorAction SilentlyContinue
                   New-Item -ItemType Directory -Force -Path release/windows
-                  Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "release/windows/knitcalc-windows-x64-${{ needs.linux-android-web.outputs.version }}.zip"
+                  $zip = "release/windows/knitcalc-windows-x64-${{ needs.linux-android-web.outputs.version }}.zip"
+                  Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath $zip
+                  # The Scoop manifest and winget/Chocolatey submissions pin this hash.
+                  $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+                  "sha256=$sha" >> $env:GITHUB_OUTPUT
 
             - name: Upload Windows artifact
               uses: actions/upload-artifact@v7
@@ -222,6 +230,12 @@ jobs:
                   ref: main
                   ssh-key: ${{ secrets.RELEASE_SSH_KEY }}
 
+            - name: Resolve Windows zip URL
+              id: windows-zip
+              run: |
+                  version="${{ needs.linux-android-web.outputs.version }}"
+                  echo "url=https://github.com/${GITHUB_REPOSITORY}/releases/download/v${version}/knitcalc-windows-x64-${version}.zip" >> "$GITHUB_OUTPUT"
+
             - name: Merge test branch
               run: |
                   git config user.name "github-actions[bot]"
@@ -237,6 +251,20 @@ jobs:
                   if [ -f .git/MERGE_HEAD ]; then
                       git commit --no-edit
                   fi
+
+            # The repo doubles as the Scoop bucket (`scoop bucket add knitcalc
+            # https://github.com/dmezhnov/knitcalc`): each release pins the new
+            # version's URL and hash into bucket/knitcalc.json on main, so no
+            # separate bucket repo or extra token is needed.
+            - name: Render Scoop bucket manifest
+              run: |
+                  mkdir -p bucket
+                  sed -e 's|{{VERSION}}|${{ needs.linux-android-web.outputs.version }}|' \
+                      -e 's|{{URL}}|${{ steps.windows-zip.outputs.url }}|' \
+                      -e 's|{{SHA256}}|${{ needs.windows.outputs.sha256 }}|' \
+                      packaging/scoop/knitcalc.json > bucket/knitcalc.json
+                  git add bucket/knitcalc.json
+                  git commit -m "Scoop manifest ${{ needs.linux-android-web.outputs.version }}"
 
             - name: Download release artifacts
               uses: actions/download-artifact@v8
@@ -261,6 +289,77 @@ jobs:
                     --repo "$GITHUB_REPOSITORY" \
                     --title "KnitCalc ${{ needs.linux-android-web.outputs.version }}" \
                     --notes "Automated release for ${{ needs.linux-android-web.outputs.tag }}"
+
+    windows-package-managers:
+        name: Publish to Windows package managers
+        runs-on: windows-latest
+        needs:
+            - linux-android-web
+            - windows
+            - publish
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            # winget and Chocolatey reject +build metadata in versions, so they
+            # get the bare semver; the release asset URL keeps the full version.
+            - name: Compute package facts
+              id: facts
+              shell: pwsh
+              run: |
+                  $full = '${{ needs.linux-android-web.outputs.version }}'
+                  $bare = $full.Split('+')[0]
+                  $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$full/knitcalc-windows-x64-$full.zip"
+                  "full=$full" >> $env:GITHUB_OUTPUT
+                  "bare=$bare" >> $env:GITHUB_OUTPUT
+                  "url=$url" >> $env:GITHUB_OUTPUT
+                  "sha256=${{ needs.windows.outputs.sha256 }}" >> $env:GITHUB_OUTPUT
+
+            # The first version has to be submitted by hand (wingetcreate update
+            # only works for packages already in winget-pkgs); see
+            # packaging/README.md. Failures are downgraded to warnings so a
+            # missing first submission doesn't redden the release.
+            - name: Submit to winget-pkgs
+              shell: pwsh
+              env:
+                  PACKAGING_GITHUB_TOKEN: ${{ secrets.PACKAGING_GITHUB_TOKEN }}
+              run: |
+                  if (-not $env:PACKAGING_GITHUB_TOKEN) {
+                    Write-Host "::warning::PACKAGING_GITHUB_TOKEN is not set; skipping the winget submission."
+                    exit 0
+                  }
+                  Invoke-WebRequest -Uri 'https://aka.ms/wingetcreate/latest' -OutFile wingetcreate.exe
+                  ./wingetcreate.exe update Dmezhnov.KnitCalc `
+                    --version '${{ steps.facts.outputs.bare }}' `
+                    --urls '${{ steps.facts.outputs.url }}' `
+                    --submit --token $env:PACKAGING_GITHUB_TOKEN
+                  if ($LASTEXITCODE -ne 0) {
+                    Write-Host "::warning::wingetcreate failed — either Dmezhnov.KnitCalc is not in winget-pkgs yet (first submission is manual) or the token was rejected."
+                    exit 0
+                  }
+
+            - name: Push to Chocolatey
+              shell: pwsh
+              env:
+                  CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+              run: |
+                  if (-not $env:CHOCO_API_KEY) {
+                    Write-Host "::warning::CHOCO_API_KEY is not set; skipping the Chocolatey push."
+                    exit 0
+                  }
+                  $pkg = 'packaging/chocolatey'
+                  (Get-Content "$pkg/knitcalc.nuspec") `
+                    -replace '\{\{VERSION\}\}', '${{ steps.facts.outputs.bare }}' |
+                    Set-Content "$pkg/knitcalc.nuspec"
+                  (Get-Content "$pkg/tools/chocolateyinstall.ps1") `
+                    -replace '\{\{URL\}\}', '${{ steps.facts.outputs.url }}' `
+                    -replace '\{\{SHA256\}\}', '${{ steps.facts.outputs.sha256 }}' |
+                    Set-Content "$pkg/tools/chocolateyinstall.ps1"
+                  choco pack "$pkg/knitcalc.nuspec" --outputdirectory $pkg
+                  choco push "$pkg/knitcalc.${{ steps.facts.outputs.bare }}.nupkg" --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
 
     deploy-pages:
         name: Deploy GitHub Pages

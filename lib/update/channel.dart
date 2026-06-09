@@ -38,6 +38,12 @@ enum Channel {
   /// Windows, installed via winget — updated with `winget upgrade`.
   windowsWinget,
 
+  /// Windows, installed via Scoop — updated with `scoop update`.
+  windowsScoop,
+
+  /// Windows, installed via Chocolatey — updated with `choco upgrade`.
+  windowsChocolatey,
+
   /// Windows, installed manually (.zip) — download a new zip from GitHub.
   windowsManual,
 
@@ -162,15 +168,31 @@ Channel androidChannelForInstaller(String? installer) {
 
 /// Maps a Windows executable path to its [Channel].
 ///
-/// winget installs portable/zip packages under `…\WinGet\Packages\<id>\…`, so
-/// an executable living there is owned by winget and must update through it
-/// (`winget upgrade`) rather than swapping its own files behind winget's back.
+/// Each Windows package manager unpacks the app under its own directory, so
+/// the executable path identifies the owner — and the owner must run the
+/// update rather than the app swapping its own files behind the manager's
+/// back:
+///
+/// - winget portable/zip packages live under `…\WinGet\Packages\<id>\…`;
+/// - Scoop apps live under `…\scoop\apps\<name>\…` (the `scoop` segment is the
+///   default root for both per-user and global installs; a custom-named
+///   `$env:SCOOP` root is not recognized and falls back to manual);
+/// - Chocolatey unpacks zip packages under `…\chocolatey\lib\<id>\…`.
+///
 /// Anything else is treated as a manually unzipped bundle (GitHub self-update).
 Channel windowsChannelForExecutable(String executablePath) {
   final normalized = executablePath.toLowerCase().replaceAll('/', '\\');
 
   if (normalized.contains('\\winget\\packages\\')) {
     return Channel.windowsWinget;
+  }
+
+  if (normalized.contains('\\scoop\\apps\\')) {
+    return Channel.windowsScoop;
+  }
+
+  if (normalized.contains('\\chocolatey\\lib\\')) {
+    return Channel.windowsChocolatey;
   }
 
   return Channel.windowsManual;

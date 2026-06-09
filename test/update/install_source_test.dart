@@ -45,6 +45,31 @@ void main() {
       );
     });
 
+    test('maps a scoop\\apps path to windowsScoop', () {
+      expect(
+        windowsChannelForExecutable(
+          r'C:\Users\me\scoop\apps\knitcalc\current\knitcalc.exe',
+        ),
+        Channel.windowsScoop,
+      );
+      // Global installs live under ProgramData but keep the scoop\apps shape.
+      expect(
+        windowsChannelForExecutable(
+          r'C:\ProgramData\scoop\apps\knitcalc\1.8.8\knitcalc.exe',
+        ),
+        Channel.windowsScoop,
+      );
+    });
+
+    test('maps a chocolatey\\lib path to windowsChocolatey', () {
+      expect(
+        windowsChannelForExecutable(
+          r'C:\ProgramData\chocolatey\lib\knitcalc\tools\knitcalc.exe',
+        ),
+        Channel.windowsChocolatey,
+      );
+    });
+
     test('maps anything else to windowsManual', () {
       expect(
         windowsChannelForExecutable(r'C:\Program Files\KnitCalc\knitcalc.exe'),

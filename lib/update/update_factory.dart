@@ -6,8 +6,10 @@ import 'package:knitcalc/update/impl/macos/macos_update_service.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
 import 'package:knitcalc/update/impl/pm/package_manager_service.dart';
 import 'package:knitcalc/update/impl/pm/specs/apt_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/chocolatey_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/flatpak_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/homebrew_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/scoop_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
 import 'package:knitcalc/update/impl/store/ios_app_store_service.dart';
@@ -53,6 +55,10 @@ UpdateService createUpdateService(Channel channel) {
     // terminal. Package ids inside the specs are placeholders until published.
     case Channel.windowsWinget:
       return createPackageManagerUpdateService(wingetSpec());
+    case Channel.windowsScoop:
+      return createPackageManagerUpdateService(scoopSpec());
+    case Channel.windowsChocolatey:
+      return createPackageManagerUpdateService(chocolateySpec());
     case Channel.macosHomebrew:
       return createPackageManagerUpdateService(homebrewSpec());
     case Channel.linuxSnap:
