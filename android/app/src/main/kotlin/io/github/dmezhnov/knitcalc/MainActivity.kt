@@ -57,15 +57,10 @@ class MainActivity : FlutterActivity() {
                         if (pkg == null) {
                             result.error("no_package", "Missing package name", null)
                         } else {
-                            try {
-                                requestUninstall(pkg)
-                                result.success(null)
-                            } catch (e: Exception) {
-                                // Surface the cause instead of failing silently
-                                // (e.g. ActivityNotFoundException if the uninstaller
-                                // can't be resolved).
-                                result.error("uninstall_failed", e.message, null)
-                            }
+                            // Returns a short diagnostic string so a silent no-op
+                            // (uninstaller resolves but nothing shows) is still
+                            // observable on-device — the Dart side surfaces it.
+                            result.success(requestUninstall(pkg))
                         }
                     }
                     else -> result.notImplemented()
@@ -92,9 +87,31 @@ class MainActivity : FlutterActivity() {
         }
 
     /** Opens the system uninstall dialog for [packageName]; the user confirms it.
-     *  Launched from this Activity's context, so no FLAG_ACTIVITY_NEW_TASK. */
-    private fun requestUninstall(packageName: String) {
-        startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName")))
+     *  Launched from this Activity's context, so no FLAG_ACTIVITY_NEW_TASK.
+     *
+     *  Returns a short diagnostic string describing the outcome:
+     *    "not_installed"        — the package is no longer present
+     *    "no_handler"           — no activity resolved either uninstall intent
+     *    "launched:<action>->…" — startActivity succeeded for that component
+     *    "error:<action>:<ex>…" — startActivity threw for that action
+     *  Tries ACTION_DELETE first, then the deprecated ACTION_UNINSTALL_PACKAGE,
+     *  since some OEM ROMs only honour one of them. */
+    private fun requestUninstall(packageName: String): String {
+        if (!isPackageInstalled(packageName)) {
+            return "not_installed"
+        }
+        val uri = Uri.fromParts("package", packageName, null)
+        for (action in listOf(Intent.ACTION_DELETE, Intent.ACTION_UNINSTALL_PACKAGE)) {
+            val intent = Intent(action, uri)
+            val handler = intent.resolveActivity(packageManager) ?: continue
+            return try {
+                startActivity(intent)
+                "launched:$action->${handler.flattenToShortString()}"
+            } catch (e: Exception) {
+                "error:$action:${e.javaClass.simpleName}:${e.message}"
+            }
+        }
+        return "no_handler"
     }
 
     /** Hands a downloaded APK to the system package installer. */

@@ -40,13 +40,18 @@ Future<bool> legacyAppInstalled() async {
 }
 
 /// Opens the system uninstall dialog for the pre-rename app. The user confirms
-/// (or cancels) the removal in the system UI; this returns once it is launched.
-Future<void> uninstallLegacyApp() async {
+/// (or cancels) the removal in the system UI.
+///
+/// Returns a short diagnostic string from the platform describing what the
+/// uninstall intent did (e.g. `launched:…`, `no_handler`, `not_installed`,
+/// `error:…`), or null off Android/web. The caller surfaces it so a silent
+/// no-op stays observable on-device.
+Future<String?> uninstallLegacyApp() async {
   if (kIsWeb || !Platform.isAndroid) {
-    return;
+    return null;
   }
 
-  await _channel.invokeMethod<void>('uninstallPackage', {
+  return _channel.invokeMethod<String>('uninstallPackage', {
     'package': legacyAndroidPackage,
   });
 }
