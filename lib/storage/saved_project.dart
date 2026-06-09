@@ -17,6 +17,7 @@ class SavedProject {
     required this.updatedAt,
     this.description = '',
     this.photos = const [],
+    this.coverIndex = 0,
     this.deleted = false,
   });
 
@@ -27,6 +28,7 @@ class SavedProject {
     required Map<String, String> values,
     String description = '',
     List<String> photos = const [],
+    int coverIndex = 0,
     bool deleted = false,
     DateTime? updatedAt,
   }) {
@@ -39,6 +41,7 @@ class SavedProject {
       values: values,
       description: description,
       photos: photos,
+      coverIndex: coverIndex,
       deleted: deleted,
       updatedAt: now,
     );
@@ -57,6 +60,7 @@ class SavedProject {
       },
       description: json['description'] as String? ?? '',
       photos: [for (final photo in rawPhotos) photo as String],
+      coverIndex: json['coverIndex'] as int? ?? 0,
       deleted: json['deleted'] as bool? ?? false,
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -80,6 +84,12 @@ class SavedProject {
   /// Attached photos, each a base64-encoded JPEG (see photo_codec.dart).
   final List<String> photos;
 
+  /// Index into [photos] of the cover photo — the one shown as this project's
+  /// thumbnail in the saved list. Defaults to 0 (the first photo), so projects
+  /// saved before this field existed keep their original thumbnail. Consumers
+  /// must clamp it against the current [photos] length.
+  final int coverIndex;
+
   /// Whether this project has been deleted. Deletions are kept as tombstones
   /// (rather than dropped) so they propagate to other devices during sync; the
   /// UI filters these out.
@@ -95,6 +105,7 @@ class SavedProject {
     Map<String, String>? values,
     String? description,
     List<String>? photos,
+    int? coverIndex,
     bool? deleted,
     DateTime? updatedAt,
   }) {
@@ -105,6 +116,7 @@ class SavedProject {
       values: values ?? this.values,
       description: description ?? this.description,
       photos: photos ?? this.photos,
+      coverIndex: coverIndex ?? this.coverIndex,
       deleted: deleted ?? this.deleted,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -117,6 +129,7 @@ class SavedProject {
     'values': values,
     'description': description,
     'photos': photos,
+    'coverIndex': coverIndex,
     'deleted': deleted,
     'updatedAt': updatedAt.toIso8601String(),
   };

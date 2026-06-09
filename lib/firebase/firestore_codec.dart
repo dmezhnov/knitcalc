@@ -17,6 +17,8 @@ Map<String, dynamic> encodeProjectFields(SavedProject project) {
       'name': {'stringValue': project.name},
       'productId': {'stringValue': project.productId},
       'description': {'stringValue': project.description},
+      // Firestore REST carries integers as a decimal string under integerValue.
+      'coverIndex': {'integerValue': project.coverIndex.toString()},
       'deleted': {'booleanValue': project.deleted},
       'updatedAt': {
         'timestampValue': project.updatedAt.toUtc().toIso8601String(),
@@ -60,6 +62,10 @@ SavedProject decodeProjectDocument(Map<String, dynamic> document) {
     name: str('name'),
     productId: str('productId'),
     description: str('description'),
+    // integerValue arrives as a string; default 0 for records predating it.
+    coverIndex:
+        int.tryParse(fields['coverIndex']?['integerValue']?.toString() ?? '') ??
+        0,
     deleted: fields['deleted']?['booleanValue'] as bool? ?? false,
     values: {
       for (final entry in rawValues.entries)

@@ -57,6 +57,13 @@ class _CalculatorState extends State<Calculator> {
   /// Attached photos as base64 JPEG strings (see photo_codec.dart).
   late List<String> _photos = [...?widget.initial?.photos];
 
+  /// Index into [_photos] of the cover photo (the project's list thumbnail).
+  late int _coverIndex = widget.initial?.coverIndex ?? 0;
+
+  /// True while [_save] is persisting (and, when signed in, pushing to the
+  /// cloud), so the save action shows a spinner and ignores further taps.
+  bool _saving = false;
+
   /// Identity of the saved project, or `null` until the first save. Once set,
   /// "Save" updates it in place instead of asking for a name again.
   late String? _currentId = widget.initial?.id;
@@ -69,6 +76,7 @@ class _CalculatorState extends State<Calculator> {
   late Map<String, String> _savedValues = {...?widget.initial?.values};
   late String _savedDescription = widget.initial?.description ?? '';
   late List<String> _savedPhotos = [...?widget.initial?.photos];
+  late int _savedCoverIndex = widget.initial?.coverIndex ?? 0;
 
   @override
   void initState() {
@@ -142,6 +150,7 @@ class _CalculatorState extends State<Calculator> {
     final String name;
     final String description;
     final List<String> photos;
+    final int coverIndex;
 
     if (existingId == null) {
       final details = await promptNewProjectDetails(
@@ -154,6 +163,7 @@ class _CalculatorState extends State<Calculator> {
       name = details.name;
       description = details.description;
       photos = details.photos;
+      coverIndex = details.coverIndex;
     } else {
       // Keep the previous name if the field was blanked, so an existing project
       // can never lose its name to an accidental empty edit.
@@ -161,6 +171,7 @@ class _CalculatorState extends State<Calculator> {
       name = typed.isEmpty ? _currentName! : typed;
       description = _description.text.trim();
       photos = _photos;
+      coverIndex = _coverIndex;
     }
 
     final project = existingId == null
@@ -170,6 +181,7 @@ class _CalculatorState extends State<Calculator> {
             values: _currentValues(),
             description: description,
             photos: photos,
+            coverIndex: coverIndex,
           )
         : SavedProject(
             id: existingId,
@@ -178,10 +190,20 @@ class _CalculatorState extends State<Calculator> {
             values: _currentValues(),
             description: description,
             photos: photos,
+            coverIndex: coverIndex,
             updatedAt: DateTime.now(),
           );
 
-    await widget.repository.upsert(project);
+    // Spin the save icon while persisting (a signed-in save also pushes to
+    // Firestore over the network); always clear it, even if the push throws.
+    setState(() => _saving = true);
+    try {
+      await widget.repository.upsert(project);
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
 
     if (!mounted) {
       return;
@@ -196,12 +218,14 @@ class _CalculatorState extends State<Calculator> {
       _name.text = project.name;
       _description.text = project.description;
       _photos = [...project.photos];
+      _coverIndex = project.coverIndex;
       // The current content is now the persisted baseline (see _isDirty).
       _savedName = project.name;
       _savedProductId = project.productId;
       _savedValues = {...project.values};
       _savedDescription = project.description;
       _savedPhotos = [...project.photos];
+      _savedCoverIndex = project.coverIndex;
     });
 
     ScaffoldMessenger.of(
@@ -225,6 +249,9 @@ class _CalculatorState extends State<Calculator> {
       return true;
     }
     if (!listEquals(_photos, _savedPhotos)) {
+      return true;
+    }
+    if (_coverIndex != _savedCoverIndex) {
       return true;
     }
     return !mapEquals(_nonEmpty(_currentValues()), _nonEmpty(_savedValues));
@@ -368,11 +395,20 @@ class _CalculatorState extends State<Calculator> {
                 ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.save_outlined),
+              icon: _saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
               tooltip: l10n.saveAction,
               // Disabled (greyed out) when nothing changed, except for a draft
-              // that has never been saved — that first save is always allowed.
-              onPressed: _currentId == null || _isDirty() ? _save : null,
+              // that has never been saved — that first save is always allowed;
+              // also disabled while a save is already in flight.
+              onPressed: !_saving && (_currentId == null || _isDirty())
+                  ? _save
+                  : null,
             ),
             const LanguageMenu(),
             const AccountMenu(),
@@ -395,7 +431,17 @@ class _CalculatorState extends State<Calculator> {
                   if (_currentId != null) ...[
                     PhotoStrip(
                       photos: _photos,
-                      onChanged: (photos) => setState(() => _photos = photos),
+                      coverIndex: _coverIndex,
+                      onChanged: (photos) => setState(() {
+                        _photos = photos;
+                        // Keep the cover valid if photos were removed from the
+                        // strip; an empty list resets it to 0.
+                        if (_coverIndex >= _photos.length) {
+                          _coverIndex = 0;
+                        }
+                      }),
+                      onCoverChanged: (index) =>
+                          setState(() => _coverIndex = index),
                     ),
                     TextField(
                       controller: _description,

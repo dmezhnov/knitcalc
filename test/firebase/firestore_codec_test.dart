@@ -23,6 +23,7 @@ void main() {
       values: const {'stitches': '15', 'sampleWidthCm': '10,5'},
       description: 'soft merino',
       photos: const ['photoA', 'photoB'],
+      coverIndex: 1,
       deleted: false,
       updatedAt: DateTime.utc(2026, 6, 7, 8, 9, 10),
     );
@@ -35,6 +36,7 @@ void main() {
     expect(restored.values, project.values);
     expect(restored.description, project.description);
     expect(restored.photos, project.photos);
+    expect(restored.coverIndex, project.coverIndex);
     expect(restored.deleted, isFalse);
     expect(restored.updatedAt.isAtSameMomentAs(project.updatedAt), isTrue);
   });
@@ -76,5 +78,7 @@ void main() {
     expect(restored.photos, isEmpty);
     expect(restored.values, isEmpty);
     expect(restored.deleted, isFalse);
+    // Records predating coverIndex decode to the first-photo default.
+    expect(restored.coverIndex, 0);
   });
 }

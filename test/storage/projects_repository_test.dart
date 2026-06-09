@@ -17,6 +17,7 @@ void main() {
     String name = 'Scarf',
     String description = '',
     List<String> photos = const [],
+    int coverIndex = 0,
     DateTime? updatedAt,
   }) {
     return SavedProject(
@@ -26,6 +27,7 @@ void main() {
       values: const {'stitches': '15', 'sampleWidthCm': '10,5'},
       description: description,
       photos: photos,
+      coverIndex: coverIndex,
       updatedAt: updatedAt ?? DateTime(2026, 6, 7),
     );
   }
@@ -79,6 +81,7 @@ void main() {
       id: '1',
       description: 'soft merino',
       photos: const ['photoA', 'photoB'],
+      coverIndex: 1,
       updatedAt: DateTime(2026, 6, 7, 8, 9, 10),
     );
 
@@ -90,6 +93,7 @@ void main() {
     expect(restored.values, project.values);
     expect(restored.description, project.description);
     expect(restored.photos, project.photos);
+    expect(restored.coverIndex, project.coverIndex);
     expect(restored.updatedAt, project.updatedAt);
   });
 
@@ -98,12 +102,14 @@ void main() {
     () {
       final json = sample(id: '1').toJson()
         ..remove('description')
-        ..remove('photos');
+        ..remove('photos')
+        ..remove('coverIndex');
 
       final restored = SavedProject.fromJson(json);
 
       expect(restored.description, '');
       expect(restored.photos, isEmpty);
+      expect(restored.coverIndex, 0);
     },
   );
 }
