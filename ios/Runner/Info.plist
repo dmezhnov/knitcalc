@@ -4,6 +4,8 @@
 <dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Нужен доступ к фотографиям, чтобы прикреплять их к изделиям.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Нужен доступ, чтобы сохранять фотографии изделий в Фотоплёнку.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

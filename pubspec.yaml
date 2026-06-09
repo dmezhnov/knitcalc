@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.8.22+45
+version: 1.8.23+46
 
 environment:
     sdk: ^3.11.4
@@ -50,6 +50,7 @@ dependencies:
     # Google Play In-App Updates (flexible flow) for the Play channel: Play
     # reports availability and ships the binary, avoiding store-review lag.
     in_app_update: ^4.2.5
+    file_selector: ^1.1.0
 
 dev_dependencies:
     flutter_test:

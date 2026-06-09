@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
+import 'package:knitcalc/photo_download.dart';
 import 'package:knitcalc/storage/photo_codec.dart';
 
 /// Editable strip of attached photos, shared by the project editor and the
@@ -320,6 +321,20 @@ class _PhotoStripState extends State<PhotoStrip> {
               ),
             ),
           ),
+          // Mark the cover photo with a star in the bottom-right corner, so the
+          // project's list thumbnail is identifiable at a glance in the strip.
+          // With a single photo the cover is unambiguous, so the badge is noise.
+          if (widget.photos.length > 1 && index == widget.coverIndex)
+            const Positioned(
+              bottom: 2,
+              right: 2,
+              child: Icon(
+                Icons.star,
+                color: Colors.amber,
+                size: 18,
+                shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+              ),
+            ),
           if (showDelete)
             Positioned(
               top: 0,
@@ -527,6 +542,43 @@ class _PhotoViewerState extends State<_PhotoViewer> {
     widget.onChanged([..._photos], _cover);
   }
 
+  /// Saves the photo currently on screen out of the app — a browser download on
+  /// web, the gallery on mobile, a "Save As" dialog on desktop — and reports the
+  /// outcome in a snackbar (silently doing nothing if the dialog is cancelled).
+  Future<void> _downloadCurrent() async {
+    final l10n = widget.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final bytes = _decoded[_index];
+    final fileName = 'KnitCalc_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    PhotoSaveResult result;
+    try {
+      result = await savePhoto(bytes, fileName);
+    } catch (_) {
+      result = const PhotoSaveResult(PhotoSaveStatus.failed);
+    }
+    if (!mounted) {
+      return;
+    }
+
+    final String message;
+    switch (result.status) {
+      case PhotoSaveStatus.cancelled:
+        // The user dismissed the save dialog — nothing to report.
+        return;
+      case PhotoSaveStatus.failed:
+        message = l10n.photoSaveFailed;
+      case PhotoSaveStatus.saved:
+        final path = result.path;
+        // A user-visible path (desktop) is worth showing; the gallery / browser
+        // download has none, so a plain confirmation is enough.
+        message = path == null
+            ? l10n.photoSavedSnack
+            : l10n.photoSavedToSnack(path);
+    }
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -682,8 +734,8 @@ class _PhotoViewerState extends State<_PhotoViewer> {
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
-            // Bottom-centre action bar: pick this photo as the cover (filled star
-            // when it already is), then delete it.
+            // Bottom-centre action bar: download this photo, pick it as the
+            // cover (filled star when it already is), then delete it.
             if (showControls)
               Positioned(
                 left: 0,
@@ -693,17 +745,29 @@ class _PhotoViewerState extends State<_PhotoViewer> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      tooltip: l10n.setCoverPhotoAction,
-                      icon: Icon(
-                        _index == _cover ? Icons.star : Icons.star_border,
-                        // Dim the star (and drop the hand cursor / clicks via the
-                        // null onPressed) when this photo is already the cover.
-                        color: _index == _cover ? Colors.white54 : Colors.white,
-                      ),
+                      tooltip: l10n.downloadPhotoAction,
+                      icon: const Icon(Icons.download, color: Colors.white),
                       style: overlayStyle,
-                      onPressed: _index == _cover ? null : _setCover,
+                      onPressed: _downloadCurrent,
                     ),
                     const SizedBox(width: 24),
+                    // With a single photo the cover is unambiguous, so the
+                    // "make cover" star is hidden — only delete remains.
+                    if (_photos.length > 1) ...[
+                      IconButton(
+                        tooltip: l10n.setCoverPhotoAction,
+                        icon: Icon(
+                          _index == _cover ? Icons.star : Icons.star_border,
+                          // Amber filled star when this photo is already the
+                          // cover, matching the strip thumbnail badge; clicks are
+                          // also dropped (null onPressed) since it's the cover.
+                          color: _index == _cover ? Colors.amber : Colors.white,
+                        ),
+                        style: overlayStyle,
+                        onPressed: _index == _cover ? null : _setCover,
+                      ),
+                      const SizedBox(width: 24),
+                    ],
                     IconButton(
                       tooltip: l10n.removePhotoAction,
                       icon: const Icon(

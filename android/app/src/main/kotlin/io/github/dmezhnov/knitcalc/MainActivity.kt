@@ -1,9 +1,12 @@
 package io.github.dmezhnov.knitcalc
 
+import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.RenderMode
@@ -50,6 +53,15 @@ class MainActivity : FlutterActivity() {
                             result.error("no_package", "Missing package name", null)
                         } else {
                             result.success(isPackageInstalled(pkg))
+                        }
+                    }
+                    "saveImageToGallery" -> {
+                        val bytes = call.argument<ByteArray>("bytes")
+                        val name = call.argument<String>("name")
+                        if (bytes == null || name == null) {
+                            result.error("bad_args", "Missing image bytes or name", null)
+                        } else {
+                            result.success(saveImageToGallery(bytes, name))
                         }
                     }
                     "uninstallPackage" -> {
@@ -112,6 +124,50 @@ class MainActivity : FlutterActivity() {
             }
         }
         return "no_handler"
+    }
+
+    /** Saves [bytes] as a JPEG into the device gallery (Pictures/KnitCalc) via
+     *  MediaStore. On API 29+ this needs no permission; on older versions it
+     *  relies on WRITE_EXTERNAL_STORAGE (declared maxSdkVersion=28). Returns
+     *  whether the image was written. */
+    private fun saveImageToGallery(bytes: ByteArray, displayName: String): Boolean {
+        val collection =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+
+        val values =
+            ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(
+                        MediaStore.Images.Media.RELATIVE_PATH,
+                        "${Environment.DIRECTORY_PICTURES}/KnitCalc",
+                    )
+                    // Hide the row until the bytes are fully written.
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+
+        val uri = contentResolver.insert(collection, values) ?: return false
+
+        return try {
+            contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: return false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                contentResolver.update(uri, values, null, null)
+            }
+            true
+        } catch (_: Exception) {
+            // Roll back the placeholder row so a failed write leaves no empty entry.
+            contentResolver.delete(uri, null, null)
+            false
+        }
     }
 
     /** Hands a downloaded APK to the system package installer. */
