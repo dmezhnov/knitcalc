@@ -7,6 +7,11 @@
          for the leftover pre-rename app; without it UninstallerActivity launches
          but silently finishes. Normal-level: granted at install, no prompt. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES"/>
+    <!-- Save a photo to the gallery on pre-Q devices, where writing to
+         MediaStore still needs storage permission. On API 29+ the scoped
+         MediaStore insert needs no permission, so cap it at 28. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
     <application
         android:label="knitcalc"
         android:name="${applicationName}"

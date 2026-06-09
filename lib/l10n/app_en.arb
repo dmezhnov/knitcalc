@@ -46,6 +46,15 @@
   "nextPhotoAction": "Next photo",
   "setCoverPhotoAction": "Set as cover",
   "coverPhotoLabel": "Cover photo",
+  "downloadPhotoAction": "Download photo",
+  "photoSavedSnack": "Photo saved",
+  "photoSavedToSnack": "Photo saved to {path}",
+  "@photoSavedToSnack": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "photoSaveFailed": "Could not save the photo",
   "morePhotos": "{count, plural, one{{count} more\nphoto} other{{count} more\nphotos}}",
   "@morePhotos": {
     "placeholders": {

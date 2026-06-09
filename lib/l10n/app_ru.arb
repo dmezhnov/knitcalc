@@ -46,6 +46,15 @@
   "nextPhotoAction": "Следующее фото",
   "setCoverPhotoAction": "Сделать основным",
   "coverPhotoLabel": "Основное фото",
+  "downloadPhotoAction": "Скачать фото",
+  "photoSavedSnack": "Фото сохранено",
+  "photoSavedToSnack": "Фото сохранено: {path}",
+  "@photoSavedToSnack": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "photoSaveFailed": "Не удалось сохранить фото",
   "morePhotos": "ещё {count}\nфото",
   "@morePhotos": {
     "placeholders": {
