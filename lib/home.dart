@@ -119,25 +119,19 @@ class _HomeState extends State<Home> {
     );
 
     if (remove ?? false) {
+      String? outcome;
       try {
-        final outcome = await uninstallLegacyApp();
-        // Diagnostic round: always surface the platform outcome. If the system
-        // uninstaller opens, "launched:…" is harmlessly hidden behind it; if it
-        // silently no-ops, the snackbar still tells us what was resolved.
-        if (mounted && outcome != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Удаление: $outcome')));
-        }
-      } on PlatformException catch (e) {
-        // Don't fail silently: show why the system uninstaller couldn't open.
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${l10n.legacyAppRemoveFailed}: ${e.message}'),
-            ),
-          );
-        }
+        outcome = await uninstallLegacyApp();
+      } on PlatformException {
+        outcome = null;
+      }
+      // The system uninstall dialog is the user's confirmation, so success
+      // needs no snackbar. Only flag a problem when the uninstaller didn't
+      // actually launch (e.g. couldn't be resolved on this device).
+      if (mounted && outcome != null && !outcome.startsWith('launched:')) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.legacyAppRemoveFailed)));
       }
     }
   }
