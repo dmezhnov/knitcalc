@@ -46,21 +46,22 @@ Future<void> createProject(
 
   await tester.enterText(find.byKey(const Key('stitches')), stitches);
   await tester.enterText(find.byKey(const Key('sampleWidthCm')), width);
-  if (description != null) {
-    await tester.enterText(descriptionField(), description);
-  }
   await tester.pumpAndSettle();
 
   await tester.tap(find.byTooltip('Сохранить'));
   await tester.pumpAndSettle();
 
+  // The first save of a fresh draft collects the name (and, optionally, the
+  // description) in one dialog.
   await tester.enterText(
-    find.descendant(
-      of: find.byType(AlertDialog),
-      matching: find.byType(TextField),
-    ),
+    find.ancestor(of: find.text('Название'), matching: find.byType(TextField)),
     name,
   );
+  if (description != null) {
+    await tester.enterText(descriptionField(), description);
+  }
+  await tester.pumpAndSettle();
+
   await tester.tap(
     find.descendant(
       of: find.byType(AlertDialog),
