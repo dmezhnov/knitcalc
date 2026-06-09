@@ -44,6 +44,8 @@
   "closeAction": "Закрыть",
   "previousPhotoAction": "Предыдущее фото",
   "nextPhotoAction": "Следующее фото",
+  "setCoverPhotoAction": "Сделать основным",
+  "coverPhotoLabel": "Основное фото",
   "morePhotos": "ещё {count}\nфото",
   "@morePhotos": {
     "placeholders": {

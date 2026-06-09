@@ -10,11 +10,15 @@ class NewProjectDetails {
     required this.name,
     required this.description,
     required this.photos,
+    this.coverIndex = 0,
   });
 
   final String name;
   final String description;
   final List<String> photos;
+
+  /// Index into [photos] of the chosen cover (the project's list thumbnail).
+  final int coverIndex;
 }
 
 /// Asks for a new project's name, description and photos in a single dialog.
@@ -47,6 +51,9 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
   /// and handed to [PhotoStrip], which reports add/remove through its callback.
   List<String> _photos = [];
 
+  /// Index into [_photos] of the chosen cover photo.
+  int _coverIndex = 0;
+
   @override
   void dispose() {
     _name.dispose();
@@ -65,6 +72,7 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
         name: name,
         description: _description.text.trim(),
         photos: _photos,
+        coverIndex: _coverIndex,
       ),
     );
   }
@@ -105,7 +113,14 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
               ),
               PhotoStrip(
                 photos: _photos,
-                onChanged: (photos) => setState(() => _photos = photos),
+                coverIndex: _coverIndex,
+                onChanged: (photos) => setState(() {
+                  _photos = photos;
+                  if (_coverIndex >= _photos.length) {
+                    _coverIndex = 0;
+                  }
+                }),
+                onCoverChanged: (index) => setState(() => _coverIndex = index),
               ),
             ],
           ),

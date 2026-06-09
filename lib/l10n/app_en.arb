@@ -44,6 +44,8 @@
   "closeAction": "Close",
   "previousPhotoAction": "Previous photo",
   "nextPhotoAction": "Next photo",
+  "setCoverPhotoAction": "Set as cover",
+  "coverPhotoLabel": "Cover photo",
   "morePhotos": "{count, plural, one{{count} more\nphoto} other{{count} more\nphotos}}",
   "@morePhotos": {
     "placeholders": {

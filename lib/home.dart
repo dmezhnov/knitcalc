@@ -414,7 +414,12 @@ class _HomeState extends State<Home> {
                 : ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: Image.memory(
-                      decodePhoto(project.photos.first),
+                      decodePhoto(
+                        project.photos[project.coverIndex.clamp(
+                          0,
+                          project.photos.length - 1,
+                        )],
+                      ),
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,

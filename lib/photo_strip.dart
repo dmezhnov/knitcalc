@@ -17,13 +17,27 @@ import 'package:knitcalc/storage/photo_codec.dart';
 /// itself — and reports every change through [onChanged] so the parent can keep
 /// its own copy (e.g. to persist or detect unsaved edits).
 class PhotoStrip extends StatefulWidget {
-  const PhotoStrip({super.key, required this.photos, required this.onChanged});
+  const PhotoStrip({
+    super.key,
+    required this.photos,
+    required this.onChanged,
+    this.coverIndex = 0,
+    this.onCoverChanged,
+  });
 
   /// The attached photos as base64 JPEG strings (see photo_codec.dart).
   final List<String> photos;
 
   /// Called with the new list whenever a photo is added or removed.
   final ValueChanged<List<String>> onChanged;
+
+  /// Index into [photos] of the cover photo (the project's list thumbnail).
+  /// Defaults to 0; consumers persisting it should clamp against the length.
+  final int coverIndex;
+
+  /// Called when the user picks a different cover in the full-screen viewer,
+  /// with the new index into [photos]. Null when the host doesn't track a cover.
+  final ValueChanged<int>? onCoverChanged;
 
   @override
   State<PhotoStrip> createState() => _PhotoStripState();
@@ -100,17 +114,26 @@ class _PhotoStripState extends State<PhotoStrip> {
     // Thumbnails are displayed newest-first (the strip walks indices in
     // reverse), so hand the viewer the reversed list and the matching position.
     final displayed = widget.photos.reversed.toList();
-    final displayIndex = widget.photos.length - 1 - index;
+    final last = widget.photos.length - 1;
+    final displayIndex = last - index;
+    final displayCover = last - widget.coverIndex.clamp(0, last);
     showDialog<void>(
       context: context,
       barrierColor: Colors.black,
       builder: (context) => _PhotoViewer(
         photos: displayed,
         initialIndex: displayIndex,
+        coverIndex: displayCover,
         l10n: l10n,
-        // The viewer reports the remaining photos in display (newest-first)
-        // order; flip back to storage order before persisting.
-        onChanged: (remaining) => widget.onChanged(remaining.reversed.toList()),
+        // The viewer reports its remaining photos and chosen cover in display
+        // (newest-first) order; flip both back to storage order using the
+        // reported length (which stays consistent across deletions).
+        onChanged: (remaining, cover) {
+          widget.onChanged(remaining.reversed.toList());
+          if (remaining.isNotEmpty) {
+            widget.onCoverChanged?.call(remaining.length - 1 - cover);
+          }
+        },
       ),
     );
   }
@@ -320,13 +343,17 @@ class _PhotoStripState extends State<PhotoStrip> {
 /// zoom in on that point, double-tap again to fit. Tapping the backdrop around
 /// the photo — or the close button — dismisses; a single tap on the photo
 /// itself does nothing. When more than one photo is attached, left/right arrows
-/// page through them (hidden at the ends). A delete button removes the current
-/// photo (after confirming), pages to a neighbour, and closes when the last one
-/// is gone; every change is reported through [onChanged].
+/// page through them (hidden at the ends). The bottom bar holds a "set as cover"
+/// toggle (the cover is the project's list thumbnail) and a delete button, which
+/// removes the current photo (after confirming), pages to a neighbour, and
+/// closes when the last one is gone. Every change — deletion or a new cover — is
+/// reported through [onChanged] as the remaining photos plus the cover index,
+/// both in the viewer's (display) order.
 class _PhotoViewer extends StatefulWidget {
   const _PhotoViewer({
     required this.photos,
     required this.initialIndex,
+    required this.coverIndex,
     required this.l10n,
     required this.onChanged,
   });
@@ -334,10 +361,14 @@ class _PhotoViewer extends StatefulWidget {
   /// The attached photos as base64 JPEG strings (see photo_codec.dart).
   final List<String> photos;
   final int initialIndex;
+
+  /// Index (in [photos] order) of the current cover photo.
+  final int coverIndex;
   final AppLocalizations l10n;
 
-  /// Called with the remaining photos whenever one is deleted from the viewer.
-  final ValueChanged<List<String>> onChanged;
+  /// Called whenever a photo is deleted or a new cover is chosen, with the
+  /// remaining photos and the cover index, both in [photos] (display) order.
+  final void Function(List<String> photos, int coverIndex) onChanged;
 
   @override
   State<_PhotoViewer> createState() => _PhotoViewerState();
@@ -349,6 +380,10 @@ class _PhotoViewerState extends State<_PhotoViewer> {
   /// Mutable copy of the attached photos so deletions update what the viewer
   /// pages through; the trimmed list is handed back to the parent via onChanged.
   late final List<String> _photos = [...widget.photos];
+
+  /// Index (into [_photos]) of the cover photo — the project's list thumbnail.
+  /// Kept in step with [_photos] on delete and reported through onChanged.
+  late int _cover = widget.coverIndex;
 
   /// Photos decoded once and cached, so paging reuses the same byte instances.
   /// Decoding inside [build] would hand [Image.memory] a fresh list each
@@ -458,9 +493,16 @@ class _PhotoViewerState extends State<_PhotoViewer> {
         // Stay on the same slot (now showing the next photo); step back when the
         // last one was removed.
         _index = removed.clamp(0, _photos.length - 1);
+        // Keep the cover pointing at the same photo: a deletion before it shifts
+        // it down by one; deleting the cover itself falls back to the first photo.
+        if (removed == _cover) {
+          _cover = 0;
+        } else if (removed < _cover) {
+          _cover -= 1;
+        }
       }
     });
-    widget.onChanged([..._photos]);
+    widget.onChanged([..._photos], _cover);
 
     if (_photos.isEmpty) {
       Navigator.of(context).pop();
@@ -473,6 +515,16 @@ class _PhotoViewerState extends State<_PhotoViewer> {
         _pageController.jumpToPage(_index);
       }
     });
+  }
+
+  /// Marks the photo currently on screen as the project's cover (its thumbnail
+  /// in the saved list) and reports the choice to the parent.
+  void _setCover() {
+    if (_cover == _index) {
+      return;
+    }
+    setState(() => _cover = _index);
+    widget.onChanged([..._photos], _cover);
   }
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
@@ -526,9 +578,12 @@ class _PhotoViewerState extends State<_PhotoViewer> {
     final hasPrevious = showControls && _index > 0;
     final hasNext = showControls && _index < _photos.length - 1;
 
-    // The default IconButton hover/press tint is dark — invisible on the black
-    // backdrop — so paint a white translucent overlay for hover, focus and press.
+    // The white glyphs vanish against a light photo, so give every button a
+    // translucent dark circular scrim that keeps them legible on any background.
+    // The default IconButton hover/press tint is dark — invisible on that scrim —
+    // so paint a white translucent overlay for hover, focus and press instead.
     final overlayStyle = ButtonStyle(
+      backgroundColor: WidgetStateProperty.all(Colors.black45),
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.pressed)) {
           return Colors.white24;
@@ -619,23 +674,46 @@ class _PhotoViewerState extends State<_PhotoViewer> {
             if (showControls)
               Positioned(
                 top: MediaQuery.of(context).padding.top + 8,
-                left: 8,
-                child: IconButton(
-                  tooltip: l10n.removePhotoAction,
-                  icon: const Icon(Icons.delete_outline, color: Colors.white),
-                  style: overlayStyle,
-                  onPressed: _deleteCurrent,
-                ),
-              ),
-            if (showControls)
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 8,
                 right: 8,
                 child: IconButton(
                   tooltip: l10n.closeAction,
                   icon: const Icon(Icons.close, color: Colors.white),
                   style: overlayStyle,
                   onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            // Bottom-centre action bar: pick this photo as the cover (filled star
+            // when it already is), then delete it.
+            if (showControls)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: MediaQuery.of(context).padding.bottom + 16,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: l10n.setCoverPhotoAction,
+                      icon: Icon(
+                        _index == _cover ? Icons.star : Icons.star_border,
+                        // Dim the star (and drop the hand cursor / clicks via the
+                        // null onPressed) when this photo is already the cover.
+                        color: _index == _cover ? Colors.white54 : Colors.white,
+                      ),
+                      style: overlayStyle,
+                      onPressed: _index == _cover ? null : _setCover,
+                    ),
+                    const SizedBox(width: 24),
+                    IconButton(
+                      tooltip: l10n.removePhotoAction,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.white,
+                      ),
+                      style: overlayStyle,
+                      onPressed: _deleteCurrent,
+                    ),
+                  ],
                 ),
               ),
           ],
