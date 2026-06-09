@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
-import 'package:knitcalc/storage/photo_codec.dart';
+import 'package:knitcalc/photo_strip.dart';
 
 /// Everything collected when first saving a fresh project: besides the required
 /// [name], the user can write a [description] and attach [photos] right from the
@@ -44,50 +42,16 @@ class _NewProjectDialog extends StatefulWidget {
 class _NewProjectDialogState extends State<_NewProjectDialog> {
   final TextEditingController _name = TextEditingController();
   final TextEditingController _description = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
 
-  /// Attached photos as base64 JPEG strings (see photo_codec.dart).
-  final List<String> _photos = [];
-
-  /// Decoded thumbnail bytes cached per photo, so a rebuild reuses the same
-  /// [Uint8List] instance instead of re-decoding the JPEG (a cache miss that
-  /// flashes the thumbnail blank).
-  final Map<String, Uint8List> _thumbnailCache = {};
-
-  Uint8List _thumbnailBytes(String photo) =>
-      _thumbnailCache.putIfAbsent(photo, () => decodePhoto(photo));
+  /// Attached photos as base64 JPEG strings (see photo_codec.dart). Owned here
+  /// and handed to [PhotoStrip], which reports add/remove through its callback.
+  List<String> _photos = [];
 
   @override
   void dispose() {
     _name.dispose();
     _description.dispose();
     super.dispose();
-  }
-
-  Future<void> _addPhotos() async {
-    final picked = await _picker.pickMultiImage();
-    if (picked.isEmpty) {
-      return;
-    }
-
-    final encoded = <String>[];
-    for (final file in picked) {
-      final bytes = await file.readAsBytes();
-      final photo = encodePhoto(bytes);
-      if (photo != null) {
-        encoded.add(photo);
-      }
-    }
-
-    if (!mounted || encoded.isEmpty) {
-      return;
-    }
-
-    setState(() => _photos.addAll(encoded));
-  }
-
-  void _removePhoto(int index) {
-    setState(() => _photos.removeAt(index));
   }
 
   void _submit() {
@@ -139,7 +103,10 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
                   alignLabelWithHint: true,
                 ),
               ),
-              _buildPhotos(l10n),
+              PhotoStrip(
+                photos: _photos,
+                onChanged: (photos) => setState(() => _photos = photos),
+              ),
             ],
           ),
         ),
@@ -152,78 +119,6 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
         TextButton(
           onPressed: canSave ? _submit : null,
           child: Text(l10n.saveAction),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhotos(AppLocalizations l10n) {
-    const tile = 72.0;
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          // The "+" tile leads; photos follow newest-first.
-          _buildAddTile(l10n, tile),
-          for (var i = _photos.length - 1; i >= 0; i--)
-            _buildThumbnail(i, tile, l10n),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddTile(AppLocalizations l10n, double tile) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Tooltip(
-      message: l10n.addPhotoAction,
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          key: const Key('add_photo'),
-          mouseCursor: WidgetStateMouseCursor.clickable,
-          borderRadius: BorderRadius.circular(8),
-          onTap: _addPhotos,
-          child: Container(
-            width: tile,
-            height: tile,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: scheme.outline),
-            ),
-            child: Icon(Icons.add, size: 28, color: scheme.primary),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildThumbnail(int index, double tile, AppLocalizations l10n) {
-    return Stack(
-      key: Key('photo_$index'),
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.memory(
-            _thumbnailBytes(_photos[index]),
-            width: tile,
-            height: tile,
-            fit: BoxFit.cover,
-          ),
-        ),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: IconButton(
-            tooltip: l10n.removePhotoAction,
-            icon: const Icon(Icons.cancel, color: Colors.white),
-            iconSize: 18,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => _removePhoto(index),
-          ),
         ),
       ],
     );
