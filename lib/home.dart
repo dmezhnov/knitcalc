@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:knitcalc/account_menu.dart';
 import 'package:knitcalc/calculator.dart';
 import 'package:knitcalc/firebase/auth_scope.dart';
@@ -118,7 +119,18 @@ class _HomeState extends State<Home> {
     );
 
     if (remove ?? false) {
-      await uninstallLegacyApp();
+      try {
+        await uninstallLegacyApp();
+      } on PlatformException catch (e) {
+        // Don't fail silently: show why the system uninstaller couldn't open.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${l10n.legacyAppRemoveFailed}: ${e.message}'),
+            ),
+          );
+        }
+      }
     }
   }
 
