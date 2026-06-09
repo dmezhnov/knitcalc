@@ -398,14 +398,13 @@ class _HomeState extends State<Home> {
 
     final l10n = AppLocalizations.of(context);
 
-    // Pull-to-refresh re-syncs with the cloud, so it only applies when signed
-    // in; a local-only store has nothing to pull from.
+    // Pull-to-refresh re-syncs with the cloud when signed in; a local-only store
+    // has nothing to pull, so its pull only re-checks for an app update.
     final synced = _store is SyncedProjectsStore;
 
     final list = ListView(
-      // When synced, stay scrollable so the list can be pulled down even with
-      // few projects; locally there's no refresh, so use the default physics.
-      physics: synced ? const AlwaysScrollableScrollPhysics() : null,
+      // Stay scrollable so the list can be pulled down even with few projects.
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         for (final project in _saved)
           ListTile(
@@ -458,9 +457,13 @@ class _HomeState extends State<Home> {
         label: Text(l10n.newProjectAction),
       ),
       body: SafeArea(
-        child: synced
-            ? RefreshIndicator(key: _refreshKey, onRefresh: _sync, child: list)
-            : list,
+        // Both states are pullable; only the signed-in pull re-syncs data, a
+        // local pull just re-checks for an app update.
+        child: RefreshIndicator(
+          key: _refreshKey,
+          onRefresh: synced ? _sync : _checkForUpdate,
+          child: list,
+        ),
       ),
     );
   }

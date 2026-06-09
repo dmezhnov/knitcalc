@@ -66,6 +66,19 @@ class _CalculatorState extends State<Calculator> {
 
   final ImagePicker _picker = ImagePicker();
 
+  /// Index of the thumbnail the mouse is currently over, so its delete button
+  /// shows only on hover (on touch platforms it always shows — there's no hover).
+  int? _hoveredPhoto;
+
+  /// Decoded thumbnail bytes cached per photo, so a rebuild (e.g. when hover
+  /// toggles the delete button) reuses the same [Uint8List] instance. Decoding
+  /// afresh each build hands [MemoryImage] a new instance — a cache miss that
+  /// re-decodes the JPEG and flashes the thumbnail blank.
+  final Map<String, Uint8List> _thumbnailCache = {};
+
+  Uint8List _thumbnailBytes(String photo) =>
+      _thumbnailCache.putIfAbsent(photo, () => decodePhoto(photo));
+
   @override
   void initState() {
     super.initState();
@@ -453,84 +466,211 @@ class _CalculatorState extends State<Calculator> {
   }
 
   Widget _buildPhotos(AppLocalizations l10n) {
+    // 96px tiles with 8px gaps, wrapping onto new rows as they fill the width,
+    // capped at three rows. When the photos don't fit, the last visible tile
+    // becomes a "+N more" overlay instead of starting a fourth row.
+    const tile = 96.0;
+    const gap = 8.0;
+    const maxRows = 3;
+
     return _buildCard(
       context,
+      // Tighter padding and label gap than the other cards so the photo tiles
+      // sit close to the edges and the rows start right under the label. A bit
+      // more at the bottom to balance the divider/label gap at the top.
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      spacing: 6,
       children: [
+        // Centered section label with a rule running out to each side.
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(l10n.photosLabel),
-            TextButton.icon(
-              onPressed: _addPhotos,
-              icon: const Icon(Icons.add_a_photo_outlined),
-              label: Text(l10n.addPhotoAction),
+            const Expanded(child: Divider()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(l10n.photosLabel),
             ),
+            const Expanded(child: Divider()),
           ],
         ),
-        if (_photos.isNotEmpty)
-          SizedBox(
-            height: 96,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _photos.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, index) => _buildThumbnail(index, l10n),
-            ),
+        // Full width so a single short row left-aligns instead of being centered
+        // by the card's Column (its cross-axis default).
+        SizedBox(
+          width: double.infinity,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Photos are stored oldest-first (appended on add); show them
+              // newest-first by walking the indices in reverse.
+              final order = [for (var i = _photos.length - 1; i >= 0; i--) i];
+              // How many tiles fit across the available width.
+              final columns = ((constraints.maxWidth + gap) / (tile + gap))
+                  .floor()
+                  .clamp(1, 1 << 30);
+              // Total tiles that fit in [maxRows], including the leading "+".
+              final slots = columns * maxRows;
+              // Slots left for photos after the leading "+".
+              final photoSlots = slots - 1;
+              final overflow = _photos.length > photoSlots;
+              // On overflow the last slot shows the "+N more" tile, so one fewer
+              // thumbnail is rendered; otherwise every photo gets its own tile.
+              final shown = overflow ? photoSlots - 1 : _photos.length;
+
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  // The "+" tile leads, so it's always reachable without scrolling.
+                  _buildAddTile(l10n),
+                  for (var i = 0; i < shown; i++)
+                    _buildThumbnail(order[i], l10n),
+                  if (overflow)
+                    _buildOverflowTile(
+                      order[shown],
+                      _photos.length - shown,
+                      l10n,
+                    ),
+                ],
+              );
+            },
           ),
+        ),
       ],
     );
   }
 
-  Widget _buildThumbnail(int index, AppLocalizations l10n) {
-    return Stack(
-      key: Key('photo_$index'),
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          // Ink.image paints the photo as the Material's decoration so the
-          // InkWell's hover highlight/splash show *on top* of it; a plain
-          // Image child would be opaque and hide the ink, leaving no visible
-          // hover. InkWell already defaults to the clickable (hand) cursor.
-          child: Material(
-            type: MaterialType.transparency,
-            child: Ink.image(
-              image: MemoryImage(decodePhoto(_photos[index])),
-              width: 96,
-              height: 96,
-              fit: BoxFit.cover,
-              // InkWell falls back to the adaptive cursor (arrow on desktop), so
-              // ask for the hand cursor explicitly like the button family.
-              child: InkWell(
-                mouseCursor: WidgetStateMouseCursor.clickable,
-                onTap: () => _openPhoto(index, l10n),
+  /// The final tile when photos overflow the three-row cap: the next hidden
+  /// photo ([firstHidden] is its index in [_photos]), darkened, with a "+N more"
+  /// count. Tapping opens the viewer at that photo so the rest stay reachable.
+  Widget _buildOverflowTile(
+    int firstHidden,
+    int remaining,
+    AppLocalizations l10n,
+  ) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Ink.image(
+          image: MemoryImage(_thumbnailBytes(_photos[firstHidden])),
+          width: 96,
+          height: 96,
+          fit: BoxFit.cover,
+          child: InkWell(
+            key: const Key('photos_overflow'),
+            mouseCursor: WidgetStateMouseCursor.clickable,
+            onTap: () => _openPhoto(firstHidden, l10n),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.all(4),
+              color: Colors.black54,
+              child: Text(
+                l10n.morePhotos(remaining),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
         ),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: IconButton(
-            tooltip: l10n.removePhotoAction,
-            icon: const Icon(Icons.cancel, color: Colors.white),
-            iconSize: 20,
-            visualDensity: VisualDensity.compact,
-            onPressed: () => _removePhoto(index, l10n),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildCard(BuildContext context, {required List<Widget> children}) {
+  /// The trailing square in the photo strip: a large "+" that attaches photos
+  /// when tapped. Sits after the thumbnails (or alone when none are attached).
+  Widget _buildAddTile(AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: l10n.addPhotoAction,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          key: const Key('add_photo'),
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          borderRadius: BorderRadius.circular(8),
+          onTap: _addPhotos,
+          child: Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outline),
+            ),
+            child: Icon(Icons.add, size: 36, color: scheme.primary),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnail(int index, AppLocalizations l10n) {
+    final platform = Theme.of(context).platform;
+    // Touch platforms have no hover, so always show the delete button there.
+    final isTouch =
+        platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+    final showDelete = isTouch || _hoveredPhoto == index;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoveredPhoto = index),
+      onExit: (_) => setState(() => _hoveredPhoto = null),
+      child: Stack(
+        key: Key('photo_$index'),
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            // Ink.image paints the photo as the Material's decoration so the
+            // InkWell's hover highlight/splash show *on top* of it; a plain
+            // Image child would be opaque and hide the ink, leaving no visible
+            // hover. InkWell already defaults to the clickable (hand) cursor.
+            child: Material(
+              type: MaterialType.transparency,
+              child: Ink.image(
+                image: MemoryImage(_thumbnailBytes(_photos[index])),
+                width: 96,
+                height: 96,
+                fit: BoxFit.cover,
+                // InkWell falls back to the adaptive cursor (arrow on desktop),
+                // so ask for the hand cursor explicitly like the button family.
+                child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
+                  onTap: () => _openPhoto(index, l10n),
+                ),
+              ),
+            ),
+          ),
+          if (showDelete)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                tooltip: l10n.removePhotoAction,
+                icon: const Icon(Icons.cancel, color: Colors.white),
+                iconSize: 20,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _removePhoto(index, l10n),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard(
+    BuildContext context, {
+    required List<Widget> children,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
+    double spacing = 16,
+  }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: padding,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(spacing: 16, children: children),
+      child: Column(spacing: spacing, children: children),
     );
   }
 }
