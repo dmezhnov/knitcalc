@@ -44,6 +44,12 @@
   "closeAction": "Закрыть",
   "previousPhotoAction": "Предыдущее фото",
   "nextPhotoAction": "Следующее фото",
+  "morePhotos": "ещё {count}\nфото",
+  "@morePhotos": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "renameAction": "Переименовать",
   "deleteAction": "Удалить",
   "cancelAction": "Отмена",

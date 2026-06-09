@@ -44,6 +44,12 @@
   "closeAction": "Close",
   "previousPhotoAction": "Previous photo",
   "nextPhotoAction": "Next photo",
+  "morePhotos": "{count, plural, one{{count} more\nphoto} other{{count} more\nphotos}}",
+  "@morePhotos": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "renameAction": "Rename",
   "deleteAction": "Delete",
   "cancelAction": "Cancel",
