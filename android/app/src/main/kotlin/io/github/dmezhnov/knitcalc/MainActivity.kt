@@ -57,8 +57,15 @@ class MainActivity : FlutterActivity() {
                         if (pkg == null) {
                             result.error("no_package", "Missing package name", null)
                         } else {
-                            requestUninstall(pkg)
-                            result.success(null)
+                            try {
+                                requestUninstall(pkg)
+                                result.success(null)
+                            } catch (e: Exception) {
+                                // Surface the cause instead of failing silently
+                                // (e.g. ActivityNotFoundException if the uninstaller
+                                // can't be resolved).
+                                result.error("uninstall_failed", e.message, null)
+                            }
                         }
                     }
                     else -> result.notImplemented()
@@ -84,12 +91,10 @@ class MainActivity : FlutterActivity() {
             false
         }
 
-    /** Opens the system uninstall dialog for [packageName]; the user confirms it. */
+    /** Opens the system uninstall dialog for [packageName]; the user confirms it.
+     *  Launched from this Activity's context, so no FLAG_ACTIVITY_NEW_TASK. */
     private fun requestUninstall(packageName: String) {
-        val intent =
-            Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName"))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
+        startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName")))
     }
 
     /** Hands a downloaded APK to the system package installer. */

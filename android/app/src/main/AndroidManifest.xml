@@ -57,5 +57,11 @@
              old app (different applicationId = a separate app) and offer to
              uninstall it. Required for getPackageInfo visibility on Android 11+. -->
         <package android:name="com.example.knitcalc"/>
+        <!-- Resolve the system uninstaller so ACTION_DELETE can launch it; without
+             this, startActivity throws ActivityNotFoundException on Android 11+. -->
+        <intent>
+            <action android:name="android.intent.action.DELETE"/>
+            <data android:scheme="package"/>
+        </intent>
     </queries>
 </manifest>
