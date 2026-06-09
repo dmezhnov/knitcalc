@@ -42,10 +42,10 @@ Future<bool> legacyAppInstalled() async {
 /// Opens the system uninstall dialog for the pre-rename app. The user confirms
 /// (or cancels) the removal in the system UI.
 ///
-/// Returns a short diagnostic string from the platform describing what the
-/// uninstall intent did (e.g. `launched:…`, `no_handler`, `not_installed`,
-/// `error:…`), or null off Android/web. The caller surfaces it so a silent
-/// no-op stays observable on-device.
+/// Returns a short status string from the platform describing what the uninstall
+/// intent did: `launched:…` when the system uninstaller actually started, else
+/// `no_handler` / `not_installed` / `error:…`. Null off Android/web. The caller
+/// uses this to tell a real launch from a silent no-op (and warn on the latter).
 Future<String?> uninstallLegacyApp() async {
   if (kIsWeb || !Platform.isAndroid) {
     return null;
