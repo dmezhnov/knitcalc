@@ -7,6 +7,7 @@ import 'package:knitcalc/firebase/firebase_config.dart';
 import 'package:knitcalc/firebase/firestore_client.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/language_menu.dart';
+import 'package:knitcalc/legacy_app_cleanup.dart';
 import 'package:knitcalc/name_dialog.dart';
 import 'package:knitcalc/products/products.dart';
 import 'package:knitcalc/storage/photo_codec.dart';
@@ -82,7 +83,43 @@ class _HomeState extends State<Home> {
 
     // Check for an update once the first frame is on screen. Off the web target
     // the factory returns a no-op service, so this is harmless there.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForUpdate();
+      _maybeOfferLegacyCleanup();
+    });
+  }
+
+  /// After the app-id rename, the pre-rename Android build can linger as a
+  /// separate app. If it is still installed, offer to remove it (the user
+  /// confirms in the system uninstall dialog — Android won't let us do it
+  /// silently). A no-op off Android.
+  Future<void> _maybeOfferLegacyCleanup() async {
+    if (!await legacyAppInstalled() || !mounted) {
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final remove = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.legacyAppTitle),
+        content: Text(l10n.legacyAppMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.updateLater),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.legacyAppRemove),
+          ),
+        ],
+      ),
+    );
+
+    if (remove ?? false) {
+      await uninstallLegacyApp();
+    }
   }
 
   @override

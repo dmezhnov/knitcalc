@@ -1,12 +1,10 @@
 import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/update_info.dart';
 
-/// App bundle identifier the App Store listing is keyed by.
-///
-/// Still the Flutter placeholder; the lookup only resolves once the app is
-/// published to the App Store under its real bundle id.
-// TODO(update): set to the real published bundle id.
-const String appBundleId = 'com.example.knitcalc';
+/// App bundle identifier the App Store listing is keyed by. Matches the iOS
+/// PRODUCT_BUNDLE_IDENTIFIER; the lookup only resolves once the app is actually
+/// published to the App Store under this id.
+const String appBundleId = 'io.github.dmezhnov.knitcalc';
 
 /// iTunes Lookup endpoint that returns the version currently live on the App
 /// Store for [bundleId] — the source of truth that avoids the store-review lag

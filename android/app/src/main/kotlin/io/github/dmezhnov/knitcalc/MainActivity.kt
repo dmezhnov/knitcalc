@@ -1,6 +1,7 @@
-package com.example.knitcalc
+package io.github.dmezhnov.knitcalc
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import androidx.core.content.FileProvider
@@ -43,6 +44,23 @@ class MainActivity : FlutterActivity() {
                             result.success(null)
                         }
                     }
+                    "isPackageInstalled" -> {
+                        val pkg = call.argument<String>("package")
+                        if (pkg == null) {
+                            result.error("no_package", "Missing package name", null)
+                        } else {
+                            result.success(isPackageInstalled(pkg))
+                        }
+                    }
+                    "uninstallPackage" -> {
+                        val pkg = call.argument<String>("package")
+                        if (pkg == null) {
+                            result.error("no_package", "Missing package name", null)
+                        } else {
+                            requestUninstall(pkg)
+                            result.success(null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -56,6 +74,23 @@ class MainActivity : FlutterActivity() {
             @Suppress("DEPRECATION")
             packageManager.getInstallerPackageName(packageName)
         }
+
+    /** Whether [packageName] is installed (must be listed in the manifest <queries>). */
+    private fun isPackageInstalled(packageName: String): Boolean =
+        try {
+            packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
+
+    /** Opens the system uninstall dialog for [packageName]; the user confirms it. */
+    private fun requestUninstall(packageName: String) {
+        val intent =
+            Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+    }
 
     /** Hands a downloaded APK to the system package installer. */
     private fun installApk(path: String) {

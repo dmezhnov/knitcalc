@@ -1,7 +1,7 @@
 import 'package:knitcalc/update/impl/pm/package_manager_update_service.dart';
 
-// TODO(update): replace with the real winget package id once published to
-// winget-pkgs (placeholder, like com.example.knitcalc for iTunes Lookup).
+// TODO(update): confirm/replace with the real winget package id once published
+// to winget-pkgs.
 const String wingetPackageId = 'Dmezhnov.KnitCalc';
 
 /// winget updater spec. Probe is read-only; the upgrade runs `winget upgrade`

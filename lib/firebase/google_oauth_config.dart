@@ -16,6 +16,17 @@ import 'google_oauth.dart';
 const String _webClientId =
     '116971646849-m4pm3t1t72afg4525t8jp4phmqmjea59.apps.googleusercontent.com';
 
+/// Server (Web) OAuth client id used as the *audience* of the Google id token
+/// obtained via Android Credential Manager (the `serverClientId` handed to
+/// `google_sign_in`). It must be the Web client Firebase recognises — the same
+/// one as [webGoogleConfig] — so `signInWithIdp` accepts the resulting token.
+///
+/// Caveat: the native picker only returns a token once an Android OAuth client
+/// carrying the app's signing SHA-1 is registered in the same Google Cloud
+/// project; until then `authenticate()` fails and the flow falls back to the
+/// browser. That registration is a console step, not code.
+const String googleServerClientId = _webClientId;
+
 // "Desktop app" OAuth client, shared by desktop and mobile via the loopback
 // redirect. The secret is not confidential — it ships inside the app and the
 // flow is still protected by PKCE.
