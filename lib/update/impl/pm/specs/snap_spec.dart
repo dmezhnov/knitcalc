@@ -1,6 +1,7 @@
 import 'package:knitcalc/update/impl/pm/package_manager_update_service.dart';
 
-// TODO(update): confirm the published snap name (matches snap/snapcraft.yaml).
+// Matches `name` in snap/snapcraft.yaml, uploaded to the Snap Store by the
+// snap-store job of the publish workflow.
 const String snapName = 'knitcalc';
 
 /// snap updater spec. `snap refresh --list` shows snaps with a pending refresh;

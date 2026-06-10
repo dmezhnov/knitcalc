@@ -53,6 +53,27 @@ involved. The macOS build is unsigned and unnotarized, so install with
    through human moderation (typically days); later versions are mostly
    automated moderation.
 
+### Snap Store (`snap/`)
+
+The `snap-store` job packs the release Linux bundle into a snap
+(`snap/snapcraft.yaml`, `plugin: dump` — no rebuild) and uploads it to the
+stable channel of the Snap Store. The step is skipped (with a warning) until
+the credentials secret is configured.
+
+One-time onboarding — register the `knitcalc` name under your Snap Store
+account at <https://snapcraft.io/register-snap>, then export store credentials
+restricted to this snap and the upload/release ACLs. Without snapd, the
+snapcraft CLI can run from its OCI image:
+
+    docker run -it --rm ghcr.io/canonical/snapcraft:8_core24 \
+      export-login --snaps=knitcalc \
+      --acls=package_access,package_push,package_update,package_release -
+
+Save the printed blob as the `SNAPCRAFT_STORE_CREDENTIALS` repository secret.
+Users install with:
+
+    sudo snap install knitcalc
+
 ### apt (`packaging/apt/`)
 
 The `linux-android-web` job builds a `.deb` from the Flutter Linux bundle and a
