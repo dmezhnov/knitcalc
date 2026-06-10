@@ -1,0 +1,16 @@
+<!-- openSUSE Build Service source service: fetches the release tarball and
+     license referenced by knitcalc.spec. Run `osc service runall` locally
+     after replacing {{VERSION}} (mode="manual" keeps OBS from re-running it
+     server-side on every build). -->
+<services>
+    <service name="download_url" mode="manual">
+        <param name="protocol">https</param>
+        <param name="host">github.com</param>
+        <param name="path">/dmezhnov/knitcalc/releases/download/v{{VERSION}}/knitcalc-linux-x64-{{VERSION}}.tar.gz</param>
+    </service>
+    <service name="download_url" mode="manual">
+        <param name="protocol">https</param>
+        <param name="host">raw.githubusercontent.com</param>
+        <param name="path">/dmezhnov/knitcalc/v{{VERSION}}/LICENSE</param>
+    </service>
+</services>

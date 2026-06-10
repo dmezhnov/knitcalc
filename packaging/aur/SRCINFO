@@ -1,0 +1,20 @@
+pkgbase = knitcalc-bin
+	pkgdesc = Knitting calculator: gauge conversion, increases/decreases distribution, yarn estimation, project notes with photos
+	pkgver = {{VERSION}}
+	pkgrel = 1
+	url = https://github.com/dmezhnov/knitcalc
+	arch = x86_64
+	license = MIT
+	makedepends = patchelf
+	depends = gtk3
+	depends = glibc
+	depends = gcc-libs
+	provides = knitcalc
+	conflicts = knitcalc
+	options = !strip
+	source = knitcalc-linux-x64-{{VERSION}}.tar.gz::https://github.com/dmezhnov/knitcalc/releases/download/v{{VERSION}}/knitcalc-linux-x64-{{VERSION}}.tar.gz
+	source = LICENSE-{{VERSION}}::https://raw.githubusercontent.com/dmezhnov/knitcalc/v{{VERSION}}/LICENSE
+	sha256sums = {{TARBALL_SHA256}}
+	sha256sums = {{LICENSE_SHA256}}
+
+pkgname = knitcalc-bin
