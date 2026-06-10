@@ -327,6 +327,16 @@ jobs:
                   git add Casks/knitcalc.rb
                   git commit -m "Homebrew cask ${{ needs.linux-android-web.outputs.version }}"
 
+            # The Flathub manifest installs packaging/flatpak/* from the release
+            # tag, so the metainfo must list the version being released. The file
+            # keeps a single <release> entry; rewrite it before the tag is cut.
+            - name: Render flatpak metainfo release
+              run: |
+                  sed -i -E "s|<release version=\"[^\"]+\" date=\"[^\"]+\"/>|<release version=\"${{ needs.linux-android-web.outputs.version }}\" date=\"$(date -u +%F)\"/>|" \
+                      packaging/flatpak/io.github.dmezhnov.knitcalc.metainfo.xml
+                  git add packaging/flatpak/io.github.dmezhnov.knitcalc.metainfo.xml
+                  git commit -m "Flatpak metainfo release ${{ needs.linux-android-web.outputs.version }}"
+
             - name: Download release artifacts
               uses: actions/download-artifact@v8
               with:
