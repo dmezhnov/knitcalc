@@ -135,7 +135,9 @@ jobs:
                   sudo apt-get install -y dpkg-dev apt-utils
                   export GNUPGHOME="$(mktemp -d)"
                   chmod 700 "$GNUPGHOME"
-                  if ! printf '%s' "$APT_GPG_PRIVATE_KEY" | tr -d '[:space:]' | base64 -d \
+                  # -i: the stored secret may carry stray non-base64 characters
+                  # (it did once); gpg --import below still validates the key.
+                  if ! printf '%s' "$APT_GPG_PRIVATE_KEY" | tr -d '[:space:]' | base64 -di \
                       | gpg --batch --pinentry-mode loopback \
                             ${APT_GPG_PASSPHRASE:+--passphrase "$APT_GPG_PASSPHRASE"} \
                             --import; then
@@ -419,6 +421,50 @@ jobs:
                     Set-Content "$pkg/tools/chocolateyinstall.ps1"
                   choco pack "$pkg/knitcalc.nuspec" --outputdirectory $pkg
                   choco push "$pkg/knitcalc.${{ steps.facts.outputs.bare }}.nupkg" --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+
+    snap-store:
+        name: Publish to the Snap Store
+        # Pinned (not ubuntu-latest): --destructive-mode packs on the host, so
+        # its Ubuntu release must match `base` in snap/snapcraft.yaml (core24).
+        runs-on: ubuntu-24.04
+        needs:
+            - linux-android-web
+            - publish
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            - name: Download Linux artifacts
+              uses: actions/download-artifact@v8
+              with:
+                  name: release-linux-android-web
+                  path: release
+
+            # The snap repacks the release Linux bundle (plugin: dump) — nothing
+            # is rebuilt inside snapcraft. Skipped with a warning until the
+            # SNAPCRAFT_STORE_CREDENTIALS secret is configured; see
+            # packaging/README.md.
+            - name: Pack and upload snap
+              env:
+                  SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+              run: |
+                  if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+                    echo "::warning::SNAPCRAFT_STORE_CREDENTIALS is not set; skipping the Snap Store."
+                    exit 0
+                  fi
+                  version='${{ needs.linux-android-web.outputs.version }}'
+                  mkdir -p build/linux/x64/release/bundle
+                  tar -C build/linux/x64/release/bundle \
+                      -xzf "release/linux/knitcalc-linux-x64-${version}.tar.gz"
+                  sed -i "s|{{VERSION}}|$version|" snap/snapcraft.yaml
+                  sudo snap install snapcraft --classic
+                  # Root because destructive mode installs the gnome build snaps
+                  # on the host; the upload runs unprivileged with the credentials.
+                  sudo snapcraft pack --destructive-mode
+                  snapcraft upload --release=stable "knitcalc_${version}_amd64.snap"
 
     deploy-pages:
         name: Deploy GitHub Pages
