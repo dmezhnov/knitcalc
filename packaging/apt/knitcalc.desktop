@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=KnitCalc
+Comment=KnitCalc is a knitting calculator
+Exec=knitcalc
+Icon=knitcalc
+Terminal=false
+Categories=Utility;
