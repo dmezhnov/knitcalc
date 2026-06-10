@@ -1,0 +1,6 @@
+KnitCalc helps with the arithmetic of knitting: it converts counts between gauges, distributes increases and decreases evenly across a row, and estimates how much yarn a project needs.
+
+* Gauge conversion between a swatch and a pattern
+* Even distribution of increases and decreases
+* Yarn usage estimation
+* Project notes with photos, optionally synced between devices
