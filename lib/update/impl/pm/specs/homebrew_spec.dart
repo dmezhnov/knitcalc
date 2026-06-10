@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:knitcalc/update/impl/pm/package_manager_update_service.dart';
 
-// TODO(update): replace with the real Homebrew cask token once published.
+// Cask token matches Casks/knitcalc.rb, rendered on main by the publish job
+// from packaging/homebrew/ (the repo itself doubles as the tap).
 const String homebrewCask = 'knitcalc';
 
 /// Homebrew Cask updater spec. `brew outdated --json` reports outdated casks;

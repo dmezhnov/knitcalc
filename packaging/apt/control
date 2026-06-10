@@ -1,0 +1,11 @@
+Package: knitcalc
+Version: {{VERSION}}
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: libgtk-3-0 (>= 3.22.0), libstdc++6
+Maintainer: Dmitry Mezhnov <dmezhnov@users.noreply.github.com>
+Homepage: https://github.com/dmezhnov/knitcalc
+Description: KnitCalc is a knitting calculator
+ Gauge conversion, increases/decreases distribution, yarn estimation and
+ project notes with photos.

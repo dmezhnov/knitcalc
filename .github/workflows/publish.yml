@@ -119,6 +119,37 @@ jobs:
                   name: release-linux-android-web
                   path: release
 
+            # Builds a .deb and a signed apt repo into build/web/apt, so it ships
+            # inside the same Pages deploy (served at /knitcalc/apt). Skipped with
+            # a warning until the signing key secret is configured, like the other
+            # package-manager steps. See packaging/README.md.
+            - name: Build apt repository
+              env:
+                  APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+                  APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+              run: |
+                  if [ -z "$APT_GPG_PRIVATE_KEY" ]; then
+                    echo "::warning::APT_GPG_PRIVATE_KEY is not set; skipping the apt repository."
+                    exit 0
+                  fi
+                  sudo apt-get install -y dpkg-dev apt-utils
+                  export GNUPGHOME="$(mktemp -d)"
+                  chmod 700 "$GNUPGHOME"
+                  if ! printf '%s' "$APT_GPG_PRIVATE_KEY" | tr -d '[:space:]' | base64 -d \
+                      | gpg --batch --pinentry-mode loopback \
+                            ${APT_GPG_PASSPHRASE:+--passphrase "$APT_GPG_PASSPHRASE"} \
+                            --import; then
+                    echo "::error::Could not import APT_GPG_PRIVATE_KEY. Store it as base64 of the armored secret key (gpg --armor --export-secret-keys KEYID | base64 -w0)."
+                    exit 1
+                  fi
+                  key_id="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ {print $5; exit}')"
+                  VERSION='${{ steps.version.outputs.version }}' \
+                  BUNDLE_DIR='build/linux/x64/release/bundle' \
+                  OUT_DIR='build/web' \
+                  GPG_KEY_ID="$key_id" \
+                  GPG_PASSPHRASE="$APT_GPG_PASSPHRASE" \
+                    bash packaging/apt/build-repo.sh
+
             - name: Upload GitHub Pages artifact
               uses: actions/upload-pages-artifact@v5
               with:
@@ -177,6 +208,9 @@ jobs:
         runs-on: macos-latest
         needs: linux-android-web
 
+        outputs:
+            sha256: ${{ steps.package.outputs.sha256 }}
+
         steps:
             - name: Checkout test branch
               uses: actions/checkout@v5
@@ -202,11 +236,16 @@ jobs:
               run: mise build ios
 
             - name: Package Apple bundles
+              id: package
               run: |
                   rm -rf release
                   mkdir -p release/macos release/ios
-                  ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/knitcalc.app "release/macos/knitcalc-macos-${{ needs.linux-android-web.outputs.version }}.zip"
+                  macos_zip="release/macos/knitcalc-macos-${{ needs.linux-android-web.outputs.version }}.zip"
+                  ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/knitcalc.app "$macos_zip"
                   ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app "release/ios/knitcalc-ios-unsigned-${{ needs.linux-android-web.outputs.version }}.zip"
+                  # The Homebrew cask pins this hash (rendered on main by the publish job).
+                  sha=$(shasum -a 256 "$macos_zip" | awk '{print $1}')
+                  echo "sha256=$sha" >> "$GITHUB_OUTPUT"
 
             - name: Upload Apple artifacts
               uses: actions/upload-artifact@v7
@@ -235,6 +274,12 @@ jobs:
               run: |
                   version="${{ needs.linux-android-web.outputs.version }}"
                   echo "url=https://github.com/${GITHUB_REPOSITORY}/releases/download/v${version}/knitcalc-windows-x64-${version}.zip" >> "$GITHUB_OUTPUT"
+
+            - name: Resolve macOS zip URL
+              id: macos-zip
+              run: |
+                  version="${{ needs.linux-android-web.outputs.version }}"
+                  echo "url=https://github.com/${GITHUB_REPOSITORY}/releases/download/v${version}/knitcalc-macos-${version}.zip" >> "$GITHUB_OUTPUT"
 
             - name: Merge test branch
               run: |
@@ -265,6 +310,20 @@ jobs:
                       packaging/scoop/knitcalc.json > bucket/knitcalc.json
                   git add bucket/knitcalc.json
                   git commit -m "Scoop manifest ${{ needs.linux-android-web.outputs.version }}"
+
+            # The repo also doubles as a Homebrew tap (`brew tap dmezhnov/knitcalc
+            # https://github.com/dmezhnov/knitcalc`): each release pins the macOS
+            # zip URL and hash into Casks/knitcalc.rb on main, mirroring the Scoop
+            # bucket. No separate tap repo or token is needed.
+            - name: Render Homebrew cask
+              run: |
+                  mkdir -p Casks
+                  sed -e 's|{{VERSION}}|${{ needs.linux-android-web.outputs.version }}|' \
+                      -e 's|{{URL}}|${{ steps.macos-zip.outputs.url }}|' \
+                      -e 's|{{SHA256}}|${{ needs.apple.outputs.sha256 }}|' \
+                      packaging/homebrew/knitcalc.rb > Casks/knitcalc.rb
+                  git add Casks/knitcalc.rb
+                  git commit -m "Homebrew cask ${{ needs.linux-android-web.outputs.version }}"
 
             - name: Download release artifacts
               uses: actions/download-artifact@v8
