@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=KnitCalc
+Comment=Knitting calculator
+Comment[ru]=Вязальный калькулятор
+Exec=knitcalc
+Icon=io.github.dmezhnov.knitcalc
+Terminal=false
+Type=Application
+Categories=Utility;
+StartupWMClass=io.github.dmezhnov.knitcalc
