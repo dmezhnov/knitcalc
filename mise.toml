@@ -65,6 +65,15 @@ app_version="$(yq -r '.version' pubspec.yaml)"
 flutter build apk --dart-define=APP_VERSION="$app_version"
 '''
 
+[tasks.build-apk-split]
+hide = true
+run = '''
+# Per-ABI APKs stay under IzzyOnDroid's ~30 MB per-file limit (the fat APK
+# does not); the release publishes them alongside the universal APK.
+app_version="$(yq -r '.version' pubspec.yaml)"
+flutter build apk --split-per-abi --dart-define=APP_VERSION="$app_version"
+'''
+
 [tasks.build-appbundle]
 hide = true
 run = '''

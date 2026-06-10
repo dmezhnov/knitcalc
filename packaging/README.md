@@ -99,6 +99,81 @@ test-builds it and a reviewer approves. Users install with:
 
     flatpak install flathub io.github.dmezhnov.knitcalc
 
+### AUR (`packaging/aur/`)
+
+The `aur` job renders the `PKGBUILD`/`SRCINFO` templates (a `-bin` repackage
+of the release Linux tarball, same layout as the `.deb`) and pushes them to
+the `knitcalc-bin` AUR repo. The step is skipped (with a warning) until the
+SSH key secret is configured.
+
+One-time onboarding — register an account on <https://aur.archlinux.org>, add
+an SSH public key to it, and save the matching private key as the
+`AUR_SSH_PRIVATE_KEY` repository secret:
+
+    ssh-keygen -t ed25519 -N '' -C knitcalc-aur -f knitcalc-aur
+    # public part -> AUR account settings, private part -> the secret
+    gh secret set AUR_SSH_PRIVATE_KEY < knitcalc-aur && rm knitcalc-aur
+
+The first CI push creates the package base owned by that account. Users
+install with an AUR helper, e.g. `yay -S knitcalc-bin`.
+
+### AppImage
+
+The `linux-android-web` job repacks the Linux bundle into
+`knitcalc-<version>-x86_64.AppImage` (plus a `.zsync` file for delta updates
+via AppImageUpdate) and ships both as release assets. No store or secret
+involved. After the first release carrying an AppImage, the app can be listed
+in the [AppImageHub catalog](https://github.com/AppImage/appimage.github.io)
+with a one-file PR (`data/KnitCalc`).
+
+### openSUSE Build Service (`packaging/obs/`)
+
+`knitcalc.spec` repackages the release Linux tarball as an rpm (same layout
+as the `.deb`); OBS then serves repos for openSUSE/Fedora and friends.
+Verified locally with rpmbuild on Tumbleweed. Not wired into CI yet — needs
+an OBS account:
+
+1. Register at <https://build.opensuse.org>, create package `knitcalc` in your
+   home project.
+2. Replace `{{VERSION}}` in `knitcalc.spec` and `_service`, then
+   `osc service runall && osc commit` (or upload the spec + sources in the web
+   UI). Repeat per release (worth a CI job with `osc` + an OBS token once the
+   account exists).
+
+### IzzyOnDroid (`fastlane/`)
+
+The IzzyOnDroid F-Droid-compatible repo takes the **per-ABI release APKs**
+(the universal APK is over their ~30 MB per-file limit) straight from GitHub
+releases and the app description/screenshots from `fastlane/metadata/android/`
+in this repo. One-time onboarding: request addition at
+<https://codeberg.org/IzzyOnDroid/repo/issues> pointing at the repo and the
+`knitcalc-<version>-arm64-v8a.apk` asset naming. Updates are picked up from
+releases automatically. The APKs must stay signed with the same release key.
+
+### F-Droid main repo — blocked for now
+
+F-Droid proper builds from source and rejects builds that bundle proprietary
+bits: the Android app links Google Play Services (Credential Manager sign-in)
+and carries a GitHub self-updater, both of which their scanner flags. Listing
+there needs a `foss` build flavor that strips `google_sign_in` and disables
+the self-update check. IzzyOnDroid (above) covers F-Droid clients meanwhile.
+
+### RuStore — manual
+
+Free developer account at <https://console.rustore.ru> (needs identity
+verification), then upload the release `.aab` or APK by hand; texts and
+screenshots can be reused from `fastlane/metadata/android/ru-RU/`. No
+publishing API is wired up.
+
+### nixpkgs
+
+Built from source with `flutter.buildFlutterApplication` (no binary repack);
+the expression lives in the NixOS/nixpkgs tree under
+`pkgs/by-name/kn/knitcalc/`, not here. Updates are PRs to nixpkgs bumping
+`version`/`hash` and refreshing `pubspec.lock.json` (convert `pubspec.lock`
+to JSON). Users install with `nix-env -iA nixpkgs.knitcalc` or
+`environment.systemPackages = [ pkgs.knitcalc ];`.
+
 ### apt (`packaging/apt/`)
 
 The `linux-android-web` job builds a `.deb` from the Flutter Linux bundle and a

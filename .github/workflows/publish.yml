@@ -25,6 +25,7 @@ jobs:
         outputs:
             version: ${{ steps.version.outputs.version }}
             tag: ${{ steps.version.outputs.tag }}
+            linux_sha256: ${{ steps.package.outputs.linux_sha256 }}
 
         steps:
             - name: Checkout test branch
@@ -95,23 +96,67 @@ jobs:
             - name: Build APK
               run: mise build apk
 
+            - name: Build per-ABI APKs
+              run: mise run build-apk-split
+
             - name: Build Android App Bundle
               run: mise build appbundle
 
             - name: Build Linux bundle
               run: mise build linux
 
+            # Repacks the Linux bundle as a self-contained AppImage with
+            # embedded zsync update info (AppImageUpdate can delta-update from
+            # GitHub releases). The bundle already carries the desktop file and
+            # icons via tool/linux_desktop_install.dart.
+            - name: Build AppImage
+              run: |
+                  sudo apt-get install -y zsync
+                  curl -fsSL -o /tmp/appimagetool \
+                      https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+                  chmod +x /tmp/appimagetool
+                  version='${{ steps.version.outputs.version }}'
+                  appdir=build/AppDir
+                  rm -rf "$appdir"
+                  mkdir -p "$appdir/usr/bin" "$appdir/usr/share/metainfo"
+                  cp -a build/linux/x64/release/bundle/. "$appdir/usr/bin/"
+                  ln -s usr/bin/knitcalc "$appdir/AppRun"
+                  sed 's|@EXEC@|knitcalc|' \
+                      "$appdir/usr/bin/desktop/io.github.dmezhnov.knitcalc.desktop" \
+                      > "$appdir/io.github.dmezhnov.knitcalc.desktop"
+                  cp "$appdir/usr/bin/desktop/icons/hicolor/256x256/apps/io.github.dmezhnov.knitcalc.png" \
+                      "$appdir/io.github.dmezhnov.knitcalc.png"
+                  cp -a "$appdir/usr/bin/desktop/icons" "$appdir/usr/share/"
+                  # The test-branch metainfo still lists the previous release (the
+                  # publish job rewrites it on main); pin the current version here.
+                  sed -E "s|<release version=\"[^\"]+\" date=\"[^\"]+\"/>|<release version=\"${version}\" date=\"$(date -u +%F)\"/>|" \
+                      packaging/flatpak/io.github.dmezhnov.knitcalc.metainfo.xml \
+                      > "$appdir/usr/share/metainfo/io.github.dmezhnov.knitcalc.metainfo.xml"
+                  rm -rf "$appdir/usr/bin/desktop" "$appdir/usr/bin/install.sh" "$appdir/usr/bin/uninstall.sh"
+                  ARCH=x86_64 /tmp/appimagetool --appimage-extract-and-run \
+                      -u "gh-releases-zsync|dmezhnov|knitcalc|latest|knitcalc-*-x86_64.AppImage.zsync" \
+                      "$appdir" "knitcalc-${version}-x86_64.AppImage"
+
             - name: Build web bundle
               run: mise build web
 
             - name: Package Linux, Android, Web
+              id: package
               run: |
+                  version='${{ steps.version.outputs.version }}'
                   rm -rf release
                   mkdir -p release/android release/linux release/web
-                  cp build/app/outputs/flutter-apk/app-release.apk "release/android/knitcalc-${{ steps.version.outputs.version }}.apk"
-                  cp build/app/outputs/bundle/release/app-release.aab "release/android/knitcalc-${{ steps.version.outputs.version }}.aab"
-                  tar -C build/linux/x64/release/bundle -czf "release/linux/knitcalc-linux-x64-${{ steps.version.outputs.version }}.tar.gz" .
-                  tar -C build/web -czf "release/web/knitcalc-web-${{ steps.version.outputs.version }}.tar.gz" .
+                  cp build/app/outputs/flutter-apk/app-release.apk "release/android/knitcalc-${version}.apk"
+                  for abi in arm64-v8a armeabi-v7a x86_64; do
+                    cp "build/app/outputs/flutter-apk/app-${abi}-release.apk" \
+                       "release/android/knitcalc-${version}-${abi}.apk"
+                  done
+                  cp build/app/outputs/bundle/release/app-release.aab "release/android/knitcalc-${version}.aab"
+                  tar -C build/linux/x64/release/bundle -czf "release/linux/knitcalc-linux-x64-${version}.tar.gz" .
+                  mv "knitcalc-${version}-x86_64.AppImage" "knitcalc-${version}-x86_64.AppImage.zsync" release/linux/
+                  tar -C build/web -czf "release/web/knitcalc-web-${version}.tar.gz" .
+                  # The AUR PKGBUILD pins this hash.
+                  echo "linux_sha256=$(sha256sum "release/linux/knitcalc-linux-x64-${version}.tar.gz" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
             - name: Upload Linux, Android, Web artifacts
               uses: actions/upload-artifact@v7
@@ -475,6 +520,61 @@ jobs:
                   # on the host; the upload runs unprivileged with the credentials.
                   sudo snapcraft pack --destructive-mode
                   snapcraft upload --release=stable "knitcalc_${version}_amd64.snap"
+
+    aur:
+        name: Publish to the AUR
+        runs-on: ubuntu-latest
+        needs:
+            - linux-android-web
+            - publish
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            # Renders packaging/aur/ templates against the released tarball and
+            # pushes to the knitcalc-bin AUR repo. The first push creates the
+            # package base, owned by the AUR account whose SSH key is used.
+            # Skipped with a warning until the key secret is configured.
+            - name: Push knitcalc-bin to the AUR
+              env:
+                  AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+              run: |
+                  if [ -z "$AUR_SSH_PRIVATE_KEY" ]; then
+                    echo "::warning::AUR_SSH_PRIVATE_KEY is not set; skipping the AUR push."
+                    exit 0
+                  fi
+                  version='${{ needs.linux-android-web.outputs.version }}'
+                  tarball_sha='${{ needs.linux-android-web.outputs.linux_sha256 }}'
+                  license_sha="$(sha256sum LICENSE | cut -d' ' -f1)"
+
+                  mkdir -p ~/.ssh
+                  printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+                  chmod 600 ~/.ssh/aur
+                  ssh-keyscan -t ed25519 aur.archlinux.org >> ~/.ssh/known_hosts
+                  export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur"
+
+                  git clone ssh://aur@aur.archlinux.org/knitcalc-bin.git /tmp/aur
+                  for f in PKGBUILD SRCINFO; do
+                    out=/tmp/aur/$f
+                    [ "$f" = SRCINFO ] && out=/tmp/aur/.SRCINFO
+                    sed -e "s|{{VERSION}}|$version|g" \
+                        -e "s|{{TARBALL_SHA256}}|$tarball_sha|g" \
+                        -e "s|{{LICENSE_SHA256}}|$license_sha|g" \
+                        "packaging/aur/$f" > "$out"
+                  done
+                  cd /tmp/aur
+                  git config user.name "Dmitry Mezhnov"
+                  git config user.email "dmezhnov@users.noreply.github.com"
+                  git add PKGBUILD .SRCINFO
+                  if git diff --cached --quiet; then
+                    echo "AUR package already up to date."
+                    exit 0
+                  fi
+                  git commit -m "knitcalc-bin $version"
+                  git push origin HEAD:master
 
     deploy-pages:
         name: Deploy GitHub Pages

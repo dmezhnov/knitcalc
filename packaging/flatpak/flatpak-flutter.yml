@@ -50,8 +50,8 @@ modules:
       sources:
           - type: git
             url: https://github.com/dmezhnov/knitcalc.git
-            tag: v1.8.26+49
-            commit: a57f404e28f572102edda68bda2f1bb6e8dd9224
+            tag: v1.8.28+51
+            commit: 7d405cbd647ea3ecb2c81f0703ddb08e841fcb12
           - type: git
             url: https://github.com/flutter/flutter.git
             tag: 3.41.9
