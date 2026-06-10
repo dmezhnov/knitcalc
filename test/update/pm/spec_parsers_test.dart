@@ -131,11 +131,11 @@ other|1.0.0|2.0.0|false
   });
 
   group('parseFlatpakUpdates', () {
-    const id = 'io.github.dmezhnov.KnitCalc';
+    const id = 'io.github.dmezhnov.knitcalc';
 
     test('reads the version of the matching app row', () {
       expect(
-        parseFlatpakUpdates('io.github.dmezhnov.KnitCalc\t1.8.8', appId: id),
+        parseFlatpakUpdates('io.github.dmezhnov.knitcalc\t1.8.8', appId: id),
         '1.8.8',
       );
     });

@@ -1,7 +1,8 @@
 import 'package:knitcalc/update/impl/pm/package_manager_update_service.dart';
 
-// TODO(update): replace with the real Flathub app id once published.
-const String flatpakAppId = 'io.github.dmezhnov.KnitCalc';
+// Matches `id` in packaging/flatpak/flatpak-flutter.yml (the Flathub
+// submission) and APPLICATION_ID in linux/CMakeLists.txt.
+const String flatpakAppId = 'io.github.dmezhnov.knitcalc';
 
 /// flatpak updater spec. `flatpak remote-ls --updates` lists apps with a newer
 /// version available; the upgrade runs `flatpak update <app-id>` in a terminal
