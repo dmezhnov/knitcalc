@@ -74,6 +74,31 @@ Users install with:
 
     sudo snap install knitcalc
 
+### Flathub (`packaging/flatpak/`)
+
+Unlike the other channels, Flathub builds the app from source on its own
+infrastructure, with no network access during the build. The
+`flatpak-flutter.yml` manifest here is the _input_ for
+[flatpak-flutter](https://github.com/TheAppgineer/flatpak-flutter), which
+pins the Flutter SDK and every pub dependency (from `pubspec.lock`) as offline
+sources and emits the final manifest plus a `generated/` directory:
+
+    docker run --rm --network host -v "$PWD":/usr/src/flatpak \
+      -u `id -u`:`id -g` theappgineer/flatpak-flutter:latest flatpak-flutter.yml
+
+Those generated files live in the Flathub packaging repo
+(`flathub/io.github.dmezhnov.knitcalc`), not here. To ship a new version:
+bump `tag`/`commit` of the knitcalc source in the manifest (and the flutter
+tag if `mise.toml` changed), rerun the generation, and open a PR to the
+Flathub repo. The metainfo, desktop file and icon are installed from this
+directory at build time, so they version together with the app.
+
+One-time onboarding: PR to [flathub/flathub](https://github.com/flathub/flathub)
+(branch off `new-pr`) containing the generated manifest set; their CI
+test-builds it and a reviewer approves. Users install with:
+
+    flatpak install flathub io.github.dmezhnov.knitcalc
+
 ### apt (`packaging/apt/`)
 
 The `linux-android-web` job builds a `.deb` from the Flutter Linux bundle and a
