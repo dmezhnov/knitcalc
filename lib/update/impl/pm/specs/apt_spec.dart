@@ -1,6 +1,7 @@
 import 'package:knitcalc/update/impl/pm/package_manager_update_service.dart';
 
-// TODO(update): confirm the published .deb package name.
+// Matches the Package field of packaging/apt/control, shipped in the apt repo
+// the publish workflow renders under GitHub Pages (/knitcalc/apt).
 const String aptPackage = 'knitcalc';
 
 /// apt/dpkg updater spec. `apt-get -s install --only-upgrade` simulates the
