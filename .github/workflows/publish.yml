@@ -111,7 +111,7 @@ jobs:
               run: mise build apk
 
             - name: Build per-ABI APKs
-              run: mise run build-apk-split
+              run: mise build apk-split
 
             - name: Build Android App Bundle
               run: mise build appbundle
