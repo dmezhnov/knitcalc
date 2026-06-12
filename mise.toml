@@ -54,7 +54,14 @@ arg "<target>" help="Build target" {
   choices "apk" "appbundle" "web" "linux" "windows" "macos" "ios"
 }
 '''
-run = ["dart run icons_launcher:create", "mise build-{{ usage.target }}"]
+# packaging_icons regenerates the repo-resident catalog icons (fastlane,
+# flatpak) from the same source, so swapping assets/icon/icon.png updates
+# every channel without manual steps.
+run = [
+    "dart run icons_launcher:create",
+    "dart run tool/packaging_icons.dart",
+    "mise build-{{ usage.target }}",
+]
 
 [tasks.build-apk]
 hide = true

@@ -20,7 +20,12 @@ concurrency:
 jobs:
     linux-android-web:
         name: Test and build Linux, Android, Web
-        runs-on: ubuntu-latest
+        # Pinned to the oldest available LTS: the Linux bundle links the
+        # build host's glib/glibc, so building on 24.04 produces binaries
+        # that fail on older distros (undefined symbol
+        # g_once_init_enter_pointer, glib >= 2.80). Binaries built here run
+        # everywhere from 22.04 up, including the core24 snap.
+        runs-on: ubuntu-22.04
 
         outputs:
             version: ${{ steps.version.outputs.version }}
