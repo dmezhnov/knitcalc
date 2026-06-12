@@ -54,6 +54,15 @@ jobs:
                     exit 1
                   fi
 
+            # The ubuntu-22.04 image defaults to JDK 11, but the android-sdk
+            # mise plugin validates sdkmanager during install, which needs
+            # JDK 17+. Point the job at the preinstalled Temurin 17 before
+            # mise runs (the mise-managed java is not on PATH at that point).
+            - name: Use JDK 17 as the default Java
+              run: |
+                  echo "JAVA_HOME=${JAVA_HOME_17_X64}" >> "$GITHUB_ENV"
+                  echo "${JAVA_HOME_17_X64}/bin" >> "$GITHUB_PATH"
+
             - name: Install mise
               uses: jdx/mise-action@v4
 
