@@ -51,7 +51,7 @@ run = "mise i"
 description = "Build a target platform"
 usage = '''
 arg "<target>" help="Build target" {
-  choices "apk" "appbundle" "web" "linux" "windows" "macos" "ios"
+  choices "apk" "apk-split" "appbundle" "web" "linux" "windows" "macos" "ios"
 }
 '''
 # packaging_icons regenerates the repo-resident catalog icons (fastlane,
