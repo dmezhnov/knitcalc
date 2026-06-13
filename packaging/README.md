@@ -129,16 +129,22 @@ with a one-file PR (`data/KnitCalc`).
 ### openSUSE Build Service (`packaging/obs/`)
 
 `knitcalc.spec` repackages the release Linux tarball as an rpm (same layout
-as the `.deb`); OBS then serves repos for openSUSE/Fedora and friends.
-Verified locally with rpmbuild on Tumbleweed. Not wired into CI yet — needs
-an OBS account:
+as the `.deb`); OBS serves repos for openSUSE Tumbleweed/Leap and Fedora from
+package [`home:dmezhnov/knitcalc`](https://build.opensuse.org/package/show/home:dmezhnov/knitcalc).
+`knitcalc-rpmlintrc` filters the prebuilt-bundle complaints (missing `.hash`
+sections etc.) that openSUSE's post-build rpmlint would otherwise fail on.
+Users install with the repo from
+`https://download.opensuse.org/repositories/home:/dmezhnov/<distro>/`.
 
-1. Register at <https://build.opensuse.org>, create package `knitcalc` in your
-   home project.
-2. Replace `{{VERSION}}` in `knitcalc.spec` and `_service`, then
-   `osc service runall && osc commit` (or upload the spec + sources in the web
-   UI). Repeat per release (worth a CI job with `osc` + an OBS token once the
-   account exists).
+Per release (not wired into CI yet — worth an `osc` + OBS-token job):
+
+1. Replace `{{VERSION}}` in `knitcalc.spec` and `_service`.
+2. In an `osc co home:dmezhnov/knitcalc` checkout: drop in the rendered
+   `knitcalc.spec`/`_service`/`knitcalc-rpmlintrc`, download the release
+   tarball and `LICENSE` next to them (the URLs from the spec; `osc service
+runall` would do it, but `obs-service-download_url` is not packaged in
+   nixpkgs), remove the previous version's tarball (`osc rm`), `osc add` the
+   new one, `osc commit`.
 
 ### IzzyOnDroid (`fastlane/`)
 

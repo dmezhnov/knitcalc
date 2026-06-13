@@ -19,6 +19,8 @@ License:        MIT
 URL:            https://github.com/dmezhnov/knitcalc
 Source0:        https://github.com/dmezhnov/knitcalc/releases/download/v%{version}/knitcalc-linux-x64-%{version}.tar.gz
 Source1:        https://raw.githubusercontent.com/dmezhnov/knitcalc/v%{version}/LICENSE
+# Filters for prebuilt-bundle complaints rpmlint would otherwise fail on.
+Source2:        %{name}-rpmlintrc
 BuildRequires:  patchelf
 Requires:       gtk3
 ExclusiveArch:  x86_64
@@ -29,6 +31,8 @@ project notes with photos.
 
 %prep
 %setup -q -c
+# Stage the standalone license file (Source1) for the %%license directive.
+cp %{SOURCE1} .
 # Upstream CI leaves RUNPATHs pointing into the build runner's home; strip
 # them so distro rpath checks pass.
 for so in lib/libdartjni.so lib/libfile_selector_linux_plugin.so \
@@ -55,13 +59,16 @@ install -Dm644 io.github.dmezhnov.knitcalc.desktop \
 cp -a desktop/icons %{buildroot}%{_datadir}/
 chmod -R u=rwX,go=rX %{buildroot}%{_datadir}/icons
 
-install -Dm644 %{SOURCE1} %{buildroot}%{_datadir}/licenses/%{name}/LICENSE
-
 %files
 /usr/lib/knitcalc
 %{_bindir}/knitcalc
 %{_datadir}/applications/io.github.dmezhnov.knitcalc.desktop
+# Own the icon-theme directories: nothing in the buildroot provides
+# hicolor-icon-theme, and openSUSE's post-build check rejects unowned dirs.
+%dir %{_datadir}/icons/hicolor
+%dir %{_datadir}/icons/hicolor/*
+%dir %{_datadir}/icons/hicolor/*/apps
 %{_datadir}/icons/hicolor/*/apps/io.github.dmezhnov.knitcalc.png
-%license %{_datadir}/licenses/%{name}/LICENSE
+%license LICENSE
 
 %changelog
