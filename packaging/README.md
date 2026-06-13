@@ -156,13 +156,36 @@ in this repo. One-time onboarding: request addition at
 `knitcalc-<version>-arm64-v8a.apk` asset naming. Updates are picked up from
 releases automatically. The APKs must stay signed with the same release key.
 
-### F-Droid main repo — blocked for now
+### F-Droid main repo (`packaging/fdroid/`)
 
-F-Droid proper builds from source and rejects builds that bundle proprietary
-bits: the Android app links Google Play Services (Credential Manager sign-in)
-and carries a GitHub self-updater, both of which their scanner flags. Listing
-there needs a `foss` build flavor that strips `google_sign_in` and disables
-the self-update check. IzzyOnDroid (above) covers F-Droid clients meanwhile.
+F-Droid builds from source on its own infrastructure and its scanner rejects
+bundled proprietary blobs. KnitCalc's only such blob is Google Play Services,
+pulled in by `google_sign_in` (the native Credential Manager account picker).
+The whole `package:google_sign_in` import is isolated in one leaf file
+(`lib/firebase/native_id_token_fetcher.dart`); everything else talks to it
+through the injected `NativeIdTokenFetcher` seam.
+
+`packaging/fdroid/foss_prebuild.sh` makes the source F-Droid-buildable: it
+removes the `google_sign_in` dependency from `pubspec.yaml` and copies the
+Play-Services-free stub (`native_id_token_fetcher_foss.dart`) over that leaf, so
+the built APK carries no Google proprietary code. Sign-in then always uses the
+loopback browser OAuth flow — the same fallback Play-Services-less devices
+already take. The normal Play/sideload/other-store builds are unchanged and keep
+the native picker.
+
+The self-updater needs no special handling: an app installed by the F-Droid
+client reports installer `org.fdroid.fdroid`, which `androidChannelForInstaller`
+maps to `Channel.androidManagedStore` → `NoopUpdateService`, so it never
+downloads an APK — F-Droid handles updates.
+
+`packaging/fdroid/io.github.dmezhnov.knitcalc.yml` is a template for the
+fdroiddata metadata entry; its `Builds` recipe runs `foss_prebuild.sh` before
+`flutter pub get`. One-time onboarding (needs a GitLab account): fork
+[fdroiddata](https://gitlab.com/fdroid/fdroiddata), drop the rendered metadata
+in as `metadata/io.github.dmezhnov.knitcalc.yml` (set the Flutter srclib version
+to match `mise.toml`), validate with `fdroid lint`/`fdroid build`, and open an
+MR. Expect reviewer iteration — Flutter recipes usually need it. Until it lands,
+IzzyOnDroid (above) covers F-Droid clients.
 
 ### RuStore — manual
 
@@ -170,6 +193,76 @@ Free developer account at <https://console.rustore.ru> (needs identity
 verification), then upload the release `.aab` or APK by hand; texts and
 screenshots can be reused from `fastlane/metadata/android/ru-RU/`. No
 publishing API is wired up.
+
+### Other Android stores (Samsung, Amazon, Huawei, Accrescent, NashStore, RuMarket)
+
+All of these take the **standard release artifact** built by CI — no separate
+build is needed. Bundling Google Play Services is fine for every one of them
+(unlike F-Droid above): native Google sign-in falls back to the browser
+loopback OAuth flow on devices without Play Services (e.g. Huawei), so the same
+APK/AAB works everywhere. Listing copy, screenshots and the icon are reused from
+`fastlane/metadata/android/{en-US,ru-RU}/` — that directory is the single source
+of truth for all catalogs; don't re-type the texts per store.
+
+These stores ship and update the app themselves, so the in-app updater stays
+silent for them: `androidChannelForInstaller` maps their installer package names
+to `Channel.androidManagedStore` → `NoopUpdateService` (no GitHub self-update
+fighting the store). The mapping lives in `lib/update/channel.dart`.
+
+Each is a **manual first upload** (account creation and identity verification
+can't be automated). Onboarding is documented here; per-release CI upload can be
+wired later once the account exists and its API credentials are saved as
+secrets — every store below has a publishing API, but the first submission and
+the store-review setup are done by hand. Confirm current fees/requirements on
+each console, as they change.
+
+#### Samsung Galaxy Store
+
+Register at the [Seller Portal](https://seller.samsungapps.com) (free; accept
+the commercial seller agreement, provide payout/business info even for a free
+app). Create the app, upload the release **`.aab`** (APK also accepted), fill the
+listing from the fastlane metadata, pick a category and the content rating, then
+submit for review. Automation later: the Galaxy Store **Seller API** (a service
+account + a JWT signed with its key) can create a binary upload session and
+submit — wire it as a gated CI job (skip until the key secret is set).
+
+#### Amazon Appstore
+
+Register at the [Amazon Developer console](https://developer.amazon.com) (free).
+Add a new Android app and upload the release **APK** (Amazon historically prefers
+APK over AAB and re-signs/tests the binary itself). Fill the listing from the
+fastlane metadata, set the content rating, submit. Automation later: the **App
+Submission API** uses a Security Profile (`client_id`/`client_secret` → OAuth
+token → create edit → upload APK → commit); wire it as a gated CI job.
+
+#### Huawei AppGallery
+
+Register at [AppGallery Connect](https://developer.huawei.com/consumer/en/appgallery)
+(free; needs identity verification — individual or enterprise — which can take a
+few days). Create the app, upload the release **APK**, fill the listing from the
+fastlane metadata, set the rating, submit. No HMS rework is required: the app
+authenticates against Google via the browser loopback flow, which works on
+HMS-only devices, and the native Credential Manager call simply falls back.
+Automation later: the **AppGallery Connect Publishing API**
+(`client_id`/`client_secret` → token → upload → submit); wire it as a gated CI
+job.
+
+#### Accrescent
+
+A FOSS-leaning store with its own format. Onboard via the developer console at
+<https://accrescent.app> (registration details — and any one-time anti-spam fee —
+are on their site; verify the current process, it is still evolving). Accrescent
+distributes an **APK Set (`.apks`)** generated from the AAB with `bundletool`,
+signed with the release key. Listing copy/screenshots from the fastlane
+metadata. The Accrescent client handles updates.
+
+#### NashStore / RuMarket (Russian catalogs)
+
+Smaller Russian catalogs besides RuStore. Both are **fully manual**: register on
+each console (NashStore <https://nashstore.ru>, RuMarket via its developer
+portal), upload the release `.aab`/APK by hand, and reuse the Russian listing
+from `fastlane/metadata/android/ru-RU/`. No publishing API is wired up; treat
+them like RuStore above.
 
 ### nixpkgs
 

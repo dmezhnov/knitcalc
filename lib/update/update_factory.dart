@@ -50,6 +50,12 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.androidRustore:
       return const NoopUpdateService();
 
+    // Samsung Galaxy Store, Amazon Appstore, Huawei AppGallery, F-Droid,
+    // Accrescent: the store/client checks for and installs updates itself, so
+    // the app stays out of the way (no banner, no GitHub self-update).
+    case Channel.androidManagedStore:
+      return const NoopUpdateService();
+
     // Package-manager installs: the manager owns updates — probe it for
     // availability (no GitHub, no lag) and run its upgrade command in a
     // terminal. Package ids inside the specs are placeholders until published.
