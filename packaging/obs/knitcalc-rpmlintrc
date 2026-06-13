@@ -1,0 +1,15 @@
+# rpmlint filters for the prebuilt Flutter bundle under /usr/lib/knitcalc.
+# The engine, plugin libraries and the AOT snapshot (libapp.so) come from
+# Flutter's own toolchain: linked without .hash/.gnu.hash sections, without
+# sonames, unstripped, and loaded directly by the bundled launcher rather
+# than the system linker policy — none of that is fixable in a repack.
+addFilter("missing-hash-section")
+addFilter("missing-gnu-hash-section")
+addFilter("shared-library-not-executable")
+addFilter("unstripped-binary-or-object")
+addFilter("no-soname")
+# native_assets.json duplicates NativeAssetsManifest.json by Flutter design.
+addFilter("files-duplicate")
+# The spec template is rendered per release; it carries no changelog.
+addFilter("no-changelogname-tag")
+addFilter("no-%check-section")
