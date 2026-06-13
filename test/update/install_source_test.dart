@@ -14,6 +14,25 @@ void main() {
       expect(androidChannelForInstaller('ru.vk.store'), Channel.androidRustore);
     });
 
+    test(
+      'maps stores that manage their own updates to androidManagedStore',
+      () {
+        for (final installer in const [
+          'com.sec.android.app.samsungapps', // Samsung Galaxy Store
+          'com.amazon.venezia', // Amazon Appstore
+          'com.huawei.appmarket', // Huawei AppGallery
+          'org.fdroid.fdroid', // F-Droid
+          'app.accrescent.client', // Accrescent
+        ]) {
+          expect(
+            androidChannelForInstaller(installer),
+            Channel.androidManagedStore,
+            reason: installer,
+          );
+        }
+      },
+    );
+
     test('treats an unknown installer as a sideload', () {
       expect(
         androidChannelForInstaller('com.android.shell'),

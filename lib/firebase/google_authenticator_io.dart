@@ -15,6 +15,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'google_oauth.dart';
 import 'google_oauth_config.dart';
 import 'loopback_oauth_browser.dart';
+// The production fetcher; the F-Droid `foss` build swaps this import target's
+// file for the Play-Services-free stub (see native_id_token_fetcher.dart).
+import 'native_id_token_fetcher.dart';
 import 'native_google_sign_in.dart';
 
 GoogleSignInFlow defaultGoogleAuthenticator() {
@@ -27,6 +30,7 @@ GoogleSignInFlow defaultGoogleAuthenticator() {
     return NativeFirstGoogleSignInFlow(
       serverClientId: googleServerClientId,
       fallback: loopback,
+      fetchNative: defaultNativeIdTokenFetcher,
     );
   }
 
