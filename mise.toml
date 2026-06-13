@@ -203,6 +203,12 @@ run = '''
 # keeps colours and the hot-reload key UI working — and grep the lines away.
 # `script -e` propagates flutter's exit code; stdin is forwarded so r/R/q work.
 
+# A dev (`flutter run`) build installs no desktop integration, so on Wayland the
+# compositor/taskbar can't match the window's app_id to an icon and shows a
+# stretched fallback. Install the icon theme + .desktop into ~/.local/share
+# first (idempotent, best-effort — don't block the run if it fails).
+dart run tool/linux_desktop_install.dart --dev || true
+
 # Same NixOS toolchain workaround as build-linux; LD_LIBRARY_PATH also lets the
 # launched app find the GTK stack at run time.
 if [ -e /etc/NIXOS ] && command -v nix-shell >/dev/null 2>&1; then
@@ -214,6 +220,11 @@ if [ -e /etc/NIXOS ] && command -v nix-shell >/dev/null 2>&1; then
       done
       export NIX_LDFLAGS="$NIX_LDFLAGS -rpath-link $libdirs"
       export LD_LIBRARY_PATH=$libdirs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+      # The --dev install above lays down loose icon PNGs; on NixOS many icon
+      # consumers (the bar) only read a theme via its icon-theme.cache, and
+      # gtk-update-icon-cache is not on the host PATH. gtk3 is in this shell, so
+      # build the cache here.
+      gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
       script -qefc "flutter run" /dev/null | grep --line-buffered -vE "atk_socket_embed|Error converting selection from UTF8_STRING"
     '
 fi
