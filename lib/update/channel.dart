@@ -17,6 +17,12 @@ enum Channel {
   /// Android, installed from RuStore.
   androidRustore,
 
+  /// Android, installed from a store/client that ships and updates the app
+  /// itself (Samsung Galaxy Store, Amazon Appstore, Huawei AppGallery, F-Droid,
+  /// Accrescent) — like Play, the store reports and installs updates, so the
+  /// app does nothing.
+  androidManagedStore,
+
   /// Android, installed manually (sideload) — updated via GitHub.
   androidSideload,
 
@@ -150,11 +156,34 @@ Future<Channel> _detectAndroidChannel() async {
   return androidChannelForInstaller(installer);
 }
 
+/// Installer package names of stores/clients that report and install updates
+/// themselves — the app must not also self-update (it would fight the store and
+/// desync its database), so these resolve to [Channel.androidManagedStore] and
+/// a no-op update service:
+///
+/// - `com.sec.android.app.samsungapps` — Samsung Galaxy Store;
+/// - `com.amazon.venezia` — Amazon Appstore;
+/// - `com.huawei.appmarket` — Huawei AppGallery;
+/// - `org.fdroid.fdroid` — the F-Droid client;
+/// - `app.accrescent.client` — the Accrescent client.
+///
+/// Google Play (`com.android.vending`) and RuStore (`ru.vk.store`) are managed
+/// too but keep dedicated channels because their in-app update SDKs are wired
+/// (Play) or pending (RuStore).
+const Set<String> _managedStoreInstallers = {
+  'com.sec.android.app.samsungapps',
+  'com.amazon.venezia',
+  'com.huawei.appmarket',
+  'org.fdroid.fdroid',
+  'app.accrescent.client',
+};
+
 /// Maps an Android installer package name to its [Channel].
 ///
-/// `com.android.vending` is Google Play and `ru.vk.store` is RuStore; anything
-/// else (manual install, `adb`, a file manager) is treated as a sideload that
-/// updates through GitHub Releases.
+/// `com.android.vending` is Google Play and `ru.vk.store` is RuStore; other
+/// known stores that manage their own updates map to [Channel.androidManagedStore]
+/// (see [_managedStoreInstallers]); anything else (manual install, `adb`, a file
+/// manager) is treated as a sideload that updates through GitHub Releases.
 Channel androidChannelForInstaller(String? installer) {
   switch (installer) {
     case 'com.android.vending':
@@ -162,6 +191,9 @@ Channel androidChannelForInstaller(String? installer) {
     case 'ru.vk.store':
       return Channel.androidRustore;
     default:
+      if (installer != null && _managedStoreInstallers.contains(installer)) {
+        return Channel.androidManagedStore;
+      }
       return Channel.androidSideload;
   }
 }

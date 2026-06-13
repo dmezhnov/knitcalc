@@ -1,0 +1,50 @@
+# F-Droid metadata for KnitCalc — a template for the fdroiddata MR.
+#
+# This file is NOT used by this repository; it is the starting point for the
+# entry you submit to https://gitlab.com/fdroid/fdroiddata as
+# metadata/io.github.dmezhnov.knitcalc.yml. F-Droid builds from source on its
+# own infrastructure, so the recipe below drives that build. Validate locally
+# with `fdroid lint io.github.dmezhnov.knitcalc` and `fdroid build` before the
+# MR; expect a round of reviewer feedback (Flutter recipes often need it).
+#
+# The build runs packaging/fdroid/foss_prebuild.sh first, which strips the
+# proprietary Google Play Services dependency (see that script and
+# packaging/README.md). Without it F-Droid's scanner rejects the bundled
+# play-services-auth blob.
+
+Categories:
+    - Science & Education
+License: MIT
+AuthorName: Dmitry Mezhnov
+SourceCode: https://github.com/dmezhnov/knitcalc
+IssueTracker: https://github.com/dmezhnov/knitcalc/issues
+Changelog: https://github.com/dmezhnov/knitcalc/releases
+
+AutoName: KnitCalc
+
+RepoType: git
+Repo: https://github.com/dmezhnov/knitcalc.git
+
+Builds:
+    - versionName: 1.8.34
+      versionCode: 57
+      commit: v1.8.34+57
+      # Pin to the Flutter version this release is built with — keep it in sync
+      # with `flutter` in mise.toml. fdroiddata ships srclibs/flutter.yml.
+      srclibs:
+          - flutter@TODO-FLUTTER-VERSION
+      output: build/app/outputs/flutter-apk/app-release.apk
+      # Drop google_sign_in + Play Services before resolving dependencies.
+      prebuild:
+          - sh packaging/fdroid/foss_prebuild.sh
+      build:
+          - export PATH="$$flutter$$/bin:$PATH"
+          - flutter config --no-analytics
+          - flutter pub get
+          - flutter build apk --release
+
+# Tags look like v1.8.34+57 = v<versionName>+<versionCode>.
+AutoUpdateMode: Version v%v+%c
+UpdateCheckMode: Tags ^v[0-9.]+\+[0-9]+$
+CurrentVersion: 1.8.34
+CurrentVersionCode: 57
