@@ -1,14 +1,19 @@
-/// Android native account picker (Credential Manager) for Google sign-in,
-/// wrapping `package:google_sign_in` 7.x and returning a Google `id_token`.
+/// Android native account picker (Credential Manager) for Google sign-in:
+/// tries the on-device picker first and falls back to the loopback browser
+/// flow when it can't run.
 ///
 /// Only ever used on Android (see `google_authenticator_io.dart`, gated behind
 /// `Platform.isAndroid`): web's `authenticate()` is unsupported and iOS/macOS
 /// keep the loopback browser flow. The native call sits behind the injectable
 /// [NativeIdTokenFetcher] seam so the fallback/cancel logic stays unit-testable
 /// without an emulator — the picker itself is on-device only.
+///
+/// The seam also keeps the only `package:google_sign_in` import in a single
+/// swappable leaf (`native_id_token_fetcher.dart`): the F-Droid `foss` build
+/// replaces it with `native_id_token_fetcher_foss.dart`, which drops the
+/// proprietary Play Services dependency and always falls back to the browser.
+/// See `packaging/README.md`.
 library;
-
-import 'package:google_sign_in/google_sign_in.dart';
 
 import 'google_oauth.dart';
 
@@ -30,51 +35,21 @@ class NativeSignInUnavailable implements Exception {
 /// [NativeSignInUnavailable] when it cannot run at all.
 typedef NativeIdTokenFetcher = Future<String> Function(String serverClientId);
 
-// initialize() must run once per process; memoise it so a re-created flow (one
-// per sign-in attempt) doesn't re-initialise the singleton.
-Future<void>? _initialization;
-
-Future<String> _defaultNativeIdTokenFetcher(String serverClientId) async {
-  final signIn = GoogleSignIn.instance;
-  try {
-    _initialization ??= signIn.initialize(serverClientId: serverClientId);
-    await _initialization;
-
-    // False only on web, which never reaches this dart:io path; guard anyway so
-    // an unexpected platform falls back cleanly rather than throwing.
-    if (!signIn.supportsAuthenticate()) {
-      throw const NativeSignInUnavailable('authenticate unsupported');
-    }
-
-    final account = await signIn.authenticate();
-    final idToken = account.authentication.idToken;
-    if (idToken == null) {
-      throw const NativeSignInUnavailable(
-        'no id_token from Credential Manager',
-      );
-    }
-
-    return idToken;
-  } on GoogleSignInException catch (e) {
-    if (e.code == GoogleSignInExceptionCode.canceled) {
-      throw const GoogleAuthCancelledException();
-    }
-    // Anything that isn't a deliberate cancel (no Play Services, unregistered
-    // SHA-1, no on-device credential, misconfig) becomes a fall-back signal.
-    throw NativeSignInUnavailable('${e.code}: ${e.description}');
-  }
-}
-
 /// A [GoogleSignInFlow] that tries the native Android account picker first and
 /// falls back to [_fallback] (the loopback browser flow) when it is
 /// unavailable. A native cancel is propagated as-is rather than falling back.
+///
+/// [fetchNative] is injected by the composition root
+/// (`google_authenticator_io.dart` passes `defaultNativeIdTokenFetcher`); tests
+/// pass a fake. This file imports no platform SDK so it compiles in the `foss`
+/// build, where the injected fetcher is the no-op stub.
 class NativeFirstGoogleSignInFlow implements GoogleSignInFlow {
   NativeFirstGoogleSignInFlow({
     required this.serverClientId,
     required GoogleSignInFlow fallback,
-    NativeIdTokenFetcher? fetchNative,
+    required NativeIdTokenFetcher fetchNative,
   }) : _fallback = fallback,
-       _fetchNative = fetchNative ?? _defaultNativeIdTokenFetcher;
+       _fetchNative = fetchNative;
 
   final String serverClientId;
   final GoogleSignInFlow _fallback;
