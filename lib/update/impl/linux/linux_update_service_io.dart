@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:knitcalc/update/app_version.dart';
-import 'package:knitcalc/update/impl/github/github_release.dart';
-import 'package:knitcalc/update/impl/linux/github_linux_logic.dart';
+import 'package:knitcalc/update/impl/linux/linux_swap_logic.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
+import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
+import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:knitcalc/update/update_info.dart';
 import 'package:knitcalc/update/update_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -25,45 +25,41 @@ UpdateService createLinuxUpdateService(AppVersion? current) {
 /// Self-updater for manually installed Linux bundles distributed as the
 /// `knitcalc-linux-x64-*.tar.gz` GitHub Release asset.
 ///
-/// Polls `releases/latest`, compares the tag with the running build, downloads
-/// the tarball (reporting progress) and hands off to a detached shell script
-/// that unpacks it over the install directory once the app exits, then
-/// relaunches. Package-managed installs (snap/flatpak/dpkg) are handled by a
-/// [NoopUpdateService] instead — their daemon owns updates.
+/// Reads the available version from the remote store-versions document (the
+/// `linux` entry carries the download url, written by release CI), downloads the
+/// tarball (reporting progress) and hands off to a detached shell script that
+/// unpacks it over the install directory once the app exits, then relaunches.
+/// Package-managed installs (snap/flatpak/dpkg) are handled by a
+/// [NoopUpdateService] instead — their daemon owns updates. The tarball still
+/// downloads from the GitHub CDN; only the version check moved off the
+/// rate-limited GitHub API.
 class LinuxUpdateService implements UpdateService {
   LinuxUpdateService(
     this._current, {
     HttpClient? httpClient,
     UpdateLauncher? launch,
-    Uri? releaseUrl,
+    RemoteVersionsFetcher? fetch,
     String? executablePath,
   }) : _httpClient = httpClient ?? HttpClient(),
        _launch = launch ?? _defaultLaunch,
-       _releaseUrl = releaseUrl ?? Uri.parse(githubLatestReleaseUrl),
+       _fetch = fetch ?? fetchStoreVersions,
        _executablePath = executablePath ?? Platform.resolvedExecutable;
 
   final AppVersion? _current;
   final HttpClient _httpClient;
   final UpdateLauncher _launch;
-  final Uri _releaseUrl;
+  final RemoteVersionsFetcher _fetch;
   final String _executablePath;
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
-    if (_current == null) {
-      return null;
-    }
+    final versions = await _fetch();
 
-    final Map<String, dynamic> release;
-
-    try {
-      release = await _fetchLatestRelease();
-    } on Object {
-      // Offline or rate-limited: skip silently, retry next launch.
-      return null;
-    }
-
-    return evaluateGithubTarballUpdate(_current, release);
+    return evaluateRemoteUpdate(
+      _current,
+      versions?['linux'],
+      action: UpdateAction.inApp,
+    );
   }
 
   @override
@@ -90,25 +86,6 @@ class LinuxUpdateService implements UpdateService {
     // Hands off to the detached script and quits the app so it can swap the
     // bundle; control does not return here on the default launcher.
     await _launch(script);
-  }
-
-  Future<Map<String, dynamic>> _fetchLatestRelease() async {
-    final request = await _httpClient.getUrl(_releaseUrl);
-    request.headers.set(
-      HttpHeaders.acceptHeader,
-      'application/vnd.github+json',
-    );
-    request.headers.set(HttpHeaders.userAgentHeader, 'knitcalc-updater');
-
-    final response = await request.close();
-
-    if (response.statusCode != HttpStatus.ok) {
-      throw HttpException('Unexpected status ${response.statusCode}');
-    }
-
-    final body = await response.transform(utf8.decoder).join();
-
-    return jsonDecode(body) as Map<String, dynamic>;
   }
 
   Future<String> _downloadTarball(

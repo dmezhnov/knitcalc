@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knitcalc/update/impl/macos/github_macos_logic.dart';
+import 'package:knitcalc/update/impl/macos/macos_swap_logic.dart';
 
 /// Minimal but valid bundle Info.plist so `open` can launch the stub at the end
 /// of the swap script without erroring.

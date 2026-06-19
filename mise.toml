@@ -1,6 +1,5 @@
 [settings]
 windows_shim_mode = "symlink"
-yes = true
 experimental = true
 auto_install = true
 exec_auto_install = true
