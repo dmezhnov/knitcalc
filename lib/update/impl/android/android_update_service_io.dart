@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:knitcalc/update/app_version.dart';
-import 'package:knitcalc/update/impl/android/github_release_logic.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
+import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
+import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:knitcalc/update/update_info.dart';
 import 'package:knitcalc/update/update_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -26,33 +26,34 @@ UpdateService createAndroidUpdateService(AppVersion? current) {
 
 /// Sideload updater for APKs distributed via GitHub Releases.
 ///
-/// Polls `releases/latest`, compares the tag with the running build, downloads
-/// the APK to the cache directory (reporting progress) and hands it to the
-/// system installer (the user confirms the install and the "unknown sources"
-/// prompt if needed).
+/// Reads the available version from the remote store-versions document (the
+/// `android` entry carries the APK download url, written by release CI),
+/// downloads the APK to the cache directory (reporting progress) and hands it to
+/// the system installer (the user confirms the install and the "unknown sources"
+/// prompt if needed). The APK still downloads from the GitHub CDN; only the
+/// version check moved off the GitHub API — its 60/hour unauthenticated limit is
+/// shared per IP and easily exhausted under carrier-grade NAT on mobile.
 class AndroidUpdateService implements UpdateService {
-  AndroidUpdateService(this._current, {HttpClient? httpClient})
-    : _httpClient = httpClient ?? HttpClient();
+  AndroidUpdateService(
+    this._current, {
+    HttpClient? httpClient,
+    RemoteVersionsFetcher? fetch,
+  }) : _httpClient = httpClient ?? HttpClient(),
+       _fetch = fetch ?? fetchStoreVersions;
 
   final AppVersion? _current;
   final HttpClient _httpClient;
+  final RemoteVersionsFetcher _fetch;
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
-    if (_current == null) {
-      return null;
-    }
+    final versions = await _fetch();
 
-    final Map<String, dynamic> release;
-
-    try {
-      release = await _fetchLatestRelease();
-    } on Object {
-      // Offline or rate-limited: skip silently, retry next launch.
-      return null;
-    }
-
-    return evaluateGithubApkUpdate(_current, release);
+    return evaluateRemoteUpdate(
+      _current,
+      versions?['android'],
+      action: UpdateAction.inApp,
+    );
   }
 
   @override
@@ -69,25 +70,6 @@ class AndroidUpdateService implements UpdateService {
     final path = await _downloadApk(url, onProgress);
 
     await androidUpdateChannel.invokeMethod<void>('installApk', {'path': path});
-  }
-
-  Future<Map<String, dynamic>> _fetchLatestRelease() async {
-    final request = await _httpClient.getUrl(Uri.parse(githubLatestReleaseUrl));
-    request.headers.set(
-      HttpHeaders.acceptHeader,
-      'application/vnd.github+json',
-    );
-    request.headers.set(HttpHeaders.userAgentHeader, 'knitcalc-updater');
-
-    final response = await request.close();
-
-    if (response.statusCode != HttpStatus.ok) {
-      throw HttpException('Unexpected status ${response.statusCode}');
-    }
-
-    final body = await response.transform(utf8.decoder).join();
-
-    return jsonDecode(body) as Map<String, dynamic>;
   }
 
   Future<String> _downloadApk(

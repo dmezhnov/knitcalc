@@ -14,6 +14,7 @@ import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
 import 'package:knitcalc/update/impl/store/ios_app_store_service.dart';
 import 'package:knitcalc/update/impl/store/play_update_service.dart';
+import 'package:knitcalc/update/impl/store/store_listing_service.dart';
 import 'package:knitcalc/update/impl/web/web_update_service.dart';
 import 'package:knitcalc/update/impl/windows/windows_update_service.dart';
 import 'package:knitcalc/update/update_service.dart';
@@ -51,10 +52,15 @@ UpdateService createUpdateService(Channel channel) {
       return const NoopUpdateService();
 
     // Samsung Galaxy Store, Amazon Appstore, Huawei AppGallery, F-Droid,
-    // Accrescent: the store/client checks for and installs updates itself, so
-    // the app stays out of the way (no banner, no GitHub self-update).
-    case Channel.androidManagedStore:
-      return const NoopUpdateService();
+    // Accrescent: the store ships and installs the binary, so the app does not
+    // self-update; it shows the banner from the version the store published in
+    // the remote store-versions document and opens the listing on update.
+    case Channel.androidSamsung:
+    case Channel.androidAmazon:
+    case Channel.androidHuawei:
+    case Channel.androidFdroid:
+    case Channel.androidAccrescent:
+      return createStoreListingService(channel, currentAppVersion());
 
     // Package-manager installs: the manager owns updates — probe it for
     // availability (no GitHub, no lag) and run its upgrade command in a
