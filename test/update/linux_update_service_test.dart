@@ -4,10 +4,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/impl/linux/linux_update_service_io.dart';
+import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'support/fake_path_provider.dart';
 import 'support/fake_release_server.dart';
+import 'support/fake_store_versions.dart';
 
 void main() {
   late Directory tmp;
@@ -20,16 +22,17 @@ void main() {
   tearDown(() => tmp.deleteSync(recursive: true));
 
   group('checkForUpdate', () {
-    test('returns update info for a newer Linux release', () async {
-      final server = await FakeReleaseServer.start(
-        assetName: 'knitcalc-linux-x64-9.9.9.tar.gz',
-        assetBytes: utf8.encode('bundle'),
-      );
-      addTearDown(server.stop);
-
+    test('returns update info for a newer Linux version', () async {
       final service = LinuxUpdateService(
         const AppVersion(1, 0, 0),
-        releaseUrl: server.releaseUrl,
+        fetch: fakeStoreVersions({
+          'linux': const RemoteEntry(
+            version: AppVersion(9, 9, 9),
+            label: '9.9.9',
+            url: 'https://cdn.example.com/knitcalc-linux-x64-9.9.9.tar.gz',
+            size: 2048,
+          ),
+        }),
         launch: (_) async {},
       );
 
@@ -37,36 +40,33 @@ void main() {
 
       expect(info, isNotNull);
       expect(info!.latestVersion, const AppVersion(9, 9, 9));
-      expect(info.url, server.assetUrl);
-      expect(info.downloadSize, utf8.encode('bundle').length);
+      expect(
+        info.url,
+        'https://cdn.example.com/knitcalc-linux-x64-9.9.9.tar.gz',
+      );
+      expect(info.downloadSize, 2048);
     });
 
-    test('returns null when the release is not newer', () async {
-      final server = await FakeReleaseServer.start(
-        tag: 'v1.0.0+0',
-        assetName: 'knitcalc-linux-x64-1.0.0.tar.gz',
-      );
-      addTearDown(server.stop);
-
+    test('returns null when the version is not newer', () async {
       final service = LinuxUpdateService(
         const AppVersion(1, 0, 0),
-        releaseUrl: server.releaseUrl,
+        fetch: fakeStoreVersions({
+          'linux': const RemoteEntry(
+            version: AppVersion(1, 0, 0),
+            label: '1.0.0',
+            url: 'https://cdn.example.com/x.tar.gz',
+          ),
+        }),
         launch: (_) async {},
       );
 
       expect(await service.checkForUpdate(), isNull);
     });
 
-    test('returns null when the release endpoint errors', () async {
-      final server = await FakeReleaseServer.start(
-        assetName: 'knitcalc-linux-x64-9.9.9.tar.gz',
-        releaseStatus: 503,
-      );
-      addTearDown(server.stop);
-
+    test('returns null when the fetch fails', () async {
       final service = LinuxUpdateService(
         const AppVersion(1, 0, 0),
-        releaseUrl: server.releaseUrl,
+        fetch: failingStoreVersions(),
         launch: (_) async {},
       );
 
@@ -90,7 +90,14 @@ void main() {
 
         final service = LinuxUpdateService(
           const AppVersion(1, 0, 0),
-          releaseUrl: server.releaseUrl,
+          fetch: fakeStoreVersions({
+            'linux': RemoteEntry(
+              version: const AppVersion(9, 9, 9),
+              label: '9.9.9',
+              url: server.assetUrl,
+              size: body.length,
+            ),
+          }),
           executablePath: '/home/u/Apps/knitcalc/knitcalc',
           launch: (script) async => launchedScript = script,
         );
