@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:knitcalc/update/app_version.dart';
-import 'package:knitcalc/update/impl/github/github_release.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
-import 'package:knitcalc/update/impl/windows/github_windows_logic.dart';
+import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
+import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:knitcalc/update/update_info.dart';
 import 'package:knitcalc/update/update_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -36,48 +35,44 @@ UpdateService createWindowsUpdateService(AppVersion? current) {
 /// Self-updater for manually installed Windows bundles distributed as the
 /// `knitcalc-windows-x64-*.zip` GitHub Release asset.
 ///
-/// Polls `releases/latest`, compares the tag with the running build, downloads
-/// the zip (reporting progress) and hands off to the bundled updater helper
-/// ([updaterExecutable]): the app copies the helper to a temp dir, spawns it
-/// detached with the running pid, and quits; the helper waits for the app to
-/// exit (so the bundle's files unlock), unpacks the zip over the install
-/// directory and relaunches. This works on both native Windows and Wine/Proton
-/// — neither lets a running process replace its own open files. Microsoft Store
-/// (MSIX) installs are handled by a [NoopUpdateService] instead.
+/// Reads the available version from the remote store-versions document (see
+/// remote/store_versions.dart — the `windows` entry carries the download url,
+/// written by release CI), downloads the zip (reporting progress) and hands off
+/// to the bundled updater helper ([updaterExecutable]): the app copies the
+/// helper to a temp dir, spawns it detached with the running pid, and quits; the
+/// helper waits for the app to exit (so the bundle's files unlock), unpacks the
+/// zip over the install directory and relaunches. This works on both native
+/// Windows and Wine/Proton — neither lets a running process replace its own open
+/// files. Microsoft Store (MSIX) installs are handled by a [NoopUpdateService]
+/// instead. The zip itself still downloads from the GitHub CDN; only the version
+/// check moved off the rate-limited GitHub API.
 class WindowsUpdateService implements UpdateService {
   WindowsUpdateService(
     this._current, {
     HttpClient? httpClient,
     UpdateLauncher? launch,
-    Uri? releaseUrl,
+    RemoteVersionsFetcher? fetch,
     String? executablePath,
   }) : _httpClient = httpClient ?? HttpClient(),
        _launch = launch ?? _defaultLaunch,
-       _releaseUrl = releaseUrl ?? Uri.parse(githubLatestReleaseUrl),
+       _fetch = fetch ?? fetchStoreVersions,
        _executablePath = executablePath ?? Platform.resolvedExecutable;
 
   final AppVersion? _current;
   final HttpClient _httpClient;
   final UpdateLauncher _launch;
-  final Uri _releaseUrl;
+  final RemoteVersionsFetcher _fetch;
   final String _executablePath;
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
-    if (_current == null) {
-      return null;
-    }
+    final versions = await _fetch();
 
-    final Map<String, dynamic> release;
-
-    try {
-      release = await _fetchLatestRelease();
-    } on Object {
-      // Offline or rate-limited: skip silently, retry next launch.
-      return null;
-    }
-
-    return evaluateGithubWindowsUpdate(_current, release);
+    return evaluateRemoteUpdate(
+      _current,
+      versions?['windows'],
+      action: UpdateAction.inApp,
+    );
   }
 
   @override
@@ -99,25 +94,6 @@ class WindowsUpdateService implements UpdateService {
     // Hands off to the detached helper and quits the app so it can swap the
     // bundle; control does not return here on the default launcher.
     await _launch(archive, installDir, executable);
-  }
-
-  Future<Map<String, dynamic>> _fetchLatestRelease() async {
-    final request = await _httpClient.getUrl(_releaseUrl);
-    request.headers.set(
-      HttpHeaders.acceptHeader,
-      'application/vnd.github+json',
-    );
-    request.headers.set(HttpHeaders.userAgentHeader, 'knitcalc-updater');
-
-    final response = await request.close();
-
-    if (response.statusCode != HttpStatus.ok) {
-      throw HttpException('Unexpected status ${response.statusCode}');
-    }
-
-    final body = await response.transform(utf8.decoder).join();
-
-    return jsonDecode(body) as Map<String, dynamic>;
   }
 
   Future<String> _downloadArchive(

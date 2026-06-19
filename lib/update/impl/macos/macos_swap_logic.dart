@@ -1,29 +1,3 @@
-import 'package:knitcalc/update/app_version.dart';
-import 'package:knitcalc/update/impl/github/github_release.dart';
-import 'package:knitcalc/update/update_info.dart';
-
-/// Matches the macOS app-bundle zip, e.g. `knitcalc-macos-1.4.2+15.zip`.
-///
-/// The `macos` segment keeps the iOS (`knitcalc-ios-unsigned-*.zip`) and Windows
-/// (`knitcalc-windows-x64-*.zip`) zip assets from being picked up.
-bool isMacosZipAsset(String name) {
-  final lower = name.toLowerCase();
-
-  return lower.contains('macos') && lower.endsWith('.zip');
-}
-
-/// Picks the macOS zip asset from a GitHub release payload, or `null`.
-ReleaseAsset? findMacosZipAsset(Map<String, dynamic> releaseJson) =>
-    findReleaseAsset(releaseJson, isMacosZipAsset);
-
-/// Builds an [UpdateInfo] from a GitHub `releases/latest` payload for the macOS
-/// manual (zip) channel. Returns `null` when there is nothing newer to install
-/// (see [evaluateGithubUpdate]).
-UpdateInfo? evaluateGithubMacosUpdate(
-  AppVersion? current,
-  Map<String, dynamic> releaseJson,
-) => evaluateGithubUpdate(current, releaseJson, assetMatches: isMacosZipAsset);
-
 /// Derives the `.app` bundle path from a macOS [resolvedExecutable].
 ///
 /// `Platform.resolvedExecutable` for a bundled app is

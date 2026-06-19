@@ -321,6 +321,10 @@ jobs:
             - linux-android-web
             - windows
             - apple
+        env:
+            # Mapped here so the Firestore steps can gate on its presence in an
+            # `if:` without referencing the secret directly.
+            FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
 
         steps:
             - name: Checkout main branch
@@ -419,6 +423,33 @@ jobs:
                     --repo "$GITHUB_REPOSITORY" \
                     --title "KnitCalc ${{ needs.linux-android-web.outputs.version }}" \
                     --notes "Automated release for ${{ needs.linux-android-web.outputs.tag }}"
+
+            # The app reads the available version from a Firestore document
+            # instead of the GitHub API (avoids the 60/hour unauthenticated rate
+            # limit, which is shared per IP under carrier-grade NAT). Write the
+            # four self-update entries here, now the assets exist; the per-store
+            # fields (samsung/amazon/…) are bumped by hand once each store
+            # publishes and are preserved by the updateMask. Skipped (with a
+            # warning) when FIREBASE_SA_KEY is unset, like the Chocolatey step.
+            - name: Authenticate to Google Cloud
+              if: ${{ env.FIREBASE_SA_KEY != '' }}
+              id: gauth
+              uses: google-github-actions/auth@v2
+              with:
+                  credentials_json: ${{ secrets.FIREBASE_SA_KEY }}
+                  token_format: access_token
+
+            - name: Publish self-update versions to Firestore
+              if: ${{ env.FIREBASE_SA_KEY != '' }}
+              env:
+                  ACCESS_TOKEN: ${{ steps.gauth.outputs.access_token }}
+                  VERSION: ${{ needs.linux-android-web.outputs.version }}
+                  ARTIFACT_DIR: release-download
+              run: packaging/firebase/publish_store_versions.sh
+
+            - name: Note skipped Firestore publish
+              if: ${{ env.FIREBASE_SA_KEY == '' }}
+              run: echo "::warning::FIREBASE_SA_KEY is not set; skipping the store-versions publish. The update banner will not appear until the document is updated (see packaging/firebase/README.md)."
 
     windows-package-managers:
         name: Publish to Windows package managers

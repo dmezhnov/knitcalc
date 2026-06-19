@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knitcalc/update/impl/linux/github_linux_logic.dart';
+import 'package:knitcalc/update/impl/linux/linux_swap_logic.dart';
 
 /// End-to-end exercise of the real Linux swap script on a Linux host: builds a
 /// tarball, runs the actual `buildLinuxUpdateScript` output through `/bin/sh`

@@ -14,24 +14,23 @@ void main() {
       expect(androidChannelForInstaller('ru.vk.store'), Channel.androidRustore);
     });
 
-    test(
-      'maps stores that manage their own updates to androidManagedStore',
-      () {
-        for (final installer in const [
-          'com.sec.android.app.samsungapps', // Samsung Galaxy Store
-          'com.amazon.venezia', // Amazon Appstore
-          'com.huawei.appmarket', // Huawei AppGallery
-          'org.fdroid.fdroid', // F-Droid
-          'app.accrescent.client', // Accrescent
-        ]) {
-          expect(
-            androidChannelForInstaller(installer),
-            Channel.androidManagedStore,
-            reason: installer,
-          );
-        }
-      },
-    );
+    test('maps each managed store to its own per-store channel', () {
+      const expected = {
+        'com.sec.android.app.samsungapps': Channel.androidSamsung,
+        'com.amazon.venezia': Channel.androidAmazon,
+        'com.huawei.appmarket': Channel.androidHuawei,
+        'org.fdroid.fdroid': Channel.androidFdroid,
+        'app.accrescent.client': Channel.androidAccrescent,
+      };
+
+      expected.forEach((installer, channel) {
+        expect(
+          androidChannelForInstaller(installer),
+          channel,
+          reason: installer,
+        );
+      });
+    });
 
     test('treats an unknown installer as a sideload', () {
       expect(

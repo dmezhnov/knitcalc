@@ -17,11 +17,20 @@ enum Channel {
   /// Android, installed from RuStore.
   androidRustore,
 
-  /// Android, installed from a store/client that ships and updates the app
-  /// itself (Samsung Galaxy Store, Amazon Appstore, Huawei AppGallery, F-Droid,
-  /// Accrescent) — like Play, the store reports and installs updates, so the
-  /// app does nothing.
-  androidManagedStore,
+  /// Android, installed from the Samsung Galaxy Store.
+  androidSamsung,
+
+  /// Android, installed from the Amazon Appstore.
+  androidAmazon,
+
+  /// Android, installed from the Huawei AppGallery.
+  androidHuawei,
+
+  /// Android, installed from the F-Droid client.
+  androidFdroid,
+
+  /// Android, installed from the Accrescent client.
+  androidAccrescent,
 
   /// Android, installed manually (sideload) — updated via GitHub.
   androidSideload,
@@ -156,10 +165,11 @@ Future<Channel> _detectAndroidChannel() async {
   return androidChannelForInstaller(installer);
 }
 
-/// Installer package names of stores/clients that report and install updates
-/// themselves — the app must not also self-update (it would fight the store and
-/// desync its database), so these resolve to [Channel.androidManagedStore] and
-/// a no-op update service:
+/// Installer package names of the stores/clients that report update
+/// availability themselves but do NOT swap the binary behind our back. Each
+/// resolves to its own per-store channel so the update banner can open that
+/// store's listing (the store ships the actual binary; we only announce, using
+/// the version published in the remote store-versions document):
 ///
 /// - `com.sec.android.app.samsungapps` — Samsung Galaxy Store;
 /// - `com.amazon.venezia` — Amazon Appstore;
@@ -167,23 +177,23 @@ Future<Channel> _detectAndroidChannel() async {
 /// - `org.fdroid.fdroid` — the F-Droid client;
 /// - `app.accrescent.client` — the Accrescent client.
 ///
-/// Google Play (`com.android.vending`) and RuStore (`ru.vk.store`) are managed
-/// too but keep dedicated channels because their in-app update SDKs are wired
-/// (Play) or pending (RuStore).
-const Set<String> _managedStoreInstallers = {
-  'com.sec.android.app.samsungapps',
-  'com.amazon.venezia',
-  'com.huawei.appmarket',
-  'org.fdroid.fdroid',
-  'app.accrescent.client',
+/// Google Play (`com.android.vending`) and RuStore (`ru.vk.store`) keep
+/// dedicated channels because their in-app update SDKs are wired (Play) or
+/// pending (RuStore).
+const Map<String, Channel> _storeInstallerChannels = {
+  'com.sec.android.app.samsungapps': Channel.androidSamsung,
+  'com.amazon.venezia': Channel.androidAmazon,
+  'com.huawei.appmarket': Channel.androidHuawei,
+  'org.fdroid.fdroid': Channel.androidFdroid,
+  'app.accrescent.client': Channel.androidAccrescent,
 };
 
 /// Maps an Android installer package name to its [Channel].
 ///
-/// `com.android.vending` is Google Play and `ru.vk.store` is RuStore; other
-/// known stores that manage their own updates map to [Channel.androidManagedStore]
-/// (see [_managedStoreInstallers]); anything else (manual install, `adb`, a file
-/// manager) is treated as a sideload that updates through GitHub Releases.
+/// `com.android.vending` is Google Play and `ru.vk.store` is RuStore; the other
+/// known stores (see [_storeInstallerChannels]) map to a per-store channel;
+/// anything else (manual install, `adb`, a file manager) is treated as a
+/// sideload that updates through GitHub Releases.
 Channel androidChannelForInstaller(String? installer) {
   switch (installer) {
     case 'com.android.vending':
@@ -191,10 +201,7 @@ Channel androidChannelForInstaller(String? installer) {
     case 'ru.vk.store':
       return Channel.androidRustore;
     default:
-      if (installer != null && _managedStoreInstallers.contains(installer)) {
-        return Channel.androidManagedStore;
-      }
-      return Channel.androidSideload;
+      return _storeInstallerChannels[installer] ?? Channel.androidSideload;
   }
 }
 
