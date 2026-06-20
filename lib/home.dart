@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:knitcalc/account_menu.dart';
@@ -353,8 +355,11 @@ class _HomeState extends State<Home> {
   /// the full-screen loader. Alongside the data pull it refreshes the Google
   /// avatar (if it changed) and re-checks for an app update.
   Future<void> _sync() async {
-    // Pick up a changed Google avatar (no-op for password accounts).
-    await AuthScope.of(context).refreshProfile();
+    // Pick up a changed Google avatar (no-op for password accounts). It is
+    // best-effort and can be slow on a blocked network, so fire it without
+    // awaiting — the data sync and update check below are what surface the
+    // offline banner and shouldn't wait behind a profile lookup.
+    unawaited(AuthScope.of(context).refreshProfile());
 
     final projects = await _loadProjects();
 
