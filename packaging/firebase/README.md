@@ -73,19 +73,20 @@ match /databases/{database}/documents {
 
 ## CI write (self-update channels)
 
-The `publish` job authenticates with `google-github-actions/auth` and runs
-`publish_store_versions.sh`, which PATCHes only the four self-update fields
-(`updateMask`), leaving the hand-bumped store fields intact.
+The `publish` job mints a token from the `FIREBASE_SA_KEY` service-account key
+with `gcloud auth activate-service-account` + `print-access-token` (a self-signed
+JWT — deliberately avoids `iamcredentials.googleapis.com`, which is not enabled
+on the project) and runs `publish_store_versions.sh`, which PATCHes only the four
+self-update fields (`updateMask`), leaving the hand-bumped store fields intact.
+The step is `continue-on-error`, so a Firestore problem never fails the release
+or the package-manager jobs that depend on it; it is skipped with a warning when
+`FIREBASE_SA_KEY` is unset (like the Chocolatey push).
 
-One-time setup:
-
-1. In the Google Cloud console for `knitcalc-sync`, create a service account
-   (e.g. `release-publisher`) with the **Cloud Datastore User** role (Firestore
-   read/write). Create a JSON key for it.
-2. Add the JSON key as the `FIREBASE_SA_KEY` GitHub Actions secret.
-
-When the secret is absent the steps are skipped with a warning (the release
-itself is unaffected) — exactly like the Chocolatey push.
+One-time setup: a service account `release-publisher@knitcalc-sync.iam` with role
+`roles/datastore.user` and its key in the `FIREBASE_SA_KEY` secret. This was
+created headless (the maintainer's IP can't reach the Firebase/Cloud console or
+most googleapis.com hosts) via the throwaway `firebase-bootstrap` branch
+workflow; see the commit history if it must be recreated.
 
 ## Manual store-version bump (store-listing channels)
 
