@@ -73,10 +73,12 @@ class _HomeState extends State<Home> {
   /// that returns the same release skips re-showing, so banners never stack.
   AppVersion? _shownUpdateVersion;
 
-  /// True while the network-error banner is on screen. A sync failure and an
-  /// update-check failure in the same pass then surface only one banner, and a
-  /// later success knows to clear it.
-  bool _networkErrorShown = false;
+  /// Controller for the on-screen network-error banner, or `null` when none is
+  /// shown. Held so a later success can close exactly this banner (rather than
+  /// `hideCurrentMaterialBanner`, which would hit whatever banner is current)
+  /// and so a sync + update-check failure in the same pass surface only one.
+  ScaffoldFeatureController<MaterialBanner, MaterialBannerClosedReason>?
+  _networkErrorBanner;
 
   /// Drives the pull-to-refresh indicator so the account menu's "Sync" item can
   /// trigger the same gesture (spinner + [_sync]) without a real pull.
@@ -181,10 +183,13 @@ class _HomeState extends State<Home> {
   }
 
   /// Throttled entry point for the resume trigger: skips the check when the
-  /// last one was recent enough to keep within [_updateCheckInterval].
+  /// last one was recent enough to keep within [_updateCheckInterval]. A
+  /// showing network-error banner bypasses the throttle, so returning to the
+  /// app on a now-working network clears the stale banner instead of waiting.
   void _maybeCheckForUpdate() {
     final last = _lastUpdateCheck;
-    if (last != null &&
+    if (_networkErrorBanner == null &&
+        last != null &&
         DateTime.now().difference(last) < _updateCheckInterval) {
       return;
     }
@@ -229,31 +234,40 @@ class _HomeState extends State<Home> {
   /// banner), once per failed pass, when sync or the update check can't reach
   /// the network.
   void _showNetworkError() {
-    if (_networkErrorShown || !mounted) {
+    if (_networkErrorBanner != null || !mounted) {
       return;
     }
-    _networkErrorShown = true;
-    showNetworkErrorBanner(context, onRetry: _retryNetwork);
+    final controller = showNetworkErrorBanner(context, onRetry: _retryNetwork);
+    _networkErrorBanner = controller;
+    // Drop the reference once this specific banner closes (Retry, a clear, or a
+    // user dismiss), but don't clobber a newer banner that may have replaced it.
+    controller.closed.then((_) {
+      if (_networkErrorBanner == controller) {
+        _networkErrorBanner = null;
+      }
+    });
   }
 
-  /// Clears the network-error banner after a later operation succeeds, so it
+  /// Closes the network-error banner after a later operation succeeds, so it
   /// doesn't linger once connectivity is back.
   void _clearNetworkError() {
-    if (!_networkErrorShown) {
-      return;
-    }
-    _networkErrorShown = false;
-    if (mounted) {
-      ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
-    }
+    _networkErrorBanner?.close();
+    _networkErrorBanner = null;
   }
 
-  /// Retry action for the network-error banner: the banner widget already hid
-  /// itself, so re-run the same path that surfaced the error (re-sync when
-  /// signed in, otherwise just re-check for an update).
+  /// Retry action for the network-error banner. Plays the same pull-to-refresh
+  /// animation as a manual refresh (the indicator's [onRefresh] re-runs the
+  /// sync / update check); falls back to a direct re-check when the list isn't
+  /// on screen (the empty state shows the calculator, with no indicator).
   Future<void> _retryNetwork() async {
-    _networkErrorShown = false;
-    if (_store is SyncedProjectsStore) {
+    // The banner widget hides itself on tap; drop our reference so a repeat
+    // failure shows a fresh one.
+    _networkErrorBanner = null;
+
+    final indicator = _refreshKey.currentState;
+    if (indicator != null) {
+      await indicator.show();
+    } else if (_store is SyncedProjectsStore) {
       await _sync();
     } else {
       await _checkForUpdate();
