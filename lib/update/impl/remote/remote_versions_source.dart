@@ -46,10 +46,14 @@ Future<Map<String, RemoteEntry>> fetchStoreVersions({
   final http_ = client ?? http.Client();
 
   try {
-    final response = await http_.get(
-      storeVersionsUrl(config),
-      headers: const {'Accept': 'application/json'},
-    );
+    final response = await http_
+        .get(
+          storeVersionsUrl(config),
+          headers: const {'Accept': 'application/json'},
+        )
+        // Bound the call so a blocked/blackholed network surfaces a failed
+        // check (→ retryable banner) instead of stalling forever.
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 404) {
       return const {};
