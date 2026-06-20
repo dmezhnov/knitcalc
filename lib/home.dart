@@ -71,9 +71,15 @@ class _HomeState extends State<Home> {
   static const Duration _updateCheckInterval = Duration(hours: 6);
   DateTime? _lastUpdateCheck;
 
-  /// The version already surfaced via a banner this session. A resume re-check
-  /// that returns the same release skips re-showing, so banners never stack.
+  /// The version currently surfaced by the update banner, paired with its
+  /// controller. The check skips re-showing only while that exact banner is
+  /// still on screen for the same release, so a resume re-check never stacks a
+  /// duplicate — but once the banner is gone (user tapped "Обновить", dismissed
+  /// it, or an interrupted download couldn't bring it back), the next check or a
+  /// manual sync shows it again.
   AppVersion? _shownUpdateVersion;
+  ScaffoldFeatureController<MaterialBanner, MaterialBannerClosedReason>?
+  _updateBanner;
 
   /// Controller for the on-screen network-error banner, or `null` when none is
   /// shown. Held so a later success can close exactly this banner (rather than
@@ -223,8 +229,10 @@ class _HomeState extends State<Home> {
     }
 
     // A resume re-check can return the release we already surfaced; don't stack
-    // a second banner for the same version.
-    if (info.latestVersion == _shownUpdateVersion) {
+    // a second banner — but only while that banner is still on screen. Once it's
+    // gone (tapped "Обновить", dismissed, or an interrupted download), a fresh
+    // check or a manual sync must bring it back.
+    if (_updateBanner != null && info.latestVersion == _shownUpdateVersion) {
       return;
     }
     _shownUpdateVersion = info.latestVersion;
@@ -278,13 +286,14 @@ class _HomeState extends State<Home> {
 
   /// Shows the update banner and brings it back if the update flow returns
   /// without replacing the running app — i.e. the download failed or the user
-  /// backed out of the progress dialog / install prompt. Without this the
-  /// banner would stay hidden for the rest of the session (the
-  /// [_shownUpdateVersion] guard blocks the resume re-check from re-showing it).
+  /// backed out of the progress dialog / install prompt. Tracking the live
+  /// controller in [_updateBanner] (cleared when the banner closes) lets the
+  /// re-check guard tell "still on screen" from "gone", so an interrupted
+  /// download no longer leaves the banner suppressed for the session.
   /// On web [UpdateService.startUpdate] reloads the page, so the re-show after
   /// the await never runs there.
   void _showUpdateBanner(UpdateService service, UpdateInfo info) {
-    showUpdateBanner(
+    final controller = showUpdateBanner(
       context,
       info: info,
       onUpdate: () async {
@@ -308,6 +317,14 @@ class _HomeState extends State<Home> {
         }
       },
     );
+    _updateBanner = controller;
+    // Forget the banner once it closes (tap, dismiss, or replaced by another
+    // banner), without clobbering a newer banner that may have superseded it.
+    controller.closed.then((_) {
+      if (_updateBanner == controller) {
+        _updateBanner = null;
+      }
+    });
   }
 
   /// Loads the project list for the active store. For a synced store it first
