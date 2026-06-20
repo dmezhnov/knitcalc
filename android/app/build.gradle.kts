@@ -72,6 +72,20 @@ android {
                 }
         }
     }
+
+    // Flutter's `--split-per-abi` bumps each per-ABI APK's versionCode by an ABI
+    // offset (arm64 -> 2000 + base, etc.) — only needed for Google Play
+    // multi-APK. We ship an .aab to Play (it gets its own codes) and use the
+    // APKs for sideload / IzzyOnDroid, where mixed codes make moving between the
+    // universal (base) and a per-ABI build (offset + base) look like a downgrade,
+    // so Android refuses the self-update install. Force the base code on every
+    // output. This callback registers after the Flutter plugin's, so it wins.
+    applicationVariants.all {
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.ApkVariantOutputImpl)
+                .versionCodeOverride = flutter.versionCode
+        }
+    }
 }
 
 flutter {

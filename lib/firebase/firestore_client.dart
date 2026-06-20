@@ -37,12 +37,18 @@ class FirestoreClient implements RemoteProjects {
     required this.config,
     required this.tokenProvider,
     http.Client? httpClient,
+    this.timeout = const Duration(seconds: 15),
   }) : _http = httpClient ?? http.Client();
 
   final FirebaseConfig config;
 
   /// Supplies a currently-valid id token, or `null` when signed out.
   final Future<String?> Function() tokenProvider;
+
+  /// Per-request deadline. A blocked/blackholed network (e.g. an ISP that drops
+  /// firestore.googleapis.com) otherwise stalls the call indefinitely, so the
+  /// sync neither succeeds nor surfaces an error. Injectable for tests.
+  final Duration timeout;
 
   final http.Client _http;
 
@@ -63,7 +69,9 @@ class FirestoreClient implements RemoteProjects {
         '$_documentsBase/users/$uid/projects',
       ).replace(queryParameters: {'pageSize': '300', 'pageToken': ?pageToken});
 
-      final response = await _http.get(uri, headers: _authHeader(token));
+      final response = await _send(
+        () => _http.get(uri, headers: _authHeader(token)),
+      );
       final json = _decode(response);
       final documents = json['documents'] as List<dynamic>? ?? const [];
 
@@ -83,17 +91,42 @@ class FirestoreClient implements RemoteProjects {
     final token = await _requireToken();
     final uri = Uri.parse('$_documentsBase/users/$uid/projects/${project.id}');
 
-    final response = await _http.patch(
-      uri,
-      headers: {..._authHeader(token), 'Content-Type': 'application/json'},
-      body: jsonEncode(encodeProjectFields(project)),
+    final response = await _send(
+      () => _http.patch(
+        uri,
+        headers: {..._authHeader(token), 'Content-Type': 'application/json'},
+        body: jsonEncode(encodeProjectFields(project)),
+      ),
     );
 
     _decode(response);
   }
 
+  /// Runs an HTTP call with the request [timeout], translating any transport
+  /// failure or timeout into a [FirestoreException]. Without this a raw
+  /// `SocketException`/`TimeoutException` escapes the sync's `on
+  /// FirestoreException` handler, so a blocked network neither syncs nor shows
+  /// the offline banner.
+  Future<http.Response> _send(Future<http.Response> Function() call) async {
+    try {
+      return await call().timeout(timeout);
+    } on Object catch (error) {
+      throw FirestoreException('network error: $error');
+    }
+  }
+
   Future<String> _requireToken() async {
-    final token = await tokenProvider();
+    final String? token;
+    try {
+      token = await tokenProvider();
+    } on FirestoreException {
+      rethrow;
+    } on Object catch (error) {
+      // A token refresh on a blocked network can fail/time out; surface it as a
+      // FirestoreException so the caller shows the offline banner (and is not
+      // signed out — that only happens on a real auth error inside the provider).
+      throw FirestoreException('auth error: $error');
+    }
 
     if (token == null) {
       throw const FirestoreException('not signed in');
