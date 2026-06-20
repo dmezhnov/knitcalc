@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/impl/macos/macos_update_service_io.dart';
+import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
 import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
@@ -58,14 +59,14 @@ void main() {
       expect(await service.checkForUpdate(), isNull);
     });
 
-    test('returns null when the fetch fails', () async {
+    test('throws when the fetch fails (unreachable source)', () async {
       final service = MacosUpdateService(
         const AppVersion(1, 0, 0),
         fetch: failingStoreVersions(),
         launch: (_) async {},
       );
 
-      expect(await service.checkForUpdate(), isNull);
+      expect(service.checkForUpdate(), throwsA(isA<UpdateCheckException>()));
     });
   });
 

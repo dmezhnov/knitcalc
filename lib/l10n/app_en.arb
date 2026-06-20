@@ -94,7 +94,6 @@
   "authErrorInvalidEmail": "Invalid email address",
   "authErrorPasswordMismatch": "Passwords do not match",
   "authErrorGeneric": "Could not sign in. Please try again",
-  "syncFailedSnack": "Could not sync with the cloud",
   "forgotPasswordAction": "Forgot password?",
   "resetPasswordTitle": "Reset password",
   "sendAction": "Send",
@@ -128,6 +127,9 @@
   "updateDownloadTitle": "Downloading update",
   "updatePreparing": "Preparing…",
   "updateFailed": "Failed to download the update",
+
+  "networkErrorBanner": "No network connection. Could not sync or check for updates.",
+  "retryAction": "Retry",
 
   "legacyAppTitle": "Old version found",
   "legacyAppMessage": "A previous version of KnitCalc, installed under a different id, is still on this device. We recommend removing it so you don't keep two copies. Your account data is stored in the cloud and will be kept; local-only drafts from the old version (if you weren't signed in) are not transferred.",

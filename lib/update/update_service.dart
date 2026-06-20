@@ -30,7 +30,10 @@ abstract interface class UpdateService {
   /// Checks the channel's source for a newer version.
   ///
   /// Returns an [UpdateInfo] when an update is available, or `null` when the
-  /// app is up to date or the check could not be completed (e.g. offline).
+  /// app is up to date. Network-backed implementations throw when the source
+  /// can't be reached (e.g. offline or blocked) so the caller can tell a
+  /// genuine "up to date" from a failed check and offer a retry; channels that
+  /// resolve locally (e.g. a package manager) keep degrading silently.
   Future<UpdateInfo?> checkForUpdate();
 
   /// Starts the update described by [info].

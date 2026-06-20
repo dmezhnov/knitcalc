@@ -51,7 +51,7 @@ class AndroidUpdateService implements UpdateService {
 
     return evaluateRemoteUpdate(
       _current,
-      versions?['android'],
+      versions['android'],
       action: UpdateAction.inApp,
     );
   }
