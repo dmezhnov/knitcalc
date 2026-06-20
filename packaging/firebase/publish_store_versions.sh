@@ -54,8 +54,40 @@ channel_field() {
 JSON
 }
 
+# Emits a per-ABI APK as a Firestore mapValue field, or nothing when absent.
+abi_asset() {
+    local abi="$1" file="knitcalc-${VERSION}-$1.apk" size
+    size="$(asset_size "$file")"
+    [ -z "$size" ] && return 0
+    cat <<JSON
+"$abi":{"mapValue":{"fields":{"url":{"stringValue":"$base_url/$file"},"size":{"integerValue":"$size"}}}},
+JSON
+}
+
+# The android field: the universal APK (url/size) plus an `abis` sub-map of the
+# per-ABI APKs, so the app downloads the ~3x smaller APK matching the device and
+# falls back to the universal one when its ABI is unknown/absent.
+android_field() {
+    local universal="knitcalc-${VERSION}.apk" size abis abis_field=""
+    size="$(asset_size "$universal")"
+    if [ -z "$size" ]; then
+        echo "::warning::store-versions: asset $universal not found; skipping android" >&2
+        return 0
+    fi
+    abis="$(
+        abi_asset arm64-v8a
+        abi_asset armeabi-v7a
+        abi_asset x86_64
+    )"
+    abis="${abis%,}"
+    [ -n "$abis" ] && abis_field=",\"abis\":{\"mapValue\":{\"fields\":{$abis}}}"
+    cat <<JSON
+"android":{"mapValue":{"fields":{"version":{"stringValue":"$VERSION"},"url":{"stringValue":"$base_url/$universal"},"size":{"integerValue":"$size"}$abis_field}}},
+JSON
+}
+
 fields="$(
-    channel_field android "knitcalc-${VERSION}.apk"
+    android_field
     channel_field windows "knitcalc-windows-x64-${VERSION}.zip"
     channel_field macos "knitcalc-macos-${VERSION}.zip"
     channel_field linux "knitcalc-linux-x64-${VERSION}.tar.gz"

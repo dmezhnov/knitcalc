@@ -38,6 +38,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getInstallerPackageName" -> result.success(installerPackageName())
+                    "primaryAbi" -> result.success(Build.SUPPORTED_ABIS.firstOrNull())
                     "installApk" -> {
                         val path = call.argument<String>("path")
                         if (path == null) {

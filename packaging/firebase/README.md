@@ -20,7 +20,12 @@ Each field is keyed by channel. Two shapes:
 
 - **Self-update channels** (`android`, `windows`, `macos`, `linux`) — a map with
   the download `url` (a GitHub release asset on the CDN), `version` and `size`.
-  These are written automatically by release CI.
+  These are written automatically by release CI. The `android` entry also
+  carries an `abis` sub-map of per-ABI APKs (`arm64-v8a`, `armeabi-v7a`,
+  `x86_64`, each `{url,size}`); the app downloads the ~3x smaller per-ABI APK
+  matching the device and falls back to the universal `url` when its ABI is
+  unknown or absent. All APKs share one versionCode (see
+  `android/app/build.gradle.kts`), so the variants are interchangeable.
 - **Store-listing channels** (`samsung`, `amazon`, `huawei`, `fdroid`,
   `accrescent`) — a bare version string. The app opens the store listing to
   update; it downloads nothing. **Bumped by hand** (see below).
