@@ -6,7 +6,7 @@ import 'package:knitcalc/update/impl/remote/store_versions.dart';
 RemoteVersionsFetcher fakeStoreVersions(Map<String, RemoteEntry> entries) =>
     () async => entries;
 
-/// A [RemoteVersionsFetcher] that resolves to `null`, modelling an offline or
-/// failed fetch.
+/// A [RemoteVersionsFetcher] that throws [UpdateCheckException], modelling an
+/// offline or blocked fetch (the source could not be reached).
 RemoteVersionsFetcher failingStoreVersions() =>
-    () async => null;
+    () async => throw const UpdateCheckException('offline');

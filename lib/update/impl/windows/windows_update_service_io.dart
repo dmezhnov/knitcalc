@@ -70,7 +70,7 @@ class WindowsUpdateService implements UpdateService {
 
     return evaluateRemoteUpdate(
       _current,
-      versions?['windows'],
+      versions['windows'],
       action: UpdateAction.inApp,
     );
   }

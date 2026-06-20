@@ -57,7 +57,7 @@ class LinuxUpdateService implements UpdateService {
 
     return evaluateRemoteUpdate(
       _current,
-      versions?['linux'],
+      versions['linux'],
       action: UpdateAction.inApp,
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/channel.dart';
+import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
 import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:knitcalc/update/impl/store/store_listing_service.dart';
 import 'package:knitcalc/update/update_info.dart';
@@ -63,7 +64,7 @@ void main() {
       expect(await service.checkForUpdate(), isNull);
     });
 
-    test('returns null when the fetch fails', () async {
+    test('throws when the fetch fails (unreachable source)', () async {
       final service = StoreListingUpdateService(
         channel: Channel.androidAmazon,
         current: const AppVersion(1, 8, 0),
@@ -71,7 +72,7 @@ void main() {
         launchUrl: (_) async => true,
       );
 
-      expect(await service.checkForUpdate(), isNull);
+      expect(service.checkForUpdate(), throwsA(isA<UpdateCheckException>()));
     });
   });
 

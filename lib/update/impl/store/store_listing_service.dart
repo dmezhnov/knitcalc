@@ -48,7 +48,7 @@ class StoreListingUpdateService implements UpdateService {
 
     return evaluateRemoteUpdate(
       _current,
-      versions?[key],
+      versions[key],
       action: UpdateAction.openUrl,
       url: _urls.isNotEmpty ? _urls.first.toString() : null,
     );

@@ -12,17 +12,34 @@ import 'package:http/http.dart' as http;
 import 'package:knitcalc/firebase/firebase_config.dart';
 import 'package:knitcalc/update/impl/remote/store_versions.dart';
 
-/// Supplies the decoded channel entries, or `null` when they cannot be fetched
-/// (offline, throttled, missing document). Injected so services can be tested
+/// Supplies the decoded channel entries. Injected so services can be tested
 /// without a network or a real Firestore.
-typedef RemoteVersionsFetcher = Future<Map<String, RemoteEntry>?> Function();
+///
+/// Returns the channel map (empty when the document does not exist yet), and
+/// throws [UpdateCheckException] when the source could not be reached — so a
+/// genuine "no update" is distinguishable from a network failure that should
+/// surface a retryable error to the user.
+typedef RemoteVersionsFetcher = Future<Map<String, RemoteEntry>> Function();
+
+/// Thrown when the store-versions check could not reach its source (offline,
+/// blocked, or a server error). Callers treat this as a transient network
+/// problem rather than "up to date".
+class UpdateCheckException implements Exception {
+  const UpdateCheckException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'UpdateCheckException: $message';
+}
 
 /// Default fetcher: GETs the public store-versions document and decodes it.
 ///
-/// Returns `null` on any failure (network error, non-200, malformed body) so
-/// callers degrade to "no update found" and retry on the next launch — the
-/// same graceful behaviour the GitHub-polling services had.
-Future<Map<String, RemoteEntry>?> fetchStoreVersions({
+/// A `404` means the document has not been seeded yet — a reachable source with
+/// no entries, so it returns an empty map (no update, no error). Any other
+/// failure (network error, non-200, malformed body) throws
+/// [UpdateCheckException] so the caller can offer the user a retry.
+Future<Map<String, RemoteEntry>> fetchStoreVersions({
   http.Client? client,
   FirebaseConfig config = firebaseConfig,
 }) async {
@@ -34,15 +51,21 @@ Future<Map<String, RemoteEntry>?> fetchStoreVersions({
       headers: const {'Accept': 'application/json'},
     );
 
+    if (response.statusCode == 404) {
+      return const {};
+    }
+
     if (response.statusCode != 200) {
-      return null;
+      throw UpdateCheckException('HTTP ${response.statusCode}');
     }
 
     final document = jsonDecode(response.body) as Map<String, dynamic>;
 
     return decodeStoreVersions(document);
-  } on Object {
-    return null;
+  } on UpdateCheckException {
+    rethrow;
+  } on Object catch (error) {
+    throw UpdateCheckException('$error');
   } finally {
     if (client == null) {
       http_.close();
