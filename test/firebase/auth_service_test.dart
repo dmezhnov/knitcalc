@@ -278,4 +278,54 @@ void main() {
 
     expect(built.service.photoUrl, isNull);
   });
+
+  test(
+    'refreshProfile swallows a network failure and keeps the session',
+    () async {
+      final client = FirebaseAuthClient(
+        config: const FirebaseConfig(projectId: 'p', apiKey: 'K'),
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('accounts:signInWithPassword')) {
+            return http.Response(
+              jsonEncode({
+                'localId': 'uid1',
+                'email': 'a@b.com',
+                'idToken': 'ID1',
+                'refreshToken': 'R1',
+                'expiresIn': '3600',
+              }),
+              200,
+            );
+          }
+          // The profile lookup fails the way a blocked/offline network does.
+          throw http.ClientException('connection failed');
+        }),
+      );
+      final service = AuthService(client: client);
+      await service.signIn('a@b.com', 'pw');
+      expect(service.isSignedIn, isTrue);
+
+      // Must complete without throwing and keep the user signed in, so the
+      // caller (sync + update check) still runs and shows its offline banner.
+      await service.refreshProfile();
+      expect(service.isSignedIn, isTrue);
+    },
+  );
+
+  test(
+    'auth client maps a non-JSON block page to FirebaseAuthException',
+    () async {
+      final client = FirebaseAuthClient(
+        config: const FirebaseConfig(projectId: 'p', apiKey: 'K'),
+        httpClient: MockClient(
+          (_) async => http.Response('<html>blocked by ISP</html>', 200),
+        ),
+      );
+
+      await expectLater(
+        client.lookupAccount('ID'),
+        throwsA(isA<FirebaseAuthException>()),
+      );
+    },
+  );
 }
