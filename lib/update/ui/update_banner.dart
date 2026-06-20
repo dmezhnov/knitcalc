@@ -63,6 +63,11 @@ showUpdateBanner(
   final messenger = ScaffoldMessenger.of(context);
   final l10n = AppLocalizations.of(context);
 
+  // Replace any banner already on screen rather than queueing behind it, so a
+  // newer release supersedes a banner for an older one (a ScaffoldMessenger
+  // shows one MaterialBanner at a time and queues the rest).
+  messenger.hideCurrentMaterialBanner();
+
   return messenger.showMaterialBanner(
     MaterialBanner(
       content: Text(_bannerText(l10n, info)),
