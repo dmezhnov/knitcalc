@@ -10,6 +10,7 @@ import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/language_menu.dart';
 import 'package:knitcalc/legacy_app_cleanup.dart';
 import 'package:knitcalc/name_dialog.dart';
+import 'package:knitcalc/network_error_banner.dart';
 import 'package:knitcalc/products/products.dart';
 import 'package:knitcalc/storage/photo_codec.dart';
 import 'package:knitcalc/storage/projects_repository.dart';
@@ -71,6 +72,11 @@ class _HomeState extends State<Home> {
   /// The version already surfaced via a banner this session. A resume re-check
   /// that returns the same release skips re-showing, so banners never stack.
   AppVersion? _shownUpdateVersion;
+
+  /// True while the network-error banner is on screen. A sync failure and an
+  /// update-check failure in the same pass then surface only one banner, and a
+  /// later success knows to clear it.
+  bool _networkErrorShown = false;
 
   /// Drives the pull-to-refresh indicator so the account menu's "Sync" item can
   /// trigger the same gesture (spinner + [_sync]) without a real pull.
@@ -191,7 +197,19 @@ class _HomeState extends State<Home> {
 
     final channel = await detectChannel();
     final service = createUpdateService(channel);
-    final info = await service.checkForUpdate();
+
+    final UpdateInfo? info;
+    try {
+      info = await service.checkForUpdate();
+    } on Object {
+      // The check couldn't reach its source (offline / blocked). Show a
+      // retryable network-error banner instead of silently doing nothing.
+      _showNetworkError();
+      return;
+    }
+
+    // The source was reachable, so any earlier network-error banner is stale.
+    _clearNetworkError();
 
     if (info == null || !mounted) {
       return;
@@ -205,6 +223,41 @@ class _HomeState extends State<Home> {
     _shownUpdateVersion = info.latestVersion;
 
     _showUpdateBanner(service, info);
+  }
+
+  /// Shows the retryable network-error banner (in the same slot as the update
+  /// banner), once per failed pass, when sync or the update check can't reach
+  /// the network.
+  void _showNetworkError() {
+    if (_networkErrorShown || !mounted) {
+      return;
+    }
+    _networkErrorShown = true;
+    showNetworkErrorBanner(context, onRetry: _retryNetwork);
+  }
+
+  /// Clears the network-error banner after a later operation succeeds, so it
+  /// doesn't linger once connectivity is back.
+  void _clearNetworkError() {
+    if (!_networkErrorShown) {
+      return;
+    }
+    _networkErrorShown = false;
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+    }
+  }
+
+  /// Retry action for the network-error banner: the banner widget already hid
+  /// itself, so re-run the same path that surfaced the error (re-sync when
+  /// signed in, otherwise just re-check for an update).
+  Future<void> _retryNetwork() async {
+    _networkErrorShown = false;
+    if (_store is SyncedProjectsStore) {
+      await _sync();
+    } else {
+      await _checkForUpdate();
+    }
   }
 
   /// Shows the update banner and brings it back if the update flow returns
@@ -243,24 +296,21 @@ class _HomeState extends State<Home> {
 
   /// Loads the project list for the active store. For a synced store it first
   /// offers to migrate any local projects, then pulls and merges from the cloud,
-  /// falling back to the cache (with a notice) when offline.
+  /// falling back to the cache (with the network-error banner) when offline.
   Future<List<SavedProject>> _loadProjects() async {
     final store = _store;
 
     if (store is SyncedProjectsStore) {
       await _maybeMigrate(store);
       try {
-        return await store.sync();
+        final synced = await store.sync();
+        _clearNetworkError();
+        return synced;
       } on FirestoreException {
-        final cached = await store.loadAll();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context).syncFailedSnack),
-            ),
-          );
-        }
-        return cached;
+        // Offline / blocked: keep showing the cached list and surface the
+        // retryable network-error banner at the top (no bottom snackbar).
+        _showNetworkError();
+        return store.loadAll();
       }
     }
 
