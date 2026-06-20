@@ -24,6 +24,19 @@ UpdateService createAndroidUpdateService(AppVersion? current) {
   return AndroidUpdateService(current);
 }
 
+/// Supplies the device's primary ABI (e.g. `arm64-v8a`), or `null` when it
+/// can't be determined — then the universal APK is used. Injected for tests.
+typedef AbiProvider = Future<String?> Function();
+
+/// Default [AbiProvider]: asks the platform for `Build.SUPPORTED_ABIS[0]`.
+Future<String?> _primaryAbi() async {
+  try {
+    return await androidUpdateChannel.invokeMethod<String>('primaryAbi');
+  } on PlatformException {
+    return null;
+  }
+}
+
 /// Sideload updater for APKs distributed via GitHub Releases.
 ///
 /// Reads the available version from the remote store-versions document (the
@@ -38,21 +51,31 @@ class AndroidUpdateService implements UpdateService {
     this._current, {
     HttpClient? httpClient,
     RemoteVersionsFetcher? fetch,
+    AbiProvider? abi,
   }) : _httpClient = httpClient ?? HttpClient(),
-       _fetch = fetch ?? fetchStoreVersions;
+       _fetch = fetch ?? fetchStoreVersions,
+       _abi = abi ?? _primaryAbi;
 
   final AppVersion? _current;
   final HttpClient _httpClient;
   final RemoteVersionsFetcher _fetch;
+  final AbiProvider _abi;
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
     final versions = await _fetch();
+    final entry = versions['android'];
+
+    // Prefer the device-ABI APK (~3x smaller) over the universal one; fall back
+    // to the universal url/size when the ABI is unknown or has no variant.
+    final asset = entry?.assetForAbi(await _abi());
 
     return evaluateRemoteUpdate(
       _current,
-      versions['android'],
+      entry,
       action: UpdateAction.inApp,
+      url: asset?.url,
+      downloadSize: asset?.size,
     );
   }
 

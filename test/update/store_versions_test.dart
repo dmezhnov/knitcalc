@@ -18,6 +18,32 @@ Map<String, dynamic> _document() => {
           'url': {'stringValue': 'https://cdn.example.com/app.apk'},
           'size': {'integerValue': '12582912'},
           'notes': {'stringValue': 'What is new'},
+          'abis': {
+            'mapValue': {
+              'fields': {
+                'arm64-v8a': {
+                  'mapValue': {
+                    'fields': {
+                      'url': {
+                        'stringValue': 'https://cdn.example.com/app-arm64.apk',
+                      },
+                      'size': {'integerValue': '4194304'},
+                    },
+                  },
+                },
+                'x86_64': {
+                  'mapValue': {
+                    'fields': {
+                      'url': {
+                        'stringValue': 'https://cdn.example.com/app-x64.apk',
+                      },
+                      'size': {'integerValue': '5242880'},
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -46,6 +72,21 @@ void main() {
       expect(android.url, 'https://cdn.example.com/app.apk');
       expect(android.size, 12582912);
       expect(android.notes, 'What is new');
+    });
+
+    test('decodes per-ABI variants and resolves the best asset', () {
+      final android = decodeStoreVersions(_document())['android']!;
+
+      expect(android.abis.keys, containsAll(['arm64-v8a', 'x86_64']));
+
+      final arm64 = android.assetForAbi('arm64-v8a');
+      expect(arm64?.url, 'https://cdn.example.com/app-arm64.apk');
+      expect(arm64?.size, 4194304);
+
+      // An ABI without a variant, or an unknown device, falls back (null) so the
+      // caller uses the universal url/size.
+      expect(android.assetForAbi('armeabi-v7a'), isNull);
+      expect(android.assetForAbi(null), isNull);
     });
 
     test('skips entries whose version cannot be parsed', () {
