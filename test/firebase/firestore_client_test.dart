@@ -125,4 +125,47 @@ void main() {
       throwsA(isA<FirestoreException>()),
     );
   });
+
+  test('wraps a transport error in FirestoreException', () async {
+    // A blocked network typically drops the connection rather than answering;
+    // the raw error must become a FirestoreException so the sync's handler sees
+    // it (and the offline banner shows) instead of escaping.
+    final c = client(
+      (request) async => throw http.ClientException('connection failed'),
+    );
+
+    await expectLater(
+      c.listProjects('uid1'),
+      throwsA(isA<FirestoreException>()),
+    );
+  });
+
+  test('times out a hung request as FirestoreException', () async {
+    final c = FirestoreClient(
+      config: config,
+      tokenProvider: () async => 'TOKEN',
+      httpClient: MockClient((request) async {
+        await Future<void>.delayed(const Duration(seconds: 5));
+        return http.Response('{}', 200);
+      }),
+      timeout: const Duration(milliseconds: 50),
+    );
+
+    await expectLater(
+      c.listProjects('uid1'),
+      throwsA(isA<FirestoreException>()),
+    );
+  });
+
+  test('wraps a token-provider failure in FirestoreException', () async {
+    final c = client(
+      (request) async => http.Response('{}', 200),
+      token: () async => throw http.ClientException('token endpoint down'),
+    );
+
+    await expectLater(
+      c.listProjects('uid1'),
+      throwsA(isA<FirestoreException>()),
+    );
+  });
 }
