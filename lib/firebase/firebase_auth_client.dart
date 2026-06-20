@@ -27,11 +27,18 @@ class FirebaseAuthException implements Exception {
 }
 
 class FirebaseAuthClient {
-  FirebaseAuthClient({required this.config, http.Client? httpClient})
-    : _http = httpClient ?? http.Client();
+  FirebaseAuthClient({
+    required this.config,
+    http.Client? httpClient,
+    this.timeout = const Duration(seconds: 15),
+  }) : _http = httpClient ?? http.Client();
 
   final FirebaseConfig config;
   final http.Client _http;
+
+  /// Per-request deadline, so sign-in and the lazy token refresh can't stall
+  /// indefinitely on a blocked/blackholed network. Injectable for tests.
+  final Duration timeout;
 
   static const String _identityBase =
       'https://identitytoolkit.googleapis.com/v1';
@@ -149,11 +156,13 @@ class FirebaseAuthClient {
     String url,
     Map<String, dynamic> body,
   ) async {
-    final response = await _http.post(
-      Uri.parse(url),
-      headers: const {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+    final response = await _http
+        .post(
+          Uri.parse(url),
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(timeout);
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
 
