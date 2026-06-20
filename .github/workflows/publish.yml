@@ -429,23 +429,28 @@ jobs:
             # limit, which is shared per IP under carrier-grade NAT). Write the
             # four self-update entries here, now the assets exist; the per-store
             # fields (samsung/amazon/…) are bumped by hand once each store
-            # publishes and are preserved by the updateMask. Skipped (with a
-            # warning) when FIREBASE_SA_KEY is unset, like the Chocolatey step.
-            - name: Authenticate to Google Cloud
-              if: ${{ env.FIREBASE_SA_KEY != '' }}
-              id: gauth
-              uses: google-github-actions/auth@v2
-              with:
-                  credentials_json: ${{ secrets.FIREBASE_SA_KEY }}
-                  token_format: access_token
-
+            # publishes and are preserved by the updateMask. continue-on-error
+            # keeps a Firestore hiccup from failing the release (and the package
+            # manager jobs that need it); skipped when FIREBASE_SA_KEY is unset.
             - name: Publish self-update versions to Firestore
               if: ${{ env.FIREBASE_SA_KEY != '' }}
+              continue-on-error: true
               env:
-                  ACCESS_TOKEN: ${{ steps.gauth.outputs.access_token }}
                   VERSION: ${{ needs.linux-android-web.outputs.version }}
                   ARTIFACT_DIR: release-download
-              run: packaging/firebase/publish_store_versions.sh
+              run: |
+                  set -uo pipefail
+                  key="$RUNNER_TEMP/firebase-sa.json"
+                  printf '%s' "$FIREBASE_SA_KEY" > "$key"
+                  # Mint a token from the SA key via a self-signed JWT (gcloud is
+                  # preinstalled). This avoids the IAM Service Account Credentials
+                  # API (iamcredentials.googleapis.com), which is not enabled on
+                  # the project — unlike google-github-actions/auth access tokens.
+                  gcloud auth activate-service-account --key-file="$key" --quiet
+                  ACCESS_TOKEN="$(gcloud auth print-access-token)"
+                  export ACCESS_TOKEN
+                  packaging/firebase/publish_store_versions.sh
+                  rm -f "$key"
 
             - name: Note skipped Firestore publish
               if: ${{ env.FIREBASE_SA_KEY == '' }}
