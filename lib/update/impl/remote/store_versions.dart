@@ -26,6 +26,14 @@ import 'package:knitcalc/update/update_info.dart';
 /// Document path of the public store-versions config.
 const String storeVersionsDocumentPath = 'config/storeVersions';
 
+/// A downloadable asset (URL + optional byte size).
+class RemoteAsset {
+  const RemoteAsset({required this.url, this.size});
+
+  final String url;
+  final int? size;
+}
+
 /// One channel's entry in the store-versions document.
 class RemoteEntry {
   const RemoteEntry({
@@ -34,6 +42,7 @@ class RemoteEntry {
     this.url,
     this.size,
     this.notes,
+    this.abis = const {},
   });
 
   /// Parsed version available in the channel's source.
@@ -43,6 +52,7 @@ class RemoteEntry {
   final String label;
 
   /// Download URL for self-update channels; `null` for store-listing channels.
+  /// For Android this is the universal APK — the all-ABI fallback.
   final String? url;
 
   /// Payload size in bytes, when present.
@@ -50,6 +60,16 @@ class RemoteEntry {
 
   /// Release notes, when present.
   final String? notes;
+
+  /// Per-ABI download variants keyed by Android ABI (e.g. `arm64-v8a`), when the
+  /// channel publishes split APKs. Empty for channels that don't. The much
+  /// smaller per-ABI APK is preferred over the universal [url] when the running
+  /// device's ABI matches.
+  final Map<String, RemoteAsset> abis;
+
+  /// The best download for [abi]: the matching per-ABI variant, or `null` to
+  /// fall back to the universal [url]/[size].
+  RemoteAsset? assetForAbi(String? abi) => abi == null ? null : abis[abi];
 }
 
 /// REST URL of the public store-versions document. Read is unauthenticated —
@@ -127,7 +147,36 @@ RemoteEntry? _decodeEntry(Map<String, dynamic> value) {
     url: url is String ? url : null,
     size: size,
     notes: notes is String && notes.isNotEmpty ? notes : null,
+    abis: _decodeAbis(mapFields['abis']),
   );
+}
+
+/// Decodes the optional per-ABI variants sub-map
+/// (`abis.mapValue.fields.<abi>.mapValue.fields.{url,size}`). Entries without a
+/// url are skipped so a malformed variant never breaks the others.
+Map<String, RemoteAsset> _decodeAbis(dynamic abis) {
+  final fields =
+      abis?['mapValue']?['fields'] as Map<String, dynamic>? ?? const {};
+  final result = <String, RemoteAsset>{};
+
+  for (final field in fields.entries) {
+    final assetFields =
+        field.value?['mapValue']?['fields'] as Map<String, dynamic>?;
+    final url = assetFields?['url']?['stringValue'];
+
+    if (url is! String) {
+      continue;
+    }
+
+    result[field.key] = RemoteAsset(
+      url: url,
+      size: int.tryParse(
+        assetFields?['size']?['integerValue']?.toString() ?? '',
+      ),
+    );
+  }
+
+  return result;
 }
 
 /// Builds an [UpdateInfo] for [entry] when it is newer than [current].
@@ -136,11 +185,14 @@ RemoteEntry? _decodeEntry(Map<String, dynamic> value) {
 /// is not newer. [action] is the delivery (in-app download vs. open the store
 /// listing); [url] overrides the entry's url — store channels pass the listing
 /// link, self-update channels leave it null to use the entry's download url.
+/// [downloadSize] overrides the entry's size, e.g. when a per-ABI asset (with
+/// its own size) is chosen over the universal one.
 UpdateInfo? evaluateRemoteUpdate(
   AppVersion? current,
   RemoteEntry? entry, {
   required UpdateAction action,
   String? url,
+  int? downloadSize,
 }) {
   if (current == null || entry == null) {
     return null;
@@ -155,7 +207,7 @@ UpdateInfo? evaluateRemoteUpdate(
     versionLabel: entry.label,
     action: action,
     url: url ?? entry.url,
-    downloadSize: entry.size,
+    downloadSize: downloadSize ?? entry.size,
     releaseNotes: entry.notes,
   );
 }
