@@ -164,7 +164,18 @@ class FirebaseAuthClient {
         )
         .timeout(timeout);
 
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    // A blocked/intercepting network can answer with a non-JSON page (an ISP or
+    // GFE block page); surface that as a FirebaseAuthException rather than
+    // letting a raw FormatException escape to callers.
+    final Map<String, dynamic> json;
+    try {
+      json = jsonDecode(response.body) as Map<String, dynamic>;
+    } on Object {
+      throw FirebaseAuthException(
+        'UNKNOWN_ERROR',
+        'Unexpected response (HTTP ${response.statusCode})',
+      );
+    }
 
     if (response.statusCode >= 400) {
       final error = json['error'];

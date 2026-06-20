@@ -150,27 +150,34 @@ class AuthService extends ChangeNotifier {
   // userinfo. Weigh the extra secret on-device and OAuth complexity against the
   // benefit before doing this.
   Future<void> refreshProfile() async {
-    final token = await freshIdToken();
-    final current = _session;
-    if (token == null || current == null) {
-      return;
-    }
-
-    final ({bool emailVerified, String? photoUrl, bool isGoogle}) info;
+    // Best-effort avatar/verification refresh: it must NEVER throw. A blocked or
+    // offline network makes the token refresh or lookup fail with anything from
+    // a FirebaseAuthException to a raw timeout/socket/parse error; letting that
+    // escape would abort the caller (sync + update check) before it can show its
+    // own offline banner. So swallow every failure and just skip the refresh.
     try {
-      info = await _client.lookupAccount(token);
-    } on FirebaseAuthException {
-      return;
-    }
+      final token = await freshIdToken();
+      final current = _session;
+      if (token == null || current == null) {
+        return;
+      }
 
-    // Only Google supplies an avatar; don't touch a password account's (null).
-    final photoUrl = info.isGoogle ? info.photoUrl : current.photoUrl;
+      final info = await _client.lookupAccount(token);
 
-    if (current.emailVerified != info.emailVerified ||
-        current.photoUrl != photoUrl) {
-      await _adopt(
-        current.copyWith(emailVerified: info.emailVerified, photoUrl: photoUrl),
-      );
+      // Only Google supplies an avatar; don't touch a password account's (null).
+      final photoUrl = info.isGoogle ? info.photoUrl : current.photoUrl;
+
+      if (current.emailVerified != info.emailVerified ||
+          current.photoUrl != photoUrl) {
+        await _adopt(
+          current.copyWith(
+            emailVerified: info.emailVerified,
+            photoUrl: photoUrl,
+          ),
+        );
+      }
+    } on Object {
+      // Ignored on purpose (see above).
     }
   }
 
@@ -214,7 +221,10 @@ class AuthService extends ChangeNotifier {
       final verified = await _client.fetchEmailVerified(session.idToken);
 
       return session.copyWith(emailVerified: verified);
-    } on FirebaseAuthException {
+    } on Object {
+      // Best-effort: any failure (FirebaseAuthException or a raw network/parse
+      // error on a blocked/offline network) falls back to the session unchanged
+      // rather than aborting sign-in.
       return session;
     }
   }
