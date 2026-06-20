@@ -1,0 +1,138 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:knitcalc/firebase/auth_scope.dart';
+import 'package:knitcalc/firebase/auth_service.dart';
+import 'package:knitcalc/firebase/auth_session.dart';
+import 'package:knitcalc/firebase/firebase_auth_client.dart';
+import 'package:knitcalc/firebase/firebase_config.dart';
+import 'package:knitcalc/firebase/firestore_client.dart';
+import 'package:knitcalc/home.dart';
+import 'package:knitcalc/l10n/app_localizations.dart';
+import 'package:knitcalc/l10n/locale_scope.dart';
+import 'package:knitcalc/storage/saved_project.dart';
+import 'package:knitcalc/storage/synced_projects_store.dart';
+
+/// A remote whose pull fails, modelling a blocked/offline cloud. The first
+/// [calls] count lets a retry test see the pull was attempted again.
+class FailingRemote implements RemoteProjects {
+  int calls = 0;
+
+  @override
+  Future<List<SavedProject>> listProjects(String uid) async {
+    calls++;
+    throw const FirestoreException('offline');
+  }
+
+  @override
+  Future<void> putProject(String uid, SavedProject project) async {}
+}
+
+AuthService _signedInAuth() => AuthService(
+  client: FirebaseAuthClient(
+    config: const FirebaseConfig(projectId: 'p', apiKey: 'K'),
+    httpClient: MockClient((_) async => http.Response('{}', 500)),
+  ),
+);
+
+Widget _wrap(AuthService auth, Widget child) => AuthScope(
+  service: auth,
+  child: LocaleScope(
+    controller: LocaleController(const Locale('ru')),
+    child: MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: child,
+    ),
+  ),
+);
+
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 12; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+void main() {
+  const bannerText =
+      'Нет подключения к сети. '
+      'Не удалось синхронизировать или проверить обновления.';
+
+  testWidgets('a failed sync shows the retryable network-error banner', (
+    tester,
+  ) async {
+    final session = AuthSession(
+      uid: 'uid1',
+      email: 'a@b.com',
+      idToken: 'ID',
+      refreshToken: 'R',
+      expiresAt: DateTime.now().add(const Duration(hours: 1)),
+    );
+    SharedPreferences.setMockInitialValues({
+      'auth_session': jsonEncode(session.toJson()),
+      // Skip the first-login migration prompt so it doesn't cover the banner.
+      'migrated_uid1': true,
+    });
+
+    final auth = _signedInAuth();
+    await auth.init();
+
+    final remote = FailingRemote();
+    await tester.pumpWidget(
+      _wrap(
+        auth,
+        Home(
+          storeBuilder: (a) => SyncedProjectsStore(uid: a.uid!, remote: remote),
+        ),
+      ),
+    );
+
+    await _settle(tester);
+
+    expect(find.text(bannerText), findsOneWidget);
+    expect(find.text('Повторить'), findsOneWidget);
+  });
+
+  testWidgets('Retry re-attempts the pull', (tester) async {
+    final session = AuthSession(
+      uid: 'uid1',
+      email: 'a@b.com',
+      idToken: 'ID',
+      refreshToken: 'R',
+      expiresAt: DateTime.now().add(const Duration(hours: 1)),
+    );
+    SharedPreferences.setMockInitialValues({
+      'auth_session': jsonEncode(session.toJson()),
+      'migrated_uid1': true,
+    });
+
+    final auth = _signedInAuth();
+    await auth.init();
+
+    final remote = FailingRemote();
+    await tester.pumpWidget(
+      _wrap(
+        auth,
+        Home(
+          storeBuilder: (a) => SyncedProjectsStore(uid: a.uid!, remote: remote),
+        ),
+      ),
+    );
+
+    await _settle(tester);
+    final attemptsBeforeRetry = remote.calls;
+
+    await tester.tap(find.text('Повторить'));
+    await _settle(tester);
+
+    expect(remote.calls, greaterThan(attemptsBeforeRetry));
+    // Still failing, so the banner is back.
+    expect(find.text(bannerText), findsOneWidget);
+  });
+}

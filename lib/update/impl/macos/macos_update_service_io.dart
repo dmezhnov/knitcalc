@@ -56,7 +56,7 @@ class MacosUpdateService implements UpdateService {
 
     return evaluateRemoteUpdate(
       _current,
-      versions?['macos'],
+      versions['macos'],
       action: UpdateAction.inApp,
     );
   }
