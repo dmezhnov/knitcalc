@@ -129,6 +129,8 @@
   "updatePause": "Pause",
   "updateResume": "Resume",
   "updatePaused": "Paused",
+  "updateDownloadedTitle": "Update downloaded",
+  "updateTapToInstall": "Tap to install",
   "updateFailed": "Failed to download the update",
 
   "networkErrorBanner": "No network connection. Could not sync or check for updates.",
