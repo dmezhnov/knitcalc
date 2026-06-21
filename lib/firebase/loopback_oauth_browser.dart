@@ -17,11 +17,17 @@ import 'package:url_launcher/url_launcher.dart';
 import 'google_oauth.dart';
 
 /// Page shown in the browser tab after the redirect, telling the user to return.
+///
+/// Served by a bare `dart:io` HttpServer with no access to the app's
+/// [Localizations], so it shows both supported languages (English and Russian)
+/// rather than guessing one.
 const String _landingPage =
     '<!DOCTYPE html><html><head><meta charset="utf-8">'
     '<title>KnitCalc</title></head><body style="font-family:sans-serif;'
     'text-align:center;padding-top:3em">'
-    '<h2>Готово</h2><p>Можно закрыть эту вкладку и вернуться в KnitCalc.</p>'
+    '<h2>Done · Готово</h2>'
+    '<p>You can close this tab and return to KnitCalc.</p>'
+    '<p>Можно закрыть эту вкладку и вернуться в KnitCalc.</p>'
     '</body></html>';
 
 /// Binds a local server on the [callbackUrlScheme] port, opens [url] in the

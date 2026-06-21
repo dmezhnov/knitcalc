@@ -5,7 +5,7 @@ import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/impl/store/itunes_lookup.dart';
 import 'package:knitcalc/update/impl/store/store_launch.dart';
 import 'package:knitcalc/update/update_info.dart';
-import 'package:knitcalc/update/cancel_token.dart';
+import 'package:knitcalc/update/download_control.dart';
 import 'package:knitcalc/update/update_service.dart';
 
 /// Returns the App Store update service for the running build.
@@ -72,7 +72,7 @@ class IosAppStoreService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
-    CancelToken? cancelToken,
+    DownloadControl? control,
   }) async {
     final urls = _launchUrls.isNotEmpty
         ? _launchUrls

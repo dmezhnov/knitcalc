@@ -136,6 +136,9 @@
   "updateNow": "Обновить",
   "updateDownloadTitle": "Загрузка обновления",
   "updatePreparing": "Подготовка…",
+  "updatePause": "Пауза",
+  "updateResume": "Продолжить",
+  "updatePaused": "Приостановлено",
   "updateFailed": "Не удалось загрузить обновление",
 
   "networkErrorBanner": "Нет подключения к сети. Не удалось синхронизировать или проверить обновления.",

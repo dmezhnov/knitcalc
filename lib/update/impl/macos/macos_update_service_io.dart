@@ -1,12 +1,13 @@
 import 'dart:io';
 
 import 'package:knitcalc/update/app_version.dart';
+import 'package:knitcalc/update/impl/download_file_io.dart';
 import 'package:knitcalc/update/impl/macos/macos_swap_logic.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
 import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
 import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:knitcalc/update/update_info.dart';
-import 'package:knitcalc/update/cancel_token.dart';
+import 'package:knitcalc/update/download_control.dart';
 import 'package:knitcalc/update/update_service.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -66,7 +67,7 @@ class MacosUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
-    CancelToken? cancelToken,
+    DownloadControl? control,
   }) async {
     final url = info.url;
 
@@ -74,14 +75,21 @@ class MacosUpdateService implements UpdateService {
       return;
     }
 
-    final archive = await _downloadArchive(url, onProgress);
+    final dir = await getTemporaryDirectory();
+    final archive = File('${dir.path}/knitcalc-update.zip');
+    await downloadFileWithControl(
+      client: _httpClient,
+      url: Uri.parse(url),
+      dest: archive,
+      onProgress: onProgress,
+      control: control,
+    );
 
     final appBundle = macAppBundlePath(_executablePath);
 
-    final dir = await getTemporaryDirectory();
     final script = buildMacosUpdateScript(
       pid: pid,
-      archivePath: archive,
+      archivePath: archive.path,
       stagingDir: '${dir.path}/knitcalc-update-staging',
       appBundlePath: appBundle,
     );
@@ -89,44 +97,6 @@ class MacosUpdateService implements UpdateService {
     // Hands off to the detached script and quits the app so it can swap the
     // bundle; control does not return here on the default launcher.
     await _launch(script);
-  }
-
-  Future<String> _downloadArchive(
-    String url,
-    UpdateProgressCallback? onProgress,
-  ) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/knitcalc-update.zip');
-
-    final request = await _httpClient.getUrl(Uri.parse(url));
-    request.headers.set(HttpHeaders.userAgentHeader, 'knitcalc-updater');
-
-    final response = await request.close();
-
-    if (response.statusCode != HttpStatus.ok) {
-      throw HttpException('Download failed with status ${response.statusCode}');
-    }
-
-    // contentLength is -1 when the server omits it; progress then stays
-    // indeterminate and the UI shows a spinner instead of a percentage.
-    final total = response.contentLength;
-    final sink = file.openWrite();
-    var received = 0;
-
-    try {
-      await for (final chunk in response) {
-        sink.add(chunk);
-        received += chunk.length;
-
-        if (onProgress != null && total > 0) {
-          onProgress(DownloadProgress(received: received, total: total));
-        }
-      }
-    } finally {
-      await sink.close();
-    }
-
-    return file.path;
   }
 }
 

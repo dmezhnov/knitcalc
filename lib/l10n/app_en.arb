@@ -126,6 +126,9 @@
   "updateNow": "Update",
   "updateDownloadTitle": "Downloading update",
   "updatePreparing": "Preparing…",
+  "updatePause": "Pause",
+  "updateResume": "Resume",
+  "updatePaused": "Paused",
   "updateFailed": "Failed to download the update",
 
   "networkErrorBanner": "No network connection. Could not sync or check for updates.",

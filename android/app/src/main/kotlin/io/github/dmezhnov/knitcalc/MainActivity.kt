@@ -1,5 +1,6 @@
 package io.github.dmezhnov.knitcalc
 
+import android.Manifest
 import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -7,15 +8,20 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.RenderMode
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val channelName = "knitcalc/android_update"
+    private val progressChannelName = "knitcalc/android_update_progress"
+    private val notificationPermissionRequest = 9201
 
     // Under Waydroid render into a TextureView instead of the default
     // FlutterSurfaceView: its hardware composer renders the dedicated surface
@@ -34,11 +40,49 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, progressChannelName)
+            .setStreamHandler(
+                object : EventChannel.StreamHandler {
+                    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                        UpdateProgressBridge.sink = events
+                    }
+
+                    override fun onCancel(arguments: Any?) {
+                        UpdateProgressBridge.sink = null
+                    }
+                },
+            )
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getInstallerPackageName" -> result.success(installerPackageName())
                     "primaryAbi" -> result.success(Build.SUPPORTED_ABIS.firstOrNull())
+                    "ensureNotificationPermission" -> {
+                        ensureNotificationPermission()
+                        result.success(null)
+                    }
+                    "startDownload" -> {
+                        val url = call.argument<String>("url")
+                        if (url == null) {
+                            result.error("no_url", "Missing download url", null)
+                        } else {
+                            startDownloadService(url)
+                            result.success(null)
+                        }
+                    }
+                    "pauseDownload" -> {
+                        sendServiceAction(UpdateDownloadService.ACTION_PAUSE)
+                        result.success(null)
+                    }
+                    "resumeDownload" -> {
+                        sendServiceAction(UpdateDownloadService.ACTION_RESUME)
+                        result.success(null)
+                    }
+                    "cancelDownload" -> {
+                        sendServiceAction(UpdateDownloadService.ACTION_CANCEL)
+                        result.success(null)
+                    }
                     "installApk" -> {
                         val path = call.argument<String>("path")
                         if (path == null) {
@@ -79,6 +123,36 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** Starts the foreground download service for [url]. */
+    private fun startDownloadService(url: String) {
+        val intent = Intent(this, UpdateDownloadService::class.java).apply {
+            action = UpdateDownloadService.ACTION_START
+            putExtra(UpdateDownloadService.EXTRA_URL, url)
+        }
+        ContextCompat.startForegroundService(this, intent)
+    }
+
+    /** Delivers a pause/resume/cancel command to the running download service. */
+    private fun sendServiceAction(action: String) {
+        startService(Intent(this, UpdateDownloadService::class.java).setAction(action))
+    }
+
+    /** Requests POST_NOTIFICATIONS (Android 13+) so the download notification can
+     *  show. Best-effort: a denial only hides the notification. */
+    private fun ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            notificationPermissionRequest,
+        )
     }
 
     /** The package that installed this app, used to detect the channel. */

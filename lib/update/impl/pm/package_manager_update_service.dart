@@ -1,6 +1,6 @@
 import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/update_info.dart';
-import 'package:knitcalc/update/cancel_token.dart';
+import 'package:knitcalc/update/download_control.dart';
 import 'package:knitcalc/update/update_service.dart';
 
 /// Minimal result of a probe command, decoupled from `dart:io`'s `ProcessResult`
@@ -107,7 +107,7 @@ class PackageManagerUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
-    CancelToken? cancelToken,
+    DownloadControl? control,
   }) async {
     // Hands off to a visible terminal and (on the default launcher) quits the
     // app so the manager can swap the running files; control does not return.
