@@ -4,6 +4,7 @@ import 'dart:js_interop';
 import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/impl/web/web_update_logic.dart';
 import 'package:knitcalc/update/update_info.dart';
+import 'package:knitcalc/update/cancel_token.dart';
 import 'package:knitcalc/update/update_service.dart';
 import 'package:web/web.dart' as web;
 
@@ -45,6 +46,7 @@ class WebUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
+    CancelToken? cancelToken,
   }) async {
     // The browser fetches the fresh assets itself, so there is no in-app
     // download to report; force a full reload to pick up the new build.

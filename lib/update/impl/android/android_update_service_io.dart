@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:knitcalc/update/app_version.dart';
+import 'package:knitcalc/update/cancel_token.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
 import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
 import 'package:knitcalc/update/impl/remote/store_versions.dart';
@@ -83,6 +85,7 @@ class AndroidUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
+    CancelToken? cancelToken,
   }) async {
     final url = info.url;
 
@@ -90,7 +93,9 @@ class AndroidUpdateService implements UpdateService {
       return;
     }
 
-    final path = await _downloadApk(url, onProgress);
+    // Throws UpdateCancelled if the user cancels mid-download, so we never reach
+    // the installer handoff for an aborted download.
+    final path = await _downloadApk(url, onProgress, cancelToken);
 
     await androidUpdateChannel.invokeMethod<void>('installApk', {'path': path});
   }
@@ -98,6 +103,7 @@ class AndroidUpdateService implements UpdateService {
   Future<String> _downloadApk(
     String url,
     UpdateProgressCallback? onProgress,
+    CancelToken? cancelToken,
   ) async {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/knitcalc-update.apk');
@@ -117,18 +123,51 @@ class AndroidUpdateService implements UpdateService {
     final sink = file.openWrite();
     var received = 0;
 
-    try {
-      await for (final chunk in response) {
+    // Drive the stream by hand so a Cancel can abort it promptly: completing the
+    // future with UpdateCancelled stops the await, and the finally cancels the
+    // subscription (closing the socket) and deletes the partial APK.
+    final done = Completer<void>();
+    final subscription = response.listen(
+      (chunk) {
         sink.add(chunk);
         received += chunk.length;
-
         if (onProgress != null && total > 0) {
           onProgress(DownloadProgress(received: received, total: total));
         }
-      }
-    } finally {
-      await sink.close();
+      },
+      onDone: () {
+        if (!done.isCompleted) done.complete();
+      },
+      onError: (Object e, StackTrace st) {
+        if (!done.isCompleted) done.completeError(e, st);
+      },
+      cancelOnError: true,
+    );
+
+    StreamSubscription<void>? cancelWatch;
+    if (cancelToken != null) {
+      cancelWatch = cancelToken.whenCancelled.asStream().listen((_) {
+        if (!done.isCompleted) done.completeError(const UpdateCancelled());
+      });
     }
+
+    try {
+      await done.future;
+    } catch (_) {
+      await cancelWatch?.cancel();
+      await subscription.cancel();
+      await sink.close();
+      // Drop the half-written APK so a cancelled/failed download leaves nothing
+      // behind for the installer to choke on.
+      if (await file.exists()) {
+        await file.delete();
+      }
+      rethrow;
+    }
+
+    await cancelWatch?.cancel();
+    await subscription.cancel();
+    await sink.close();
 
     return file.path;
   }
