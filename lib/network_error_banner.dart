@@ -6,25 +6,33 @@ import 'package:knitcalc/l10n/app_localizations.dart';
 ///
 /// It occupies the same slot as the update banner (a [ScaffoldMessenger] shows
 /// one [MaterialBanner] at a time), so any current banner is hidden first.
-/// UI strings are Russian to match the app.
+///
+/// The texts are resolved inside [Builder]s rather than captured here, so a
+/// banner that is already on screen follows a runtime language switch (the
+/// ScaffoldMessenger rebuilds it under the new [Localizations]) instead of
+/// staying in the language it was shown in.
 ScaffoldFeatureController<MaterialBanner, MaterialBannerClosedReason>
 showNetworkErrorBanner(BuildContext context, {required VoidCallback onRetry}) {
   final messenger = ScaffoldMessenger.of(context);
-  final l10n = AppLocalizations.of(context);
 
   messenger.hideCurrentMaterialBanner();
 
   return messenger.showMaterialBanner(
     MaterialBanner(
-      content: Text(l10n.networkErrorBanner),
+      content: Builder(
+        builder: (context) =>
+            Text(AppLocalizations.of(context).networkErrorBanner),
+      ),
       leading: const Icon(Icons.wifi_off),
       actions: [
-        TextButton(
-          onPressed: () {
-            messenger.hideCurrentMaterialBanner();
-            onRetry();
-          },
-          child: Text(l10n.retryAction),
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () {
+              messenger.hideCurrentMaterialBanner();
+              onRetry();
+            },
+            child: Text(AppLocalizations.of(context).retryAction),
+          ),
         ),
       ],
     ),

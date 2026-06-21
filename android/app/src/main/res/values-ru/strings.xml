@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Уведомление фоновой загрузки обновления (зеркалит popup прогресса). -->
+    <string name="update_notification_title">Загрузка обновления</string>
+    <string name="update_notification_preparing">Подготовка…</string>
+    <string name="update_notification_paused">Приостановлено</string>
+    <!-- %1$s — скачано МБ, %2$s — всего МБ, %3$d — проценты. -->
+    <string name="update_notification_progress">%1$s / %2$s МБ · %3$d%%</string>
+    <string name="update_action_pause">Пауза</string>
+    <string name="update_action_resume">Продолжить</string>
+    <string name="update_action_cancel">Отмена</string>
+    <string name="update_notification_ready_title">Обновление загружено</string>
+    <string name="update_notification_ready_text">Нажмите, чтобы установить</string>
+</resources>

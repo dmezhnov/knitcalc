@@ -3,18 +3,24 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:knitcalc/update/app_version.dart';
-import 'package:knitcalc/update/cancel_token.dart';
+import 'package:knitcalc/update/download_control.dart';
 import 'package:knitcalc/update/impl/noop_update_service.dart';
 import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
 import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:knitcalc/update/update_info.dart';
 import 'package:knitcalc/update/update_service.dart';
-import 'package:path_provider/path_provider.dart';
 
 /// Method channel shared with [MainActivity] for install-source detection and
-/// launching the package installer.
+/// driving the download foreground service.
 const MethodChannel androidUpdateChannel = MethodChannel(
   'knitcalc/android_update',
+);
+
+/// Event channel over which the download foreground service streams progress and
+/// terminal state. Each event is a map:
+/// `{state: downloading|paused|done|cancelled|error, received: int, total: int}`.
+const EventChannel androidUpdateProgressChannel = EventChannel(
+  'knitcalc/android_update_progress',
 );
 
 UpdateService createAndroidUpdateService(AppVersion? current) {
@@ -42,24 +48,23 @@ Future<String?> _primaryAbi() async {
 /// Sideload updater for APKs distributed via GitHub Releases.
 ///
 /// Reads the available version from the remote store-versions document (the
-/// `android` entry carries the APK download url, written by release CI),
-/// downloads the APK to the cache directory (reporting progress) and hands it to
-/// the system installer (the user confirms the install and the "unknown sources"
-/// prompt if needed). The APK still downloads from the GitHub CDN; only the
-/// version check moved off the GitHub API — its 60/hour unauthenticated limit is
-/// shared per IP and easily exhausted under carrier-grade NAT on mobile.
+/// `android` entry carries the APK download url, written by release CI). The
+/// download itself runs in a native foreground service (so it survives the app
+/// being backgrounded and shows an ongoing notification with progress and
+/// Pause/Cancel actions); this class only starts it, mirrors its progress and
+/// state into [onProgress]/[DownloadControl], and relays the dialog's controls
+/// back to it. On completion the service hands the APK to the system installer.
+/// Only the version check moved off the GitHub API — its 60/hour unauthenticated
+/// limit is shared per IP and easily exhausted under carrier-grade NAT on mobile.
 class AndroidUpdateService implements UpdateService {
   AndroidUpdateService(
     this._current, {
-    HttpClient? httpClient,
     RemoteVersionsFetcher? fetch,
     AbiProvider? abi,
-  }) : _httpClient = httpClient ?? HttpClient(),
-       _fetch = fetch ?? fetchStoreVersions,
+  }) : _fetch = fetch ?? fetchStoreVersions,
        _abi = abi ?? _primaryAbi;
 
   final AppVersion? _current;
-  final HttpClient _httpClient;
   final RemoteVersionsFetcher _fetch;
   final AbiProvider _abi;
 
@@ -85,7 +90,7 @@ class AndroidUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
-    CancelToken? cancelToken,
+    DownloadControl? control,
   }) async {
     final url = info.url;
 
@@ -93,82 +98,92 @@ class AndroidUpdateService implements UpdateService {
       return;
     }
 
-    // Throws UpdateCancelled if the user cancels mid-download, so we never reach
-    // the installer handoff for an aborted download.
-    final path = await _downloadApk(url, onProgress, cancelToken);
-
-    await androidUpdateChannel.invokeMethod<void>('installApk', {'path': path});
-  }
-
-  Future<String> _downloadApk(
-    String url,
-    UpdateProgressCallback? onProgress,
-    CancelToken? cancelToken,
-  ) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/knitcalc-update.apk');
-
-    final request = await _httpClient.getUrl(Uri.parse(url));
-    request.headers.set(HttpHeaders.userAgentHeader, 'knitcalc-updater');
-
-    final response = await request.close();
-
-    if (response.statusCode != HttpStatus.ok) {
-      throw HttpException('Download failed with status ${response.statusCode}');
+    // Best-effort: ask for POST_NOTIFICATIONS (Android 13+). A denial only hides
+    // the notification; the foreground download still runs.
+    try {
+      await androidUpdateChannel.invokeMethod<void>(
+        'ensureNotificationPermission',
+      );
+    } on PlatformException {
+      // Ignore — proceed without the notification.
     }
 
-    // contentLength is -1 when the server omits it; progress then stays
-    // indeterminate and the UI shows a spinner instead of a percentage.
-    final total = response.contentLength;
-    final sink = file.openWrite();
-    var received = 0;
-
-    // Drive the stream by hand so a Cancel can abort it promptly: completing the
-    // future with UpdateCancelled stops the await, and the finally cancels the
-    // subscription (closing the socket) and deletes the partial APK.
     final done = Completer<void>();
-    final subscription = response.listen(
-      (chunk) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (onProgress != null && total > 0) {
-          onProgress(DownloadProgress(received: received, total: total));
+
+    // Relay the dialog's Pause/Resume and Cancel to the service.
+    void pauseListener() {
+      androidUpdateChannel.invokeMethod<void>(
+        control!.isPaused ? 'pauseDownload' : 'resumeDownload',
+      );
+    }
+
+    StreamSubscription<void>? cancelWatch;
+    if (control != null) {
+      control.pausedListenable.addListener(pauseListener);
+      cancelWatch = control.whenCancelled.asStream().listen((_) {
+        androidUpdateChannel.invokeMethod<void>('cancelDownload');
+      });
+    }
+
+    // Subscribe before starting so no early event is missed. The notification's
+    // own buttons mirror back here (downloading/paused) to keep the dialog and
+    // the [control] in sync; the idempotent pause/resume avoids a feedback loop.
+    final progressWatch = androidUpdateProgressChannel.receiveBroadcastStream().listen(
+      (event) {
+        final map = (event as Map).cast<Object?, Object?>();
+        final state = map['state'] as String?;
+        final received = (map['received'] as num?)?.toInt() ?? 0;
+        final total = (map['total'] as num?)?.toInt() ?? -1;
+
+        switch (state) {
+          case 'downloading':
+            control?.resume();
+            if (onProgress != null && total > 0) {
+              onProgress(DownloadProgress(received: received, total: total));
+            }
+          case 'paused':
+            control?.pause();
+            if (onProgress != null && total > 0) {
+              onProgress(DownloadProgress(received: received, total: total));
+            }
+          case 'done':
+            // Foreground: launch the installer from the Activity now. (If the
+            // app is backgrounded the service's "downloaded" notification does
+            // it on tap, since a service can't start an Activity in the back-
+            // ground.) FLAG_ACTIVITY_NEW_TASK makes a re-launch harmless.
+            final path = map['path'] as String?;
+            if (path != null) {
+              androidUpdateChannel.invokeMethod<void>('installApk', {
+                'path': path,
+              });
+            }
+            if (!done.isCompleted) done.complete();
+          case 'cancelled':
+            if (!done.isCompleted) {
+              done.completeError(const UpdateCancelled());
+            }
+          case 'error':
+            if (!done.isCompleted) {
+              done.completeError(const HttpException('Update download failed'));
+            }
         }
-      },
-      onDone: () {
-        if (!done.isCompleted) done.complete();
       },
       onError: (Object e, StackTrace st) {
         if (!done.isCompleted) done.completeError(e, st);
       },
-      cancelOnError: true,
     );
 
-    StreamSubscription<void>? cancelWatch;
-    if (cancelToken != null) {
-      cancelWatch = cancelToken.whenCancelled.asStream().listen((_) {
-        if (!done.isCompleted) done.completeError(const UpdateCancelled());
-      });
-    }
-
     try {
+      await androidUpdateChannel.invokeMethod<void>('startDownload', {
+        'url': url,
+      });
+      // Completes when the service reports done (installer already launched),
+      // or throws UpdateCancelled / an error.
       await done.future;
-    } catch (_) {
+    } finally {
+      await progressWatch.cancel();
       await cancelWatch?.cancel();
-      await subscription.cancel();
-      await sink.close();
-      // Drop the half-written APK so a cancelled/failed download leaves nothing
-      // behind for the installer to choke on.
-      if (await file.exists()) {
-        await file.delete();
-      }
-      rethrow;
+      control?.pausedListenable.removeListener(pauseListener);
     }
-
-    await cancelWatch?.cancel();
-    await subscription.cancel();
-    await sink.close();
-
-    return file.path;
   }
 }
