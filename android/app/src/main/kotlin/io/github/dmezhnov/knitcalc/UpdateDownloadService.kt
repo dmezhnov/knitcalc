@@ -75,6 +75,13 @@ class UpdateDownloadService : Service() {
         const val ACTION_CANCEL = "io.github.dmezhnov.knitcalc.action.CANCEL"
         const val EXTRA_URL = "url"
 
+        /** Live instance, so [MainActivity] can signal foreground/background
+         *  directly (an in-process call avoids the Android 12+ ban on starting a
+         *  service from the background, which a lifecycle Intent would hit). */
+        @Volatile
+        var instance: UpdateDownloadService? = null
+            private set
+
         private const val CHANNEL_ID = "knitcalc_update"
         private const val NOTIFICATION_ID = 4711
         private const val APK_NAME = "knitcalc-update.apk"
@@ -89,10 +96,29 @@ class UpdateDownloadService : Service() {
     @Volatile private var received = 0L
     @Volatile private var total = -1L
     @Volatile private var worker: Thread? = null
+
+    // A download is in progress (between start and done/cancel/error). Drives
+    // whether backgrounding promotes the service to foreground with a notification.
+    @Volatile private var downloading = false
+
+    // The app is currently visible. The notification is shown only while this is
+    // false — when the app is foreground the in-app progress dialog is enough.
+    @Volatile private var appInForeground = true
+
     private val resumeLock = Object()
     private var lastEmitMs = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+    }
+
+    override fun onDestroy() {
+        if (instance === this) instance = null
+        super.onDestroy()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -100,9 +126,9 @@ class UpdateDownloadService : Service() {
                 val url = intent.getStringExtra(EXTRA_URL)
                 if (url == null) {
                     stopAll()
-                } else {
-                    startForegroundNow()
-                    if (worker == null) startDownload(url)
+                } else if (worker == null) {
+                    downloading = true
+                    startDownload(url)
                 }
             }
             ACTION_PAUSE -> setPaused(true)
@@ -112,18 +138,38 @@ class UpdateDownloadService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun startForegroundNow() {
+    /** Called by [MainActivity] when the app becomes visible: hide the
+     *  notification (the in-app dialog takes over) but keep downloading. */
+    fun onAppForeground() {
+        appInForeground = true
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+    }
+
+    /** Called by [MainActivity] when the app is backgrounded: while a download is
+     *  in flight, promote to a foreground service so it keeps running and shows
+     *  the progress notification. */
+    fun onAppBackground() {
+        appInForeground = false
+        if (!downloading) return
         createChannel()
         val notification = buildNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        // Called from MainActivity.onStop, within the grace period that still lets
+        // a just-foregrounded app start a foreground service. Guard anyway: if the
+        // system refuses (Android 12+ ForegroundServiceStartNotAllowedException),
+        // the download just continues without the notification rather than crashing.
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (_: Exception) {
+            // Couldn't promote to foreground; leave it as a plain started service.
         }
     }
 
@@ -139,6 +185,7 @@ class UpdateDownloadService : Service() {
         worker = thread(start = true) {
             try {
                 downloadLoop(urlStr, apk)
+                downloading = false
                 when {
                     cancelled -> {
                         apk.delete()
@@ -146,15 +193,20 @@ class UpdateDownloadService : Service() {
                         stopAll()
                     }
                     else -> {
-                        // The foreground app installs via its Activity (see Dart's
-                        // "done" handling); for the backgrounded case a tappable
-                        // "downloaded" notification launches the installer, since a
-                        // service can't start an Activity in the background.
                         UpdateProgressBridge.emitDone(received, total, apk.absolutePath)
-                        showInstallNotification(apk)
+                        // Foreground: the app installs from its Activity (Dart's
+                        // "done" handling) and no notification is shown. Background:
+                        // a service can't start an Activity, so a tappable
+                        // "downloaded" notification launches the installer.
+                        if (appInForeground) {
+                            stopAll()
+                        } else {
+                            showInstallNotification(apk)
+                        }
                     }
                 }
             } catch (_: Exception) {
+                downloading = false
                 apk.delete()
                 UpdateProgressBridge.emit(
                     if (cancelled) "cancelled" else "error",
@@ -243,6 +295,10 @@ class UpdateDownloadService : Service() {
     }
 
     private fun emitThrottled() {
+        // Once a pause/cancel is requested, suppress the per-chunk "downloading"
+        // event for any in-flight chunk: a stale "downloading" would otherwise be
+        // mirrored back by the app as a resume and undo the pause.
+        if (paused || cancelled) return
         val now = System.currentTimeMillis()
         if (now - lastEmitMs < EMIT_INTERVAL_MS) return
         lastEmitMs = now
@@ -329,6 +385,10 @@ class UpdateDownloadService : Service() {
     }
 
     private fun updateNotification() {
+        // Only refresh the notification while it is shown (app backgrounded);
+        // posting one while foreground would create the very notification we keep
+        // hidden until the user leaves the app.
+        if (appInForeground) return
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, buildNotification())
     }

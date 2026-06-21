@@ -125,13 +125,30 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    /** Starts the foreground download service for [url]. */
+    /** Starts the download service for [url]. It runs plain (no notification)
+     *  while the app is foreground and only promotes itself to a foreground
+     *  service with a notification once the app is backgrounded (see
+     *  [onStart]/[onStop]). */
     private fun startDownloadService(url: String) {
         val intent = Intent(this, UpdateDownloadService::class.java).apply {
             action = UpdateDownloadService.ACTION_START
             putExtra(UpdateDownloadService.EXTRA_URL, url)
         }
-        ContextCompat.startForegroundService(this, intent)
+        startService(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // App is visible: hide the download notification (the in-app dialog shows
+        // progress instead). In-process call — a lifecycle Intent would hit the
+        // background foreground-service-start ban.
+        UpdateDownloadService.instance?.onAppForeground()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // App backgrounded: let an in-flight download keep going with a notification.
+        UpdateDownloadService.instance?.onAppBackground()
     }
 
     /** Delivers a pause/resume/cancel command to the running download service. */
