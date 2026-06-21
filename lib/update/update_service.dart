@@ -1,3 +1,4 @@
+import 'package:knitcalc/update/cancel_token.dart';
 import 'package:knitcalc/update/update_info.dart';
 
 /// Snapshot of an in-flight download: bytes received so far out of the total.
@@ -40,9 +41,12 @@ abstract interface class UpdateService {
   ///
   /// Depending on [UpdateInfo.action] this triggers an in-app flow, opens an
   /// external URL, or is a no-op for externally managed channels. When the
-  /// mechanism downloads a payload it reports progress through [onProgress].
+  /// mechanism downloads a payload it reports progress through [onProgress] and,
+  /// if a [cancelToken] is given, aborts the download (throwing [UpdateCancelled])
+  /// when it trips. Channels without a cancellable download ignore the token.
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
+    CancelToken? cancelToken,
   });
 }
