@@ -1,4 +1,5 @@
 import 'package:knitcalc/update/update_info.dart';
+import 'package:knitcalc/update/cancel_token.dart';
 import 'package:knitcalc/update/update_service.dart';
 
 /// Update service that never reports an update.
@@ -16,5 +17,6 @@ class NoopUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
+    CancelToken? cancelToken,
   }) async {}
 }
