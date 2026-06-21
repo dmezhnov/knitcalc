@@ -6,6 +6,7 @@ import 'package:knitcalc/update/impl/noop_update_service.dart';
 import 'package:knitcalc/update/impl/remote/remote_versions_source.dart';
 import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:knitcalc/update/update_info.dart';
+import 'package:knitcalc/update/cancel_token.dart';
 import 'package:knitcalc/update/update_service.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -66,6 +67,7 @@ class LinuxUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
+    CancelToken? cancelToken,
   }) async {
     final url = info.url;
 

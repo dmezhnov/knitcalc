@@ -1,6 +1,7 @@
 import 'package:in_app_update/in_app_update.dart';
 import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/update_info.dart';
+import 'package:knitcalc/update/cancel_token.dart';
 import 'package:knitcalc/update/update_service.dart';
 
 /// Normalised result of a Play update check, decoupled from the plugin's
@@ -99,6 +100,7 @@ class PlayUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
+    CancelToken? cancelToken,
   }) async {
     // in_app_update does not surface byte progress for the flexible download,
     // so the progress dialog stays indeterminate (onProgress is never called).

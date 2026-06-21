@@ -5,6 +5,7 @@ import 'package:knitcalc/update/impl/remote/store_versions.dart';
 import 'package:knitcalc/update/impl/store/android_store_links.dart';
 import 'package:knitcalc/update/impl/store/store_launch.dart';
 import 'package:knitcalc/update/update_info.dart';
+import 'package:knitcalc/update/cancel_token.dart';
 import 'package:knitcalc/update/update_service.dart';
 
 /// Returns the listing-based update service for a store [channel] (Samsung,
@@ -58,6 +59,7 @@ class StoreListingUpdateService implements UpdateService {
   Future<void> startUpdate(
     UpdateInfo info, {
     UpdateProgressCallback? onProgress,
+    CancelToken? cancelToken,
   }) async {
     final urls = _urls.isNotEmpty
         ? _urls
