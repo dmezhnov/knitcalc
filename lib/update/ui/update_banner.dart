@@ -20,7 +20,7 @@ String _bannerText(AppLocalizations l10n, UpdateInfo info) {
 /// Non-intrusive banner offering the user an available update.
 ///
 /// Shown via [showUpdateBanner]. For a mandatory update the dismiss action is
-/// hidden so only "update" remains. UI strings are in Russian to match the app.
+/// hidden so only "update" remains.
 class UpdateBanner extends StatelessWidget {
   const UpdateBanner({
     super.key,
@@ -61,32 +61,40 @@ showUpdateBanner(
   VoidCallback? onDismiss,
 }) {
   final messenger = ScaffoldMessenger.of(context);
-  final l10n = AppLocalizations.of(context);
 
   // Replace any banner already on screen rather than queueing behind it, so a
   // newer release supersedes a banner for an older one (a ScaffoldMessenger
   // shows one MaterialBanner at a time and queues the rest).
   messenger.hideCurrentMaterialBanner();
 
+  // Texts are resolved inside [Builder]s (not captured here) so the banner
+  // follows a runtime language switch while it is on screen.
   return messenger.showMaterialBanner(
     MaterialBanner(
-      content: Text(_bannerText(l10n, info)),
+      content: Builder(
+        builder: (context) =>
+            Text(_bannerText(AppLocalizations.of(context), info)),
+      ),
       leading: const Icon(Icons.system_update),
       actions: [
         if (!info.mandatory && onDismiss != null)
-          TextButton(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () {
+                messenger.hideCurrentMaterialBanner();
+                onDismiss();
+              },
+              child: Text(AppLocalizations.of(context).updateLater),
+            ),
+          ),
+        Builder(
+          builder: (context) => TextButton(
             onPressed: () {
               messenger.hideCurrentMaterialBanner();
-              onDismiss();
+              onUpdate();
             },
-            child: Text(l10n.updateLater),
+            child: Text(AppLocalizations.of(context).updateNow),
           ),
-        TextButton(
-          onPressed: () {
-            messenger.hideCurrentMaterialBanner();
-            onUpdate();
-          },
-          child: Text(l10n.updateNow),
         ),
       ],
     ),

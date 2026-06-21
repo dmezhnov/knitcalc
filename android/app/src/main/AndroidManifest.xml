@@ -7,6 +7,12 @@
          for the leftover pre-rename app; without it UninstallerActivity launches
          but silently finishes. Normal-level: granted at install, no prompt. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES"/>
+    <!-- Download the update APK in a foreground service so it keeps going (and
+         shows a progress notification with Pause/Cancel) while the app is
+         backgrounded. POST_NOTIFICATIONS (API 33+) is requested at runtime. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Save a photo to the gallery on pre-Q devices, where writing to
          MediaStore still needs storage permission. On API 29+ the scoped
          MediaStore insert needs no permission, so cap it at 28. -->
@@ -47,6 +53,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Foreground service that downloads the update APK and posts the
+             progress notification; not exported (started only from the app). -->
+        <service
+            android:name=".UpdateDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
