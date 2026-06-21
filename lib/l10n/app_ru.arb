@@ -139,6 +139,8 @@
   "updatePause": "Пауза",
   "updateResume": "Продолжить",
   "updatePaused": "Приостановлено",
+  "updateDownloadedTitle": "Обновление загружено",
+  "updateTapToInstall": "Нажмите, чтобы установить",
   "updateFailed": "Не удалось загрузить обновление",
 
   "networkErrorBanner": "Нет подключения к сети. Не удалось синхронизировать или проверить обновления.",
