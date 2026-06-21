@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -87,6 +86,8 @@ class UpdateDownloadService : Service() {
         const val ACTION_RESUME = "io.github.dmezhnov.knitcalc.action.RESUME"
         const val ACTION_CANCEL = "io.github.dmezhnov.knitcalc.action.CANCEL"
         const val EXTRA_URL = "url"
+        const val EXTRA_SIZE = "size"
+        const val EXTRA_VERSION = "version"
 
         /** Live instance, so [MainActivity] can signal foreground/background
          *  directly (an in-process call avoids the Android 12+ ban on starting a
@@ -95,9 +96,22 @@ class UpdateDownloadService : Service() {
         var instance: UpdateDownloadService? = null
             private set
 
+        /** Path of a downloaded APK awaiting install. Set on completion; consumed
+         *  by [MainActivity] (it launches the installer from its Activity, which a
+         *  background service can't do). Survives the service stopping. */
+        @Volatile
+        var pendingInstallPath: String? = null
+
+        /** Cache file an update of [version] downloads to. Shared with
+         *  [MainActivity], which checks it to skip re-downloading a finished APK. */
+        fun cachedApk(context: android.content.Context, version: String): java.io.File {
+            val safe = version.replace(Regex("[^A-Za-z0-9._-]"), "_")
+            return java.io.File(context.cacheDir, "$APK_PREFIX-$safe.apk")
+        }
+
         private const val CHANNEL_ID = "knitcalc_update"
         private const val NOTIFICATION_ID = 4711
-        private const val APK_NAME = "knitcalc-update.apk"
+        private const val APK_PREFIX = "knitcalc-update"
         private const val BUFFER = 64 * 1024
         private const val EMIT_INTERVAL_MS = 150L
     }
@@ -140,8 +154,10 @@ class UpdateDownloadService : Service() {
                 if (url == null) {
                     stopAll()
                 } else if (worker == null) {
+                    val size = intent.getLongExtra(EXTRA_SIZE, -1L)
+                    val version = intent.getStringExtra(EXTRA_VERSION) ?: "latest"
                     downloading = true
-                    startDownload(url)
+                    startDownload(url, size, version)
                 }
             }
             ACTION_PAUSE -> setPaused(true)
@@ -186,14 +202,35 @@ class UpdateDownloadService : Service() {
         }
     }
 
-    private fun startDownload(urlStr: String) {
+    private fun startDownload(urlStr: String, expectedSize: Long, version: String) {
         paused = false
         cancelled = false
-        received = 0L
-        total = -1L
+        pendingInstallPath = null
 
-        val apk = java.io.File(cacheDir, APK_NAME)
-        if (apk.exists()) apk.delete()
+        // Cache the APK under a per-version name and drop other versions' leftovers,
+        // so a finished download for this version can be reused without re-fetching.
+        val apk = apkFile(version)
+        cleanupStaleApks(apk)
+
+        val existing = if (apk.exists()) apk.length() else 0L
+        when {
+            // Already fully downloaded this version: skip straight to install.
+            expectedSize > 0 && existing == expectedSize -> {
+                received = expectedSize
+                total = expectedSize
+                downloading = false
+                finishDownloaded(apk)
+                return
+            }
+            // A partial file for this version: resume from where it stopped.
+            expectedSize > 0 && existing in 1 until expectedSize -> received = existing
+            // No usable partial (empty, or larger than expected → corrupt): restart.
+            else -> {
+                if (apk.exists()) apk.delete()
+                received = 0L
+            }
+        }
+        total = if (expectedSize > 0) expectedSize else -1L
 
         worker = thread(start = true) {
             try {
@@ -205,18 +242,7 @@ class UpdateDownloadService : Service() {
                         UpdateProgressBridge.emit("cancelled", received, total)
                         stopAll()
                     }
-                    else -> {
-                        UpdateProgressBridge.emitDone(received, total, apk.absolutePath)
-                        // Foreground: the app installs from its Activity (Dart's
-                        // "done" handling) and no notification is shown. Background:
-                        // a service can't start an Activity, so a tappable
-                        // "downloaded" notification launches the installer.
-                        if (appInForeground) {
-                            stopAll()
-                        } else {
-                            showInstallNotification(apk)
-                        }
-                    }
+                    else -> finishDownloaded(apk)
                 }
             } catch (_: Exception) {
                 downloading = false
@@ -227,6 +253,32 @@ class UpdateDownloadService : Service() {
                     total,
                 )
                 stopAll()
+            }
+        }
+    }
+
+    /** A complete APK is ready. Remember it for install and either let the
+     *  foreground app install it (Dart's "done" handling) or, when backgrounded,
+     *  show a tappable "downloaded" notification — a service can't start the
+     *  installer Activity itself, but [MainActivity] does on the next foreground. */
+    private fun finishDownloaded(apk: java.io.File) {
+        pendingInstallPath = apk.absolutePath
+        UpdateProgressBridge.emitDone(received, total, apk.absolutePath)
+        if (appInForeground) {
+            stopAll()
+        } else {
+            showInstallNotification(apk)
+        }
+    }
+
+    private fun apkFile(version: String): java.io.File = cachedApk(this, version)
+
+    /** Removes other cached update APKs (old versions, or the pre-versioned file)
+     *  so the cache holds at most the one we're about to use. */
+    private fun cleanupStaleApks(keep: java.io.File) {
+        cacheDir.listFiles()?.forEach { f ->
+            if (f.name.startsWith(APK_PREFIX) && f.name.endsWith(".apk") && f != keep) {
+                f.delete()
             }
         }
     }
@@ -467,14 +519,14 @@ class UpdateDownloadService : Service() {
         }
     }
 
-    /** Activity PendingIntent that launches the system package installer for the
-     *  downloaded APK. */
+    /** PendingIntent that opens [MainActivity] with the APK path, so the tap is
+     *  handled by the same deduped install path as the foreground/auto cases
+     *  (a service can't start the installer Activity itself). */
     private fun installPendingIntent(file: java.io.File): PendingIntent {
-        val uri: Uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = "io.github.dmezhnov.knitcalc.action.INSTALL"
+            putExtra(MainActivity.EXTRA_INSTALL_PATH, file.absolutePath)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         return PendingIntent.getActivity(
             this,
