@@ -1,13 +1,13 @@
-# Homebrew cask template. 1.8.51+74, https://github.com/dmezhnov/knitcalc/releases/download/v1.8.51+74/knitcalc-macos-1.8.51+74.zip and 56f9005fd9be6f58b85127e88adad72be5a45c043751ec639da149b9c4a4aa5f are filled in by
+# Homebrew cask template. 1.8.52+75, https://github.com/dmezhnov/knitcalc/releases/download/v1.8.52+75/knitcalc-macos-1.8.52+75.zip and 5387690695ff458589e519c7413fec4a65b7237f095ba90ae1dcf2b485d63d04 are filled in by
 # the `publish` job of .github/workflows/publish.yml, which renders the result
 # to Casks/knitcalc.rb on main — the repo itself doubles as the tap, exactly
 # like the Scoop bucket. Version keeps the full +build metadata (the macOS zip
 # filename and release URL do too); Homebrew cask versions are free-form.
 cask "knitcalc" do
-  version "1.8.51+74"
-  sha256 "56f9005fd9be6f58b85127e88adad72be5a45c043751ec639da149b9c4a4aa5f"
+  version "1.8.52+75"
+  sha256 "5387690695ff458589e519c7413fec4a65b7237f095ba90ae1dcf2b485d63d04"
 
-  url "https://github.com/dmezhnov/knitcalc/releases/download/v1.8.51+74/knitcalc-macos-1.8.51+74.zip",
+  url "https://github.com/dmezhnov/knitcalc/releases/download/v1.8.52+75/knitcalc-macos-1.8.52+75.zip",
       verified: "github.com/dmezhnov/knitcalc/"
   name "KnitCalc"
   desc "KnitCalc is a knitting calculator"
