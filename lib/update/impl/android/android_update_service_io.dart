@@ -174,12 +174,24 @@ class AndroidUpdateService implements UpdateService {
     );
 
     try {
-      await androidUpdateChannel.invokeMethod<void>('startDownload', {
-        'url': url,
-      });
-      // Completes when the service reports done (installer already launched),
-      // or throws UpdateCancelled / an error.
-      await done.future;
+      // Returns true when this version's APK was already fully downloaded: the
+      // native side installs it straight away, so there is no download to await
+      // (and no progress events to wait on, avoiding a start-up race).
+      final reused =
+          await androidUpdateChannel.invokeMethod<bool>('startDownload', {
+            'url': url,
+            // Lets the service reuse an already-downloaded APK and resume a
+            // partial one (it keys the cache file by version and checks size).
+            'size': info.downloadSize ?? -1,
+            'version': info.versionLabel ?? info.latestVersion.toString(),
+          }) ??
+          false;
+
+      if (!reused) {
+        // Completes when the service reports done (installer already launched),
+        // or throws UpdateCancelled / an error.
+        await done.future;
+      }
     } finally {
       await progressWatch.cancel();
       await cancelWatch?.cancel();

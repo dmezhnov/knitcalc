@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.app.ActivityCompat
@@ -76,8 +77,19 @@ class MainActivity : FlutterActivity() {
                         if (url == null) {
                             result.error("no_url", "Missing download url", null)
                         } else {
-                            startDownloadService(url)
-                            result.success(null)
+                            val size = (call.argument<Number>("size"))?.toLong() ?: -1L
+                            val version = call.argument<String>("version") ?: "latest"
+                            // Already fully downloaded? Install it now and tell Dart
+                            // it was reused, so it doesn't wait on the progress stream.
+                            val cached = UpdateDownloadService.cachedApk(this, version)
+                            if (size > 0 && cached.exists() && cached.length() == size) {
+                                lastLaunchedInstallPath = null
+                                launchInstall(cached.absolutePath)
+                                result.success(true)
+                            } else {
+                                startDownloadService(url, size, version)
+                                result.success(false)
+                            }
                         }
                     }
                     "pauseDownload" -> {
@@ -97,7 +109,7 @@ class MainActivity : FlutterActivity() {
                         if (path == null) {
                             result.error("no_path", "Missing apk path", null)
                         } else {
-                            installApk(path)
+                            launchInstall(path)
                             result.success(null)
                         }
                     }
@@ -137,11 +149,16 @@ class MainActivity : FlutterActivity() {
     /** Starts the download service for [url]. It runs plain (no notification)
      *  while the app is foreground and only promotes itself to a foreground
      *  service with a notification once the app is backgrounded (see
-     *  [onStart]/[onStop]). */
-    private fun startDownloadService(url: String) {
+     *  [onStart]/[onStop]). [size] and [version] let it reuse a cached APK. */
+    private fun startDownloadService(url: String, size: Long, version: String) {
+        // Re-arm install for this attempt, so a user who cancelled the installer
+        // and tapped "Update" again gets prompted once more.
+        lastLaunchedInstallPath = null
         val intent = Intent(this, UpdateDownloadService::class.java).apply {
             action = UpdateDownloadService.ACTION_START
             putExtra(UpdateDownloadService.EXTRA_URL, url)
+            putExtra(UpdateDownloadService.EXTRA_SIZE, size)
+            putExtra(UpdateDownloadService.EXTRA_VERSION, version)
         }
         startService(intent)
     }
@@ -152,6 +169,34 @@ class MainActivity : FlutterActivity() {
         // progress instead). In-process call — a lifecycle Intent would hit the
         // background foreground-service-start ban.
         UpdateDownloadService.instance?.onAppForeground()
+        // Auto-install an update that finished while we were away — the service
+        // couldn't launch the installer Activity from the background, but we can
+        // now. (No-op if nothing is pending or it was already launched.)
+        UpdateDownloadService.pendingInstallPath?.let { path ->
+            UpdateDownloadService.pendingInstallPath = null
+            launchInstall(path)
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Cold start from a "downloaded" notification tap.
+        handleInstallIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleInstallIntent(intent)
+    }
+
+    /** Tapping the "downloaded" notification routes here so the install goes
+     *  through the same deduped [launchInstall] as the other paths. */
+    private fun handleInstallIntent(intent: Intent?) {
+        intent?.getStringExtra(EXTRA_INSTALL_PATH)?.let { path ->
+            UpdateDownloadService.pendingInstallPath = null
+            launchInstall(path)
+        }
     }
 
     override fun onStop() {
@@ -271,8 +316,15 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    /** Hands a downloaded APK to the system package installer. */
-    private fun installApk(path: String) {
+    /** Hands a downloaded APK to the system package installer.
+     *
+     *  Deduped by path: foreground completion (Dart "done"), the auto-install on
+     *  return ([onStart]), and the "downloaded" notification tap all funnel here,
+     *  so the installer is launched at most once per downloaded file. */
+    private fun launchInstall(path: String) {
+        if (path == lastLaunchedInstallPath) return
+        lastLaunchedInstallPath = path
+
         val file = File(path)
         val uri: Uri =
             FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
@@ -285,5 +337,15 @@ class MainActivity : FlutterActivity() {
             }
 
         startActivity(intent)
+    }
+
+    companion object {
+        /** Notification-tap extra carrying the APK path to install. */
+        const val EXTRA_INSTALL_PATH = "install_path"
+
+        /** Last APK path handed to the installer, so the several install entry
+         *  points don't double-prompt for the same file. */
+        @Volatile
+        private var lastLaunchedInstallPath: String? = null
     }
 }
