@@ -1,10 +1,10 @@
 {
-    "version": "1.8.54+77",
+    "version": "1.8.55+78",
     "description": "KnitCalc is a knitting calculator",
     "homepage": "https://github.com/dmezhnov/knitcalc",
     "license": "MIT",
-    "url": "https://github.com/dmezhnov/knitcalc/releases/download/v1.8.54+77/knitcalc-windows-x64-1.8.54+77.zip",
-    "hash": "b59e0adf7e61ecb2198a4faa061859ab1b628851647a7df43ed6c190622f0219",
+    "url": "https://github.com/dmezhnov/knitcalc/releases/download/v1.8.55+78/knitcalc-windows-x64-1.8.55+78.zip",
+    "hash": "52fe412f9efbe42c1597ce257ba7c67804a44428e75b85111d20a913aa13d213",
     "bin": "knitcalc.exe",
     "shortcuts": [["knitcalc.exe", "KnitCalc"]],
     "checkver": {
