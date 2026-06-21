@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Update download foreground-service notification (mirrors the in-app
+         progress dialog). Default/English; Russian in values-ru. -->
+    <string name="update_notification_title">Downloading update</string>
+    <string name="update_notification_preparing">Preparing…</string>
+    <string name="update_notification_paused">Paused</string>
+    <!-- %1$s downloaded MB, %2$s total MB, %3$d percent. -->
+    <string name="update_notification_progress">%1$s / %2$s MB · %3$d%%</string>
+    <string name="update_action_pause">Pause</string>
+    <string name="update_action_resume">Resume</string>
+    <string name="update_action_cancel">Cancel</string>
+    <string name="update_notification_ready_title">Update downloaded</string>
+    <string name="update_notification_ready_text">Tap to install</string>
+</resources>
