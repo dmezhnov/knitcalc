@@ -62,6 +62,15 @@ class MainActivity : FlutterActivity() {
                         ensureNotificationPermission()
                         result.success(null)
                     }
+                    "setNotificationStrings" -> {
+                        // The app's chosen language for the download notification,
+                        // so it follows the in-app toggle rather than the device.
+                        val map = (call.arguments as? Map<*, *>)
+                            ?.entries
+                            ?.associate { it.key.toString() to it.value.toString() }
+                        UpdateNotificationStrings.values = map
+                        result.success(null)
+                    }
                     "startDownload" -> {
                         val url = call.argument<String>("url")
                         if (url == null) {

@@ -19,6 +19,7 @@ import 'package:knitcalc/storage/projects_repository.dart';
 import 'package:knitcalc/storage/projects_store.dart';
 import 'package:knitcalc/storage/saved_project.dart';
 import 'package:knitcalc/storage/synced_projects_store.dart';
+import 'package:knitcalc/update/android_notification_strings.dart';
 import 'package:knitcalc/update/app_version.dart';
 import 'package:knitcalc/update/channel.dart';
 import 'package:knitcalc/update/ui/update_banner.dart';
@@ -161,6 +162,10 @@ class _HomeState extends State<Home> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    // Keep the native download notification in the app's chosen language; this
+    // fires initially and on every locale switch (Android only; no-op elsewhere).
+    syncAndroidUpdateNotificationStrings(AppLocalizations.of(context));
 
     final auth = AuthScope.of(context);
 

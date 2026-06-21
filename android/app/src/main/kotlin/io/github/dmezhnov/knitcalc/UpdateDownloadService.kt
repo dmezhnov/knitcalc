@@ -61,6 +61,19 @@ object UpdateProgressBridge {
 }
 
 /**
+ * Latest notification strings pushed from Dart (see
+ * `syncAndroidUpdateNotificationStrings`), so the download notification follows
+ * the in-app language toggle rather than the device locale. Null until the app
+ * sets them, in which case the service falls back to its bundled resources.
+ */
+object UpdateNotificationStrings {
+    @Volatile
+    var values: Map<String, String>? = null
+
+    fun get(key: String): String? = values?.get(key)
+}
+
+/**
  * Foreground service that downloads the update APK and hands it to the system
  * installer. It keeps running while the app is backgrounded and shows an ongoing
  * notification mirroring the in-app progress dialog: a progress bar, percentage,
@@ -333,30 +346,42 @@ class UpdateDownloadService : Service() {
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            getString(R.string.update_notification_title),
+            localized("title", R.string.update_notification_title),
             NotificationManager.IMPORTANCE_LOW,
         )
         manager.createNotificationChannel(channel)
     }
+
+    /** App-pushed string for [key] (in the in-app language) or the bundled
+     *  resource [fallback] (device locale) if the app hasn't set one. */
+    private fun localized(key: String, fallback: Int): String =
+        UpdateNotificationStrings.get(key) ?: getString(fallback)
 
     private fun buildNotification(): Notification {
         val percent = if (total > 0) ((received * 100) / total).toInt() else 0
         val indeterminate = total <= 0
 
         val text = when {
-            paused -> getString(R.string.update_notification_paused)
-            total > 0 -> getString(
-                R.string.update_notification_progress,
-                mb(received),
-                mb(total),
-                percent,
-            )
-            else -> getString(R.string.update_notification_preparing)
+            paused -> localized("paused", R.string.update_notification_paused)
+            total > 0 -> {
+                val unit = UpdateNotificationStrings.get("mbUnit")
+                if (unit != null) {
+                    "${mb(received)} / ${mb(total)} $unit · $percent%"
+                } else {
+                    getString(
+                        R.string.update_notification_progress,
+                        mb(received),
+                        mb(total),
+                        percent,
+                    )
+                }
+            }
+            else -> localized("preparing", R.string.update_notification_preparing)
         }
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(getString(R.string.update_notification_title))
+            .setContentTitle(localized("title", R.string.update_notification_title))
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -366,19 +391,19 @@ class UpdateDownloadService : Service() {
         if (paused) {
             builder.addAction(
                 0,
-                getString(R.string.update_action_resume),
+                localized("resume", R.string.update_action_resume),
                 servicePendingIntent(ACTION_RESUME),
             )
         } else {
             builder.addAction(
                 0,
-                getString(R.string.update_action_pause),
+                localized("pause", R.string.update_action_pause),
                 servicePendingIntent(ACTION_PAUSE),
             )
         }
         builder.addAction(
             0,
-            getString(R.string.update_action_cancel),
+            localized("cancel", R.string.update_action_cancel),
             servicePendingIntent(ACTION_CANCEL),
         )
         return builder.build()
@@ -427,8 +452,8 @@ class UpdateDownloadService : Service() {
     private fun showInstallNotification(file: java.io.File) {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setContentTitle(getString(R.string.update_notification_ready_title))
-            .setContentText(getString(R.string.update_notification_ready_text))
+            .setContentTitle(localized("readyTitle", R.string.update_notification_ready_title))
+            .setContentText(localized("readyText", R.string.update_notification_ready_text))
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(installPendingIntent(file))
