@@ -6,7 +6,7 @@ description: 'KnitCalc is a knitting calculator'
 
 publish_to: none
 
-version: 1.8.61+84
+version: 1.8.62+85
 
 environment:
     sdk: ^3.11.4

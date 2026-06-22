@@ -37,11 +37,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// repository when signed out, a [SyncedProjectsStore] (with a first-login
 /// upload prompt) when signed in. Switching accounts rebuilds the store.
 class Home extends StatefulWidget {
-  const Home({super.key, this.storeBuilder});
+  const Home({super.key, this.storeBuilder, this.updateServiceBuilder});
 
   /// Builds the backing store for the given auth state. Defaults to the real
   /// local/synced selection; overridden in tests to inject a fake remote.
   final ProjectsStore Function(AuthService auth)? storeBuilder;
+
+  /// Resolves the update service for an update check. Defaults to channel
+  /// detection plus the real factory; overridden in tests to inject a fake
+  /// (e.g. a reachable source that reports "no update" while sync is blocked).
+  final Future<UpdateService> Function()? updateServiceBuilder;
 
   @override
   State<Home> createState() => _HomeState();
@@ -88,6 +93,16 @@ class _HomeState extends State<Home> {
   /// and so a sync + update-check failure in the same pass surface only one.
   ScaffoldFeatureController<MaterialBanner, MaterialBannerClosedReason>?
   _networkErrorBanner;
+
+  /// Whether the last cloud sync / update check could not reach its source.
+  /// They are tracked separately because the two sources can have different
+  /// reachability: on web the update check reads `version.json` from the page's
+  /// own origin (always reachable) while cloud sync hits Firestore (which an ISP
+  /// can block). The shared banner shows while *either* is failing and clears
+  /// only once *both* recover, so a reachable update source no longer tears down
+  /// the banner a blocked sync legitimately raised (and vice versa).
+  bool _syncNetworkError = false;
+  bool _updateNetworkError = false;
 
   /// Drives the pull-to-refresh indicator so the account menu's "Sync" item can
   /// trigger the same gesture (spinner + [_sync]) without a real pull.
@@ -210,11 +225,15 @@ class _HomeState extends State<Home> {
     _checkForUpdate();
   }
 
+  /// The real update service: detect the install channel and build for it.
+  Future<UpdateService> _defaultUpdateService() async =>
+      createUpdateService(await detectChannel());
+
   Future<void> _checkForUpdate() async {
     _lastUpdateCheck = DateTime.now();
 
-    final channel = await detectChannel();
-    final service = createUpdateService(channel);
+    final service =
+        await (widget.updateServiceBuilder ?? _defaultUpdateService)();
 
     final UpdateInfo? info;
     try {
@@ -222,12 +241,12 @@ class _HomeState extends State<Home> {
     } on Object {
       // The check couldn't reach its source (offline / blocked). Show a
       // retryable network-error banner instead of silently doing nothing.
-      _showNetworkError();
+      _setUpdateNetworkError(true);
       return;
     }
 
-    // The source was reachable, so any earlier network-error banner is stale.
-    _clearNetworkError();
+    // The update source was reachable; clear the banner only if sync is also up.
+    _setUpdateNetworkError(false);
 
     if (info == null || !mounted) {
       return;
@@ -245,13 +264,41 @@ class _HomeState extends State<Home> {
     _showUpdateBanner(service, info);
   }
 
-  /// Shows the retryable network-error banner (in the same slot as the update
-  /// banner), once per failed pass, when sync or the update check can't reach
-  /// the network.
-  void _showNetworkError() {
-    if (_networkErrorBanner != null || !mounted) {
+  /// Records whether cloud sync could reach Firestore, then reconciles the
+  /// shared network-error banner.
+  void _setSyncNetworkError(bool failed) {
+    _syncNetworkError = failed;
+    _reconcileNetworkBanner();
+  }
+
+  /// Records whether the update check could reach its source, then reconciles
+  /// the shared network-error banner.
+  void _setUpdateNetworkError(bool failed) {
+    _updateNetworkError = failed;
+    _reconcileNetworkBanner();
+  }
+
+  /// Shows the retryable network-error banner while either source is failing and
+  /// closes it once both recover. The banner lives in the same slot as the
+  /// update banner, so only one is ever on screen.
+  void _reconcileNetworkBanner() {
+    if (!mounted) {
       return;
     }
+
+    final shouldShow = _syncNetworkError || _updateNetworkError;
+
+    if (!shouldShow) {
+      // Both sources are reachable again — drop the banner if one is up.
+      _networkErrorBanner?.close();
+      _networkErrorBanner = null;
+      return;
+    }
+
+    if (_networkErrorBanner != null) {
+      return;
+    }
+
     final controller = showNetworkErrorBanner(context, onRetry: _retryNetwork);
     _networkErrorBanner = controller;
     // Drop the reference once this specific banner closes (Retry, a clear, or a
@@ -261,13 +308,6 @@ class _HomeState extends State<Home> {
         _networkErrorBanner = null;
       }
     });
-  }
-
-  /// Closes the network-error banner after a later operation succeeds, so it
-  /// doesn't linger once connectivity is back.
-  void _clearNetworkError() {
-    _networkErrorBanner?.close();
-    _networkErrorBanner = null;
   }
 
   /// Retry action for the network-error banner. Plays the same pull-to-refresh
@@ -342,12 +382,12 @@ class _HomeState extends State<Home> {
       await _maybeMigrate(store);
       try {
         final synced = await store.sync();
-        _clearNetworkError();
+        _setSyncNetworkError(false);
         return synced;
       } on FirestoreException {
         // Offline / blocked: keep showing the cached list and surface the
         // retryable network-error banner at the top (no bottom snackbar).
-        _showNetworkError();
+        _setSyncNetworkError(true);
         return store.loadAll();
       }
     }
