@@ -110,8 +110,27 @@ class AndroidUpdateService implements UpdateService {
 
     final done = Completer<void>();
 
+    // True while applying a service-originated state change to [control] (below),
+    // so the listener doesn't echo a redundant command back to the service. The
+    // echo is only wanted for dialog-originated changes; echoing a native-
+    // originated pause can race a late in-flight "downloading" event into a
+    // spurious resume that un-pauses the download.
+    var applyingRemoteState = false;
+
+    void applyRemote(void Function() change) {
+      applyingRemoteState = true;
+      try {
+        change();
+      } finally {
+        applyingRemoteState = false;
+      }
+    }
+
     // Relay the dialog's Pause/Resume and Cancel to the service.
     void pauseListener() {
+      if (applyingRemoteState) {
+        return;
+      }
       androidUpdateChannel.invokeMethod<void>(
         control!.isPaused ? 'pauseDownload' : 'resumeDownload',
       );
@@ -137,12 +156,12 @@ class AndroidUpdateService implements UpdateService {
 
         switch (state) {
           case 'downloading':
-            control?.resume();
+            applyRemote(() => control?.resume());
             if (onProgress != null && total > 0) {
               onProgress(DownloadProgress(received: received, total: total));
             }
           case 'paused':
-            control?.pause();
+            applyRemote(() => control?.pause());
             if (onProgress != null && total > 0) {
               onProgress(DownloadProgress(received: received, total: total));
             }
