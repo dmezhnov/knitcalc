@@ -17,6 +17,9 @@ import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/l10n/locale_scope.dart';
 import 'package:knitcalc/storage/saved_project.dart';
 import 'package:knitcalc/storage/synced_projects_store.dart';
+import 'package:knitcalc/update/download_control.dart';
+import 'package:knitcalc/update/update_info.dart';
+import 'package:knitcalc/update/update_service.dart';
 
 /// A remote whose pull fails, modelling a blocked/offline cloud. The first
 /// [calls] count lets a retry test see the pull was attempted again.
@@ -31,6 +34,21 @@ class FailingRemote implements RemoteProjects {
 
   @override
   Future<void> putProject(String uid, SavedProject project) async {}
+}
+
+/// A reachable update source that reports "no update available" without
+/// throwing — models web, where the update check reads `version.json` from the
+/// page's own origin even while Firestore (cloud sync) is blocked.
+class ReachableNoUpdateService implements UpdateService {
+  @override
+  Future<UpdateInfo?> checkForUpdate() async => null;
+
+  @override
+  Future<void> startUpdate(
+    UpdateInfo info, {
+    UpdateProgressCallback? onProgress,
+    DownloadControl? control,
+  }) async {}
 }
 
 AuthService _signedInAuth() => AuthService(
@@ -133,6 +151,53 @@ void main() {
 
     expect(remote.calls, greaterThan(attemptsBeforeRetry));
     // Still failing, so the banner is back.
+    expect(find.text(bannerText), findsOneWidget);
+  });
+
+  testWidgets('a reachable update source does not clear a blocked-sync banner', (
+    tester,
+  ) async {
+    // Models web: Firestore (sync) is blocked but version.json (the update
+    // check) is reachable. The successful update check must not tear down the
+    // banner the failed sync raised.
+    final session = AuthSession(
+      uid: 'uid1',
+      email: 'a@b.com',
+      idToken: 'ID',
+      refreshToken: 'R',
+      expiresAt: DateTime.now().add(const Duration(hours: 1)),
+    );
+    SharedPreferences.setMockInitialValues({
+      'auth_session': jsonEncode(session.toJson()),
+      'migrated_uid1': true,
+    });
+
+    final auth = _signedInAuth();
+    await auth.init();
+
+    final remote = FailingRemote();
+    await tester.pumpWidget(
+      _wrap(
+        auth,
+        Home(
+          storeBuilder: (a) => SyncedProjectsStore(uid: a.uid!, remote: remote),
+          updateServiceBuilder: () async => ReachableNoUpdateService(),
+        ),
+      ),
+    );
+
+    await _settle(tester);
+
+    // Sync failed while the update check succeeded — the banner must stay.
+    expect(find.text(bannerText), findsOneWidget);
+
+    // And it survives a retry: the pull is re-attempted and still fails, while
+    // the update check keeps succeeding, so the banner remains on screen.
+    final attemptsBeforeRetry = remote.calls;
+    await tester.tap(find.text('Повторить'));
+    await _settle(tester);
+
+    expect(remote.calls, greaterThan(attemptsBeforeRetry));
     expect(find.text(bannerText), findsOneWidget);
   });
 }
