@@ -114,6 +114,12 @@ class UpdateDownloadService : Service() {
         private const val APK_PREFIX = "knitcalc-update"
         private const val BUFFER = 64 * 1024
         private const val EMIT_INTERVAL_MS = 150L
+
+        // Android caps notification enqueues at ~5/sec per package and silently
+        // drops the rest. Refresh the progress notification well under that so a
+        // dropped update can't strand a stale button; the Dart progress stream
+        // still ticks at EMIT_INTERVAL_MS for a smooth in-app dialog.
+        private const val NOTIFY_INTERVAL_MS = 900L
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -134,6 +140,7 @@ class UpdateDownloadService : Service() {
 
     private val resumeLock = Object()
     private var lastEmitMs = 0L
+    private var lastNotifyMs = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -323,12 +330,12 @@ class UpdateDownloadService : Service() {
 
                 try {
                     UpdateProgressBridge.emit("downloading", received, total)
-                    updateNotification()
+                    updateNotification(force = true)
                     while (true) {
                         if (cancelled) return
                         if (paused) {
                             UpdateProgressBridge.emit("paused", received, total)
-                            updateNotification()
+                            updateNotification(force = true)
                             synchronized(resumeLock) {
                                 while (paused && !cancelled) resumeLock.wait()
                             }
@@ -372,13 +379,19 @@ class UpdateDownloadService : Service() {
     }
 
     private fun setPaused(value: Boolean) {
-        if (paused == value) return
+        if (paused == value) {
+            // No state change (e.g. a second Pause tap after the prior Resume-button
+            // update was rate-limited away). Force a refresh anyway so a stale button
+            // reconciles instead of looking dead.
+            updateNotification(force = true)
+            return
+        }
         paused = value
         if (!value) {
             synchronized(resumeLock) { resumeLock.notifyAll() }
         }
         UpdateProgressBridge.emit(if (value) "paused" else "downloading", received, total)
-        updateNotification()
+        updateNotification(force = true)
     }
 
     private fun doCancel() {
@@ -461,7 +474,7 @@ class UpdateDownloadService : Service() {
         return builder.build()
     }
 
-    private fun updateNotification() {
+    private fun updateNotification(force: Boolean = false) {
         // Only refresh the notification while it is shown (app backgrounded);
         // posting one while foreground would create the very notification we keep
         // hidden until the user leaves the app.
@@ -475,6 +488,13 @@ class UpdateDownloadService : Service() {
         // the build to the main looper makes the last post win and read paused=true.
         main.post {
             if (appInForeground) return@post
+            // Rate-limit progress refreshes (force=false) to stay under Android's
+            // ~5/sec enqueue cap, so a state change (force=true, e.g. Pause→Resume)
+            // is never dropped as part of a burst. lastNotifyMs is only touched on
+            // this (main) thread, so no synchronization is needed.
+            val now = System.currentTimeMillis()
+            if (!force && now - lastNotifyMs < NOTIFY_INTERVAL_MS) return@post
+            lastNotifyMs = now
             getSystemService(NotificationManager::class.java)
                 .notify(NOTIFICATION_ID, buildNotification())
         }
