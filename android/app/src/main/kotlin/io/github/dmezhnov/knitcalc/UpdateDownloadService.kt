@@ -466,8 +466,18 @@ class UpdateDownloadService : Service() {
         // posting one while foreground would create the very notification we keep
         // hidden until the user leaves the app.
         if (appInForeground) return
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, buildNotification())
+        // Build and post on the main thread so all updates are serialized on one
+        // looper and the notification is built from the *current* state at post
+        // time. The worker thread and the action-handling main thread both refresh
+        // the notification; if a worker-built "downloading" (Pause button) snapshot
+        // were posted after a main-thread "paused" (Resume button) one, the shutter
+        // would keep showing Pause while the download is actually paused. Deferring
+        // the build to the main looper makes the last post win and read paused=true.
+        main.post {
+            if (appInForeground) return@post
+            getSystemService(NotificationManager::class.java)
+                .notify(NOTIFICATION_ID, buildNotification())
+        }
     }
 
     private fun mb(bytes: Long): String = String.format("%.1f", bytes / 1_048_576.0)
