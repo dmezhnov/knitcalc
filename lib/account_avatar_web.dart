@@ -25,7 +25,12 @@ Widget buildAccountAvatar(String photoUrl, double radius) {
         ..referrerPolicy = 'no-referrer'
         ..style.setProperty('width', '100%')
         ..style.setProperty('height', '100%')
-        ..style.setProperty('object-fit', 'cover');
+        ..style.setProperty('object-fit', 'cover')
+        // The <img> is a DOM element layered over the Flutter canvas, so it
+        // would otherwise swallow taps before they reach the PopupMenuButton
+        // underneath — only the ring around the image (plain canvas) opened the
+        // menu. Letting pointer events pass through restores tapping the photo.
+        ..style.setProperty('pointer-events', 'none');
     });
   }
 
