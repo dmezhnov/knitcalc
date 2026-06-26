@@ -45,24 +45,6 @@ void main() {
   });
 
   group('windowsChannelForExecutable', () {
-    test('maps a WinGet\\Packages path to windowsWinget', () {
-      expect(
-        windowsChannelForExecutable(
-          r'C:\Users\me\AppData\Local\Microsoft\WinGet\Packages\Dmezhnov.KnitCalc_x\knitcalc.exe',
-        ),
-        Channel.windowsWinget,
-      );
-    });
-
-    test('is case-insensitive and tolerates forward slashes', () {
-      expect(
-        windowsChannelForExecutable(
-          'C:/Users/me/AppData/Local/Microsoft/winget/packages/X/knitcalc.exe',
-        ),
-        Channel.windowsWinget,
-      );
-    });
-
     test('maps a scoop\\apps path to windowsScoop', () {
       expect(
         windowsChannelForExecutable(
@@ -79,6 +61,15 @@ void main() {
       );
     });
 
+    test('is case-insensitive and tolerates forward slashes', () {
+      expect(
+        windowsChannelForExecutable(
+          'C:/Users/me/Scoop/Apps/knitcalc/current/knitcalc.exe',
+        ),
+        Channel.windowsScoop,
+      );
+    });
+
     test('maps a chocolatey\\lib path to windowsChocolatey', () {
       expect(
         windowsChannelForExecutable(
@@ -88,7 +79,15 @@ void main() {
       );
     });
 
-    test('maps anything else to windowsManual', () {
+    test('maps an installer install (incl. winget) to windowsManual', () {
+      // Per-user Inno install location, used both for a direct install and a
+      // winget install (winget runs the same installer).
+      expect(
+        windowsChannelForExecutable(
+          r'C:\Users\me\AppData\Local\Programs\KnitCalc\knitcalc.exe',
+        ),
+        Channel.windowsManual,
+      );
       expect(
         windowsChannelForExecutable(r'C:\Program Files\KnitCalc\knitcalc.exe'),
         Channel.windowsManual,

@@ -88,7 +88,8 @@ JSON
 
 fields="$(
     android_field
-    channel_field windows "knitcalc-windows-x64-${VERSION}.zip"
+    # Windows self-update downloads and runs the inno installer, not the zip.
+    channel_field windows "knitcalc-setup-x64-${VERSION}.exe"
     channel_field macos "knitcalc-macos-${VERSION}.zip"
     channel_field linux "knitcalc-linux-x64-${VERSION}.tar.gz"
 )"
