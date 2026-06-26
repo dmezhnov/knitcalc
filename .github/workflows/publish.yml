@@ -222,7 +222,9 @@ jobs:
         needs: linux-android-web
 
         outputs:
+            # zip hash for Scoop/Chocolatey; setup_sha256 for the winget (inno) manifest.
             sha256: ${{ steps.package.outputs.sha256 }}
+            setup_sha256: ${{ steps.package.outputs.setup_sha256 }}
 
         steps:
             - name: Checkout test branch
@@ -239,12 +241,17 @@ jobs:
             - name: Build Windows bundle
               run: mise build windows
 
-            # Exercises the real knitcalc_updater (FFI wait-for-pid + swap +
-            # relaunch) on native Windows; the build step already resolved the
-            # tool/updater package's dependencies.
-            - name: Run updater e2e test
-              run: dart test test/updater_e2e_test.dart
-              working-directory: tool/updater
+            # Build the per-user installer that winget and direct downloads use,
+            # and that the in-app self-update runs (see packaging/inno/knitcalc.iss).
+            # choco install is idempotent and shims ISCC onto PATH, so this works
+            # whether or not the runner image preinstalls Inno Setup.
+            - name: Build Inno Setup installer
+              shell: pwsh
+              run: |
+                  choco install innosetup -y --no-progress
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                  iscc /DAppVersion=${{ needs.linux-android-web.outputs.version }} packaging/inno/knitcalc.iss
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
             - name: Package Windows bundle
               id: package
@@ -252,11 +259,19 @@ jobs:
               run: |
                   Remove-Item -Recurse -Force release -ErrorAction SilentlyContinue
                   New-Item -ItemType Directory -Force -Path release/windows
+                  # Zip: consumed by Scoop and Chocolatey (their shims resolve the
+                  # adjacent DLLs correctly, unlike the winget portable alias).
                   $zip = "release/windows/knitcalc-windows-x64-${{ needs.linux-android-web.outputs.version }}.zip"
                   Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath $zip
-                  # The Scoop manifest and winget/Chocolatey submissions pin this hash.
+                  # The Scoop manifest and Chocolatey submission pin this hash.
                   $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
                   "sha256=$sha" >> $env:GITHUB_OUTPUT
+                  # Installer: winget (inno) and the in-app self-update; carry it
+                  # into release/ so the GitHub release attaches it.
+                  $setup = "knitcalc-setup-x64-${{ needs.linux-android-web.outputs.version }}.exe"
+                  Copy-Item "build/installer/$setup" "release/windows/$setup"
+                  $setupSha = (Get-FileHash "release/windows/$setup" -Algorithm SHA256).Hash.ToLower()
+                  "setup_sha256=$setupSha" >> $env:GITHUB_OUTPUT
 
             - name: Upload Windows artifact
               uses: actions/upload-artifact@v7
@@ -478,14 +493,19 @@ jobs:
               run: |
                   $full = '${{ needs.linux-android-web.outputs.version }}'
                   $bare = $full.Split('+')[0]
-                  $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$full/knitcalc-windows-x64-$full.zip"
+                  $base = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$full"
+                  # Chocolatey installs the zip; winget installs the inno setup.exe.
+                  $url = "$base/knitcalc-windows-x64-$full.zip"
+                  $setupUrl = "$base/knitcalc-setup-x64-$full.exe"
                   "full=$full" >> $env:GITHUB_OUTPUT
                   "bare=$bare" >> $env:GITHUB_OUTPUT
                   "url=$url" >> $env:GITHUB_OUTPUT
+                  "setup_url=$setupUrl" >> $env:GITHUB_OUTPUT
                   "sha256=${{ needs.windows.outputs.sha256 }}" >> $env:GITHUB_OUTPUT
 
-            # The first version has to be submitted by hand (wingetcreate update
-            # only works for packages already in winget-pkgs); see
+            # The first inno-installer version has to be submitted by hand
+            # (wingetcreate update can bump the url/version/hash but not switch
+            # the existing manifest's InstallerType from zip to inno); see
             # packaging/README.md. Failures are downgraded to warnings so a
             # missing first submission doesn't redden the release.
             - name: Submit to winget-pkgs
@@ -500,7 +520,7 @@ jobs:
                   Invoke-WebRequest -Uri 'https://aka.ms/wingetcreate/latest' -OutFile wingetcreate.exe
                   ./wingetcreate.exe update Dmezhnov.KnitCalc `
                     --version '${{ steps.facts.outputs.bare }}' `
-                    --urls '${{ steps.facts.outputs.url }}' `
+                    --urls '${{ steps.facts.outputs.setup_url }}' `
                     --submit --token $env:PACKAGING_GITHUB_TOKEN
                   if ($LASTEXITCODE -ne 0) {
                     Write-Host "::warning::wingetcreate failed — either Dmezhnov.KnitCalc is not in winget-pkgs yet (first submission is manual) or the token was rejected."

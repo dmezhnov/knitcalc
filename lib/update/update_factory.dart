@@ -11,7 +11,6 @@ import 'package:knitcalc/update/impl/pm/specs/flatpak_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/homebrew_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/scoop_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
-import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
 import 'package:knitcalc/update/impl/store/ios_app_store_service.dart';
 import 'package:knitcalc/update/impl/store/play_update_service.dart';
 import 'package:knitcalc/update/impl/store/store_listing_service.dart';
@@ -65,8 +64,6 @@ UpdateService createUpdateService(Channel channel) {
     // Package-manager installs: the manager owns updates — probe it for
     // availability (no GitHub, no lag) and run its upgrade command in a
     // terminal. Package ids inside the specs are placeholders until published.
-    case Channel.windowsWinget:
-      return createPackageManagerUpdateService(wingetSpec());
     case Channel.windowsScoop:
       return createPackageManagerUpdateService(scoopSpec());
     case Channel.windowsChocolatey:
@@ -85,8 +82,9 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.macosManual:
       return createMacosUpdateService(currentAppVersion());
 
-    // Manually installed Windows bundle: download the new zip from GitHub
-    // Releases and swap it in via a detached updater helper after the app exits.
+    // Installer-based Windows install (directly or via winget): download the
+    // new installer from GitHub Releases and run it silently — it swaps the
+    // bundle in place and relaunches after the app exits.
     case Channel.windowsManual:
       return createWindowsUpdateService(currentAppVersion());
 

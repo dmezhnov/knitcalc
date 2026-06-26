@@ -8,6 +8,15 @@ placeholders are filled in by `.github/workflows/publish.yml` after each release
 Chocolatey get the bare semver (`1.8.23` — both reject `+build` metadata); Scoop
 and Homebrew get the full version (`1.8.23+46`).
 
+On Windows the release ships two assets: the **Inno Setup installer**
+(`knitcalc-setup-x64-<full>.exe`, built from `packaging/inno/knitcalc.iss`) and
+the loose bundle zip (`knitcalc-windows-x64-<full>.zip`). winget installs the
+installer (per-user, `InstallerType: inno`) and the installer is also what the
+app downloads and runs to self-update. Scoop and Chocolatey install the zip —
+their shims launch `knitcalc.exe` by full path, so the adjacent DLLs resolve
+(unlike a winget portable alias). The installer is the recommended direct
+download for end users.
+
 The job is a no-op (with a workflow warning) until the corresponding secret is
 configured, so releases keep working before the one-time onboarding below.
 
@@ -17,12 +26,15 @@ configured, so releases keep working before the one-time onboarding below.
 
 1. Create a classic GitHub PAT with the `public_repo` scope and save it as the
    `PACKAGING_GITHUB_TOKEN` repository secret.
-2. The first version must be submitted to
+2. The first version (and any switch of `InstallerType`) must be submitted to
    [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) manually:
    render the three manifests (fill the placeholders for a released version),
    place them under `manifests/d/Dmezhnov/KnitCalc/<version>/` in a fork and
    open a PR. After it is merged, the workflow submits every following version
-   automatically via `wingetcreate update --submit`.
+   automatically via `wingetcreate update --submit`. Note: `wingetcreate update`
+   only bumps the url/version/hash — it can't change `InstallerType`, so the
+   move from the old `zip`/portable manifest to the current `inno` manifest
+   needs one such manual PR before the automated updates resume.
 
 ### Scoop (`packaging/scoop/`)
 

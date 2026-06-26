@@ -10,22 +10,25 @@ import 'package:knitcalc/update/download_control.dart';
 import 'package:knitcalc/update/update_service.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Spawns the detached updater helper and terminates the app. Injectable for
-/// tests. Receives the downloaded archive, the install directory and the
-/// executable to relaunch.
-typedef UpdateLauncher =
-    Future<void> Function(
-      String archivePath,
-      String installDir,
-      String executablePath,
-    );
+/// Spawns the downloaded installer detached and terminates the app. Injectable
+/// for tests. Receives the path to the freshly downloaded setup executable.
+typedef InstallerLauncher = Future<void> Function(String installerPath);
 
-/// Basename of the updater helper shipped inside the bundle (built by the
-/// `mise build-windows` task via `dart compile exe bin/knitcalc_updater.dart`).
-const String updaterExecutable = 'knitcalc_updater.exe';
+/// Silent-install switches for the Inno Setup installer:
+/// `/VERYSILENT /SUPPRESSMSGBOXES` runs without UI, `/NORESTART` suppresses a
+/// machine reboot, and the custom `/RELAUNCH` flag tells the installer's `[Run]`
+/// section to start KnitCalc again once the swap is done (see
+/// packaging/inno/knitcalc.iss). A fresh winget/manual install omits `/RELAUNCH`
+/// so it does not auto-launch the app.
+const List<String> installerSilentArgs = [
+  '/VERYSILENT',
+  '/SUPPRESSMSGBOXES',
+  '/NORESTART',
+  '/RELAUNCH',
+];
 
 UpdateService createWindowsUpdateService(AppVersion? current) {
-  // Only a real Windows desktop (incl. under Wine/Proton) swaps its own bundle;
+  // Only a real Windows desktop (incl. under Wine/Proton) runs the installer;
   // other dart:io targets (Linux/macOS builds of this factory) stay no-op.
   if (!Platform.isWindows) {
     return const NoopUpdateService();
@@ -34,37 +37,36 @@ UpdateService createWindowsUpdateService(AppVersion? current) {
   return WindowsUpdateService(current);
 }
 
-/// Self-updater for manually installed Windows bundles distributed as the
-/// `knitcalc-windows-x64-*.zip` GitHub Release asset.
+/// Self-updater for Windows installs made by the Inno Setup installer
+/// (`knitcalc-setup-x64-*.exe` GitHub Release asset) — whether installed by
+/// winget or by running the installer directly.
 ///
 /// Reads the available version from the remote store-versions document (see
-/// remote/store_versions.dart — the `windows` entry carries the download url,
-/// written by release CI), downloads the zip (reporting progress) and hands off
-/// to the bundled updater helper ([updaterExecutable]): the app copies the
-/// helper to a temp dir, spawns it detached with the running pid, and quits; the
-/// helper waits for the app to exit (so the bundle's files unlock), unpacks the
-/// zip over the install directory and relaunches. This works on both native
-/// Windows and Wine/Proton — neither lets a running process replace its own open
-/// files. Microsoft Store (MSIX) installs are handled by a [NoopUpdateService]
-/// instead. The zip itself still downloads from the GitHub CDN; only the version
-/// check moved off the rate-limited GitHub API.
+/// remote/store_versions.dart — the `windows` entry carries the installer's
+/// download url, written by release CI), downloads the installer (reporting
+/// progress) and hands off to it: the app spawns the installer silently and
+/// quits; the installer closes any running instance via the Windows Restart
+/// Manager, replaces the per-user install in place (no UAC — it installs under
+/// `%LOCALAPPDATA%\Programs`) and relaunches the app. Because the installer also
+/// refreshes the Add/Remove Programs version, winget stays consistent. Scoop and
+/// Chocolatey installs are detected as their own channels and update through the
+/// manager instead; Microsoft Store (MSIX) installs are handled by a
+/// [NoopUpdateService]. The installer itself still downloads from the GitHub
+/// CDN; only the version check moved off the rate-limited GitHub API.
 class WindowsUpdateService implements UpdateService {
   WindowsUpdateService(
     this._current, {
     HttpClient? httpClient,
-    UpdateLauncher? launch,
+    InstallerLauncher? launch,
     RemoteVersionsFetcher? fetch,
-    String? executablePath,
   }) : _httpClient = httpClient ?? HttpClient(),
        _launch = launch ?? _defaultLaunch,
-       _fetch = fetch ?? fetchStoreVersions,
-       _executablePath = executablePath ?? Platform.resolvedExecutable;
+       _fetch = fetch ?? fetchStoreVersions;
 
   final AppVersion? _current;
   final HttpClient _httpClient;
-  final UpdateLauncher _launch;
+  final InstallerLauncher _launch;
   final RemoteVersionsFetcher _fetch;
-  final String _executablePath;
 
   @override
   Future<UpdateInfo?> checkForUpdate() async {
@@ -90,43 +92,31 @@ class WindowsUpdateService implements UpdateService {
     }
 
     final dir = await getTemporaryDirectory();
-    final archive = File('${dir.path}/knitcalc-update.zip');
+    final installer = File('${dir.path}/knitcalc-setup.exe');
     await downloadFileWithControl(
       client: _httpClient,
       url: Uri.parse(url),
-      dest: archive,
+      dest: installer,
       onProgress: onProgress,
       control: control,
     );
 
-    final executable = _executablePath;
-    final installDir = File(executable).parent.path;
-
-    // Hands off to the detached helper and quits the app so it can swap the
+    // Hands off to the detached installer and quits the app so it can swap the
     // bundle; control does not return here on the default launcher.
-    await _launch(archive.path, installDir, executable);
+    await _launch(installer.path);
   }
 }
 
-/// Copies the bundled updater helper to a temp dir, launches it detached with
-/// the running pid and swap arguments, and exits so the helper can replace the
-/// running bundle once this process is gone. The helper runs from temp (not the
-/// install dir it overwrites) so it never locks its own target.
-Future<void> _defaultLaunch(
-  String archivePath,
-  String installDir,
-  String executablePath,
-) async {
-  final dir = await getTemporaryDirectory();
-  final updater = File('${dir.path}/$updaterExecutable');
-  File('$installDir/$updaterExecutable').copySync(updater.path);
-
-  await Process.start(updater.path, [
-    '$pid',
-    archivePath,
-    installDir,
-    executablePath,
-  ], mode: ProcessStartMode.detached);
+/// Launches the downloaded installer detached and silent, then exits so the
+/// installer can replace the running bundle once this process is gone (the
+/// Windows Restart Manager also closes a lingering instance). The installer
+/// relaunches the app itself via the `/RELAUNCH` flag.
+Future<void> _defaultLaunch(String installerPath) async {
+  await Process.start(
+    installerPath,
+    installerSilentArgs,
+    mode: ProcessStartMode.detached,
+  );
 
   exit(0);
 }

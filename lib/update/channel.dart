@@ -50,16 +50,14 @@ enum Channel {
   /// Windows from the Microsoft Store (MSIX) — updated by the store itself.
   windowsStore,
 
-  /// Windows, installed via winget — updated with `winget upgrade`.
-  windowsWinget,
-
   /// Windows, installed via Scoop — updated with `scoop update`.
   windowsScoop,
 
   /// Windows, installed via Chocolatey — updated with `choco upgrade`.
   windowsChocolatey,
 
-  /// Windows, installed manually (.zip) — download a new zip from GitHub.
+  /// Windows, installed by the Inno Setup installer (directly or via winget) —
+  /// self-updates by downloading and running the new installer from GitHub.
   windowsManual,
 
   /// Linux under snap — updated with `snap refresh`.
@@ -207,24 +205,21 @@ Channel androidChannelForInstaller(String? installer) {
 
 /// Maps a Windows executable path to its [Channel].
 ///
-/// Each Windows package manager unpacks the app under its own directory, so
-/// the executable path identifies the owner — and the owner must run the
-/// update rather than the app swapping its own files behind the manager's
-/// back:
+/// Scoop and Chocolatey unpack the app under their own directory, so the
+/// executable path identifies the owner — and the owner must run the update
+/// rather than the app updating itself behind the manager's back:
 ///
-/// - winget portable/zip packages live under `…\WinGet\Packages\<id>\…`;
 /// - Scoop apps live under `…\scoop\apps\<name>\…` (the `scoop` segment is the
 ///   default root for both per-user and global installs; a custom-named
-///   `$env:SCOOP` root is not recognized and falls back to manual);
+///   `$env:SCOOP` root is not recognized and falls back to the installer
+///   channel);
 /// - Chocolatey unpacks zip packages under `…\chocolatey\lib\<id>\…`.
 ///
-/// Anything else is treated as a manually unzipped bundle (GitHub self-update).
+/// Anything else is an Inno Setup installer install (directly or via winget,
+/// both landing under `…\Programs\KnitCalc\…`), which self-updates by running
+/// the new installer — [Channel.windowsManual].
 Channel windowsChannelForExecutable(String executablePath) {
   final normalized = executablePath.toLowerCase().replaceAll('/', '\\');
-
-  if (normalized.contains('\\winget\\packages\\')) {
-    return Channel.windowsWinget;
-  }
 
   if (normalized.contains('\\scoop\\apps\\')) {
     return Channel.windowsScoop;
