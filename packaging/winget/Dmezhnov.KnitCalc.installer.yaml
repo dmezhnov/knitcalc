@@ -1,18 +1,22 @@
 # {{VERSION}} is the bare semver; {{URL}}/{{SHA256}} point at the
-# knitcalc-windows-x64-<full version>.zip GitHub release asset. The zip is
-# installed as a portable package: winget extracts the whole bundle under
-# WinGet\Packages\ (which is how the app detects the winget channel) and
-# aliases knitcalc.exe.
+# knitcalc-setup-x64-<full version>.exe GitHub release asset (the Inno Setup
+# installer). It installs per-user under %LOCALAPPDATA%\Programs\KnitCalc, so the
+# app's DLLs sit next to knitcalc.exe and resolve — the old portable package
+# aliased knitcalc.exe via a symlink whose directory had no DLLs, which broke the
+# launch. The installer also lets the app self-update by running the new setup.exe
+# (see lib/update/impl/windows/windows_update_service_io.dart). ProductCode
+# matches Inno's Add/Remove Programs entry so winget tracks upgrades.
 PackageIdentifier: Dmezhnov.KnitCalc
 PackageVersion: '{{VERSION}}'
 Platform:
     - Windows.Desktop
 MinimumOSVersion: 10.0.17763.0
-InstallerType: zip
-NestedInstallerType: portable
-NestedInstallerFiles:
-    - RelativeFilePath: knitcalc.exe
-      PortableCommandAlias: knitcalc
+InstallerType: inno
+Scope: user
+InstallerSwitches:
+    Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+    SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART
+ProductCode: '{3E2280E5-0275-4912-A2FF-CB4B7F32C007}_is1'
 Installers:
     - Architecture: x64
       InstallerUrl: '{{URL}}'
