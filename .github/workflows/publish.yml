@@ -65,6 +65,13 @@ jobs:
 
             - name: Install mise
               uses: jdx/mise-action@v4
+              with:
+                  # Pin mise for reproducible CI: 2026.6.14 restores dangling
+                  # symlink shims from cache on Windows ("flutter.exe is not a
+                  # valid shim"), breaking the Windows build; 2026.6.11 is the
+                  # last release that builds cleanly. Bump once a newer mise
+                  # fixes the Windows shim regression.
+                  version: 2026.6.11
 
             - name: Install Linux build packages
               run: |
@@ -234,6 +241,13 @@ jobs:
 
             - name: Install mise
               uses: jdx/mise-action@v4
+              with:
+                  # Pin mise for reproducible CI: 2026.6.14 restores dangling
+                  # symlink shims from cache on Windows ("flutter.exe is not a
+                  # valid shim"), breaking the Windows build; 2026.6.11 is the
+                  # last release that builds cleanly. Bump once a newer mise
+                  # fixes the Windows shim regression.
+                  version: 2026.6.11
 
             - name: Enable Windows desktop
               run: flutter config --enable-windows-desktop
@@ -295,6 +309,13 @@ jobs:
 
             - name: Install mise
               uses: jdx/mise-action@v4
+              with:
+                  # Pin mise for reproducible CI: 2026.6.14 restores dangling
+                  # symlink shims from cache on Windows ("flutter.exe is not a
+                  # valid shim"), breaking the Windows build; 2026.6.11 is the
+                  # last release that builds cleanly. Bump once a newer mise
+                  # fixes the Windows shim regression.
+                  version: 2026.6.11
 
             - name: Enable Apple desktop
               run: flutter config --enable-macos-desktop
