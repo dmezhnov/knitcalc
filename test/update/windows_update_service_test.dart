@@ -31,11 +31,11 @@ void main() {
           'windows': const RemoteEntry(
             version: AppVersion(9, 9, 9),
             label: '9.9.9',
-            url: 'https://cdn.example.com/knitcalc-windows-x64-9.9.9.zip',
+            url: 'https://cdn.example.com/knitcalc-setup-x64-9.9.9.exe',
             size: 1234,
           ),
         }),
-        launch: (_, _, _) async {},
+        launch: (_) async {},
       );
 
       final info = await service.checkForUpdate();
@@ -43,10 +43,7 @@ void main() {
       expect(info, isNotNull);
       expect(info!.latestVersion, const AppVersion(9, 9, 9));
       expect(info.action, UpdateAction.inApp);
-      expect(
-        info.url,
-        'https://cdn.example.com/knitcalc-windows-x64-9.9.9.zip',
-      );
+      expect(info.url, 'https://cdn.example.com/knitcalc-setup-x64-9.9.9.exe');
       expect(info.downloadSize, 1234);
     });
 
@@ -57,10 +54,10 @@ void main() {
           'windows': const RemoteEntry(
             version: AppVersion(1, 0, 0),
             label: '1.0.0',
-            url: 'https://cdn.example.com/x.zip',
+            url: 'https://cdn.example.com/x.exe',
           ),
         }),
-        launch: (_, _, _) async {},
+        launch: (_) async {},
       );
 
       expect(await service.checkForUpdate(), isNull);
@@ -70,7 +67,7 @@ void main() {
       final service = WindowsUpdateService(
         const AppVersion(1, 0, 0),
         fetch: fakeStoreVersions(const {}),
-        launch: (_, _, _) async {},
+        launch: (_) async {},
       );
 
       expect(await service.checkForUpdate(), isNull);
@@ -80,7 +77,7 @@ void main() {
       final service = WindowsUpdateService(
         const AppVersion(1, 0, 0),
         fetch: failingStoreVersions(),
-        launch: (_, _, _) async {},
+        launch: (_) async {},
       );
 
       expect(service.checkForUpdate(), throwsA(isA<UpdateCheckException>()));
@@ -88,17 +85,15 @@ void main() {
   });
 
   group('startUpdate', () {
-    test('downloads the archive and hands swap args to the launcher', () async {
-      final body = utf8.encode('PK-fake-windows-zip');
+    test('downloads the installer and hands it to the launcher', () async {
+      final body = utf8.encode('MZ-fake-windows-installer');
       final server = await FakeReleaseServer.start(
-        assetName: 'knitcalc-windows-x64-9.9.9.zip',
+        assetName: 'knitcalc-setup-x64-9.9.9.exe',
         assetBytes: body,
       );
       addTearDown(server.stop);
 
-      String? launchedArchive;
-      String? launchedInstallDir;
-      String? launchedExecutable;
+      String? launchedInstaller;
       final progress = <double>[];
 
       final service = WindowsUpdateService(
@@ -111,12 +106,7 @@ void main() {
             size: body.length,
           ),
         }),
-        executablePath: '/Apps/knitcalc/knitcalc.exe',
-        launch: (archive, installDir, executable) async {
-          launchedArchive = archive;
-          launchedInstallDir = installDir;
-          launchedExecutable = executable;
-        },
+        launch: (installer) async => launchedInstaller = installer,
       );
 
       final info = await service.checkForUpdate();
@@ -126,18 +116,16 @@ void main() {
       );
 
       expect(server.assetRequests, 1);
-      final archive = File('${tmp.path}/knitcalc-update.zip');
-      expect(archive.existsSync(), isTrue);
-      expect(archive.readAsBytesSync(), body);
+      final installer = File('${tmp.path}/knitcalc-setup.exe');
+      expect(installer.existsSync(), isTrue);
+      expect(installer.readAsBytesSync(), body);
 
       expect(progress, isNotEmpty);
       expect(progress.last, 1.0);
 
-      // The helper is handed the downloaded archive, the install dir (parent of
-      // the injected executable) and the executable to relaunch.
-      expect(launchedArchive, '${tmp.path}/knitcalc-update.zip');
-      expect(launchedInstallDir, '/Apps/knitcalc');
-      expect(launchedExecutable, '/Apps/knitcalc/knitcalc.exe');
+      // The launcher is handed the downloaded installer; it runs it silently and
+      // the installer swaps the bundle in place and relaunches.
+      expect(launchedInstaller, '${tmp.path}/knitcalc-setup.exe');
     });
   });
 }

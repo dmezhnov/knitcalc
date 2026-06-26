@@ -15,7 +15,5 @@ $packageArgs = @{
 Install-ChocolateyZipPackage @packageArgs
 
 # Shimgen shims every exe under tools/ after this script: mark the app GUI so
-# its shim doesn't hold a console window, and keep the bundled self-updater
-# helper out of PATH entirely.
+# its shim doesn't hold a console window.
 New-Item -Path "$toolsDir\knitcalc.exe.gui" -ItemType File -Force | Out-Null
-New-Item -Path "$toolsDir\knitcalc_updater.exe.ignore" -ItemType File -Force | Out-Null
