@@ -1,29 +1,31 @@
 /// Owns the current [AuthSession] and notifies listeners when it changes.
 ///
-/// The session is persisted in [SharedPreferences] so a sign-in survives app
-/// restarts. The id token is refreshed lazily: [freshIdToken] hands callers a
-/// token that is guaranteed valid for the next call, refreshing transparently
-/// when the stored one is near expiry. A failed refresh signs the user out.
+/// The session is persisted via a [SessionStore] so a sign-in survives app
+/// restarts (a standalone file on desktop/mobile, SharedPreferences on web — see
+/// session_store.dart). The id token is refreshed lazily: [freshIdToken] hands
+/// callers a token that is guaranteed valid for the next call, refreshing
+/// transparently when the stored one is near expiry. A failed refresh signs the
+/// user out.
 library;
 
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_session.dart';
 import 'default_google_authenticator.dart';
 import 'firebase_auth_client.dart';
 import 'firebase_config.dart';
 import 'google_oauth.dart';
+import 'session_store.dart';
 
 class AuthService extends ChangeNotifier {
-  AuthService({FirebaseAuthClient? client})
-    : _client = client ?? FirebaseAuthClient(config: firebaseConfig);
-
-  static const String _storageKey = 'auth_session';
+  AuthService({FirebaseAuthClient? client, SessionStore? store})
+    : _client = client ?? FirebaseAuthClient(config: firebaseConfig),
+      _store = store ?? defaultSessionStore();
 
   final FirebaseAuthClient _client;
+  final SessionStore _store;
 
   AuthSession? _session;
 
@@ -46,8 +48,7 @@ class AuthService extends ChangeNotifier {
   /// Loads any persisted session at startup. Does not eagerly refresh; the first
   /// [freshIdToken] call will refresh if needed.
   Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_storageKey);
+    final raw = await _store.read();
 
     if (raw == null || raw.isEmpty) {
       return;
@@ -57,7 +58,7 @@ class AuthService extends ChangeNotifier {
       _session = AuthSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
       notifyListeners();
     } on FormatException {
-      await prefs.remove(_storageKey);
+      await _store.clear();
     }
   }
 
@@ -183,8 +184,7 @@ class AuthService extends ChangeNotifier {
 
   Future<void> signOut() async {
     _session = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_storageKey);
+    await _store.clear();
     notifyListeners();
   }
 
@@ -231,8 +231,7 @@ class AuthService extends ChangeNotifier {
 
   Future<void> _adopt(AuthSession session) async {
     _session = session;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_storageKey, jsonEncode(session.toJson()));
+    await _store.write(jsonEncode(session.toJson()));
     notifyListeners();
   }
 }
