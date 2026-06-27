@@ -27,6 +27,13 @@ class _AccountMenuState extends State<AccountMenu> {
   // account_avatar_web.dart).
   final _menuKey = GlobalKey<PopupMenuButtonState<void>>();
 
+  // Whether the menu is currently open. The web avatar's <img> renders above the
+  // open menu's modal barrier, so a tap on the photo never dismisses the menu —
+  // without this guard it would call showButtonMenu() again and stack a second
+  // menu on top. All items are void (no selected value), so onCanceled fires on
+  // every close, whether by picking an item or tapping outside.
+  bool _menuOpen = false;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -46,12 +53,16 @@ class _AccountMenuState extends State<AccountMenu> {
 
     return PopupMenuButton<void>(
       key: _menuKey,
+      onOpened: () => _menuOpen = true,
+      onCanceled: () => _menuOpen = false,
       icon: photoUrl == null
           ? const Icon(Icons.account_circle)
           : buildAccountAvatar(
               photoUrl,
               14,
-              onTap: () => _menuKey.currentState?.showButtonMenu(),
+              onTap: () {
+                if (!_menuOpen) _menuKey.currentState?.showButtonMenu();
+              },
             ),
       tooltip: auth.email,
       itemBuilder: (context) => [
