@@ -11,6 +11,7 @@ import 'package:knitcalc/update/impl/pm/specs/flatpak_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/homebrew_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/scoop_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
 import 'package:knitcalc/update/impl/store/ios_app_store_service.dart';
 import 'package:knitcalc/update/impl/store/play_update_service.dart';
 import 'package:knitcalc/update/impl/store/store_listing_service.dart';
@@ -68,6 +69,8 @@ UpdateService createUpdateService(Channel channel) {
       return createPackageManagerUpdateService(scoopSpec());
     case Channel.windowsChocolatey:
       return createPackageManagerUpdateService(chocolateySpec());
+    case Channel.windowsWinget:
+      return createPackageManagerUpdateService(wingetSpec());
     case Channel.macosHomebrew:
       return createPackageManagerUpdateService(homebrewSpec());
     case Channel.linuxSnap:
@@ -82,9 +85,10 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.macosManual:
       return createMacosUpdateService(currentAppVersion());
 
-    // Installer-based Windows install (directly or via winget): download the
-    // new installer from GitHub Releases and run it silently — it swaps the
-    // bundle in place and relaunches after the app exits.
+    // Directly-installed Windows app (Inno installer, not via a package
+    // manager): download the new installer from GitHub Releases and run it
+    // silently — it swaps the bundle in place and relaunches after the app
+    // exits. winget installs use windowsWinget above instead.
     case Channel.windowsManual:
       return createWindowsUpdateService(currentAppVersion());
 

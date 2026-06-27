@@ -37,9 +37,10 @@ UpdateService createWindowsUpdateService(AppVersion? current) {
   return WindowsUpdateService(current);
 }
 
-/// Self-updater for Windows installs made by the Inno Setup installer
-/// (`knitcalc-setup-x64-*.exe` GitHub Release asset) — whether installed by
-/// winget or by running the installer directly.
+/// Self-updater for Windows apps installed by running the Inno Setup installer
+/// (`knitcalc-setup-x64-*.exe` GitHub Release asset) directly — not via a
+/// package manager. winget installs are detected as a separate channel and
+/// update with `winget upgrade` instead (see channel.dart).
 ///
 /// Reads the available version from the remote store-versions document (see
 /// remote/store_versions.dart — the `windows` entry carries the installer's
