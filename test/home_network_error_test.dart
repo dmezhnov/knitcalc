@@ -12,6 +12,7 @@ import 'package:knitcalc/firebase/auth_session.dart';
 import 'package:knitcalc/firebase/firebase_auth_client.dart';
 import 'package:knitcalc/firebase/firebase_config.dart';
 import 'package:knitcalc/firebase/firestore_client.dart';
+import 'package:knitcalc/firebase/session_store.dart';
 import 'package:knitcalc/home.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/l10n/locale_scope.dart';
@@ -56,6 +57,7 @@ AuthService _signedInAuth() => AuthService(
     config: const FirebaseConfig(projectId: 'p', apiKey: 'K'),
     httpClient: MockClient((_) async => http.Response('{}', 500)),
   ),
+  store: PrefsSessionStore(),
 );
 
 Widget _wrap(AuthService auth, Widget child) => AuthScope(

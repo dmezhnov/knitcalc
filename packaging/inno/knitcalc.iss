@@ -34,8 +34,15 @@
 ; Add/Remove Programs entry "{<AppId>}_is1".
 AppId={{3E2280E5-0275-4912-A2FF-CB4B7F32C007}
 AppName=KnitCalc
-AppVersion={#AppFull}
-AppVerName=KnitCalc {#AppFull}
+; The Add/Remove Programs DisplayVersion (AppVersion) MUST equal the bare semver
+; that the winget manifest carries (Dmezhnov.KnitCalc.yaml's PackageVersion —
+; winget rejects "+build" metadata). winget correlates the install by ProductCode
+; and reads this DisplayVersion as the installed version; if it carried the full
+; "1.8.x+build" it would never match the manifest's "1.8.x", so `winget upgrade`
+; (and the in-app winget-channel probe) would forever report a phantom upgrade and
+; reinstall the same version on every launch. So use the build-stripped AppNumeric.
+AppVersion={#AppNumeric}
+AppVerName=KnitCalc {#AppNumeric}
 VersionInfoVersion={#AppNumeric}
 AppPublisher=Dmitry Mezhnov
 AppPublisherURL=https://github.com/dmezhnov/knitcalc
@@ -93,6 +100,8 @@ Type: files; Name: "{app}\install_source"
 [CustomMessages]
 english.AddToPath=Add KnitCalc to PATH (run `knitcalc` from a terminal)
 russian.AddToPath=Добавить KnitCalc в PATH (запуск `knitcalc` из терминала)
+english.RemoveDataPrompt=Also delete your saved KnitCalc projects? You will be signed out of your account either way.
+russian.RemoveDataPrompt=Удалить также сохранённые проекты KnitCalc? Из аккаунта вы выйдете в любом случае.
 
 [Run]
 ; Interactive install: offer a "launch now" checkbox (hidden on silent installs).
@@ -181,7 +190,28 @@ begin
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir: string;
 begin
-  if CurUninstallStep = usPostUninstall then
-    EnvRemovePath(ExpandConstant('{app}'));
+  if CurUninstallStep <> usPostUninstall then
+    Exit;
+
+  EnvRemovePath(ExpandConstant('{app}'));
+
+  // Per-user data lives under %APPDATA%\<CompanyName>\<ProductName> — the dir
+  // path_provider's getApplicationSupportDirectory returns, where both
+  // shared_preferences (saved projects) and our auth_session.json sit. The names
+  // come from windows/runner/Runner.rc (the default template com.example/knitcalc).
+  DataDir := ExpandConstant('{userappdata}\com.example\knitcalc');
+
+  // Always sign out. The session is kept in its own file (see
+  // lib/firebase/session_store_io.dart), so deleting just it logs the user out
+  // while leaving saved projects untouched.
+  DeleteFile(DataDir + '\auth_session.json');
+
+  // Offer to also wipe the saved projects. On a silent uninstall (e.g.
+  // `winget uninstall`) MsgBox is suppressed and returns the default button —
+  // MB_DEFBUTTON2 = "No" — so projects are kept while the sign-out above still ran.
+  if MsgBox(CustomMessage('RemoveDataPrompt'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+    DelTree(DataDir, True, True, True);
 end;

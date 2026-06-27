@@ -10,6 +10,7 @@ import 'package:knitcalc/firebase/auth_session.dart';
 import 'package:knitcalc/firebase/firebase_auth_client.dart';
 import 'package:knitcalc/firebase/firebase_config.dart';
 import 'package:knitcalc/firebase/google_oauth.dart';
+import 'package:knitcalc/firebase/session_store.dart';
 
 /// Records how an AuthService's auth client was exercised.
 class Calls {
@@ -103,7 +104,10 @@ void main() {
       }),
     );
 
-    return (service: AuthService(client: client), calls: calls);
+    return (
+      service: AuthService(client: client, store: PrefsSessionStore()),
+      calls: calls,
+    );
   }
 
   test('signIn persists the session and survives a restart', () async {
@@ -301,7 +305,7 @@ void main() {
           throw http.ClientException('connection failed');
         }),
       );
-      final service = AuthService(client: client);
+      final service = AuthService(client: client, store: PrefsSessionStore());
       await service.signIn('a@b.com', 'pw');
       expect(service.isSignedIn, isTrue);
 
