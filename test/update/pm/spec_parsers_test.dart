@@ -5,8 +5,46 @@ import 'package:knitcalc/update/impl/pm/specs/flatpak_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/homebrew_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/scoop_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
 
 void main() {
+  group('parseWingetUpgrade', () {
+    const id = 'Dmezhnov.KnitCalc';
+
+    test('reads the Available column of the package row', () {
+      const out = '''
+Name      Id                Version Available Source
+-----------------------------------------------------
+KnitCalc  Dmezhnov.KnitCalc 1.8.7   1.8.8     winget
+1 upgrades available.
+''';
+      expect(parseWingetUpgrade(out, packageId: id), '1.8.8');
+    });
+
+    test('handles a name containing spaces', () {
+      const out = '''
+Name           Id                Version Available Source
+----------------------------------------------------------
+Knit Calc App  Dmezhnov.KnitCalc 1.8.7   1.9.0     winget
+''';
+      expect(parseWingetUpgrade(out, packageId: id), '1.9.0');
+    });
+
+    test('returns null when no upgrade is offered', () {
+      expect(
+        parseWingetUpgrade('No available upgrade found.', packageId: id),
+        isNull,
+      );
+      expect(
+        parseWingetUpgrade(
+          'No installed package found matching input criteria.',
+          packageId: id,
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('parseScoopStatus', () {
     test('reads the Latest Version column of the app row', () {
       const out = '''

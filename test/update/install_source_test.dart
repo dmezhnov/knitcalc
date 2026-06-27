@@ -79,19 +79,70 @@ void main() {
       );
     });
 
-    test('maps an installer install (incl. winget) to windowsManual', () {
-      // Per-user Inno install location, used both for a direct install and a
-      // winget install (winget runs the same installer).
+    test('maps an installer install with a winget marker to windowsWinget', () {
+      // winget runs the same Inno installer; the install-source marker next to
+      // the exe is what tells it apart from a direct install.
       expect(
         windowsChannelForExecutable(
           r'C:\Users\me\AppData\Local\Programs\KnitCalc\knitcalc.exe',
+          readInstallSource: (_) => 'winget',
+        ),
+        Channel.windowsWinget,
+      );
+    });
+
+    test('maps a manual or unmarked installer install to windowsManual', () {
+      // A direct install writes "manual"; a pre-marker install has no file.
+      expect(
+        windowsChannelForExecutable(
+          r'C:\Users\me\AppData\Local\Programs\KnitCalc\knitcalc.exe',
+          readInstallSource: (_) => 'manual',
         ),
         Channel.windowsManual,
       );
       expect(
-        windowsChannelForExecutable(r'C:\Program Files\KnitCalc\knitcalc.exe'),
+        windowsChannelForExecutable(
+          r'C:\Program Files\KnitCalc\knitcalc.exe',
+          readInstallSource: (_) => null,
+        ),
         Channel.windowsManual,
       );
+    });
+
+    test('reads the marker from the executable directory', () {
+      String? captured;
+      windowsChannelForExecutable(
+        r'C:\Users\me\AppData\Local\Programs\KnitCalc\knitcalc.exe',
+        readInstallSource: (dir) {
+          captured = dir;
+          return null;
+        },
+      );
+      expect(captured, r'C:\Users\me\AppData\Local\Programs\KnitCalc');
+    });
+
+    test('does not consult the marker for scoop or chocolatey installs', () {
+      var consulted = false;
+      String? marker(String _) {
+        consulted = true;
+        return 'winget';
+      }
+
+      expect(
+        windowsChannelForExecutable(
+          r'C:\Users\me\scoop\apps\knitcalc\current\knitcalc.exe',
+          readInstallSource: marker,
+        ),
+        Channel.windowsScoop,
+      );
+      expect(
+        windowsChannelForExecutable(
+          r'C:\ProgramData\chocolatey\lib\knitcalc\tools\knitcalc.exe',
+          readInstallSource: marker,
+        ),
+        Channel.windowsChocolatey,
+      );
+      expect(consulted, isFalse);
     });
   });
 

@@ -43,9 +43,11 @@ AppSupportURL=https://github.com/dmezhnov/knitcalc/issues
 ; Per-user install: {autopf} resolves to {localappdata}\Programs without admin.
 PrivilegesRequired=lowest
 DefaultDirName={autopf}\KnitCalc
-DefaultGroupName=KnitCalc
 DisableDirPage=yes
 DisableProgramGroupPage=yes
+; The "Add to PATH" task edits HKCU\Environment; broadcast the change so open
+; shells pick up the new PATH without a re-login.
+ChangesEnvironment=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\..\build\installer
@@ -65,13 +67,32 @@ RestartApplications=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
+[Tasks]
+; Put {app} on the user's PATH so `knitcalc` works from a terminal (the old
+; winget portable alias used to provide this). Checked by default, so a silent
+; winget/self-update install applies it too. Unlike the portable symlink, this
+; points at the real {app}\knitcalc.exe, whose own directory is first in the DLL
+; search path — the bundled DLLs resolve.
+Name: "modifypath"; Description: "{cm:AddToPath}"
+
 [Files]
 Source: "..\..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; \
     Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{group}\KnitCalc"; Filename: "{app}\knitcalc.exe"
-Name: "{group}\Uninstall KnitCalc"; Filename: "{uninstallexe}"
+; A single shortcut directly under the Start menu Programs root (not a one-app
+; subfolder, which Windows 11's app list hides poorly). Uninstall is via
+; Settings / Add-Remove Programs.
+Name: "{autoprograms}\KnitCalc"; Filename: "{app}\knitcalc.exe"
+
+[UninstallDelete]
+; The install-source marker is written by [Code], so the uninstaller doesn't
+; track it automatically.
+Type: files; Name: "{app}\install_source"
+
+[CustomMessages]
+english.AddToPath=Add KnitCalc to PATH (run `knitcalc` from a terminal)
+russian.AddToPath=Добавить KnitCalc в PATH (запуск `knitcalc` из терминала)
 
 [Run]
 ; Interactive install: offer a "launch now" checkbox (hidden on silent installs).
@@ -82,6 +103,9 @@ Filename: "{app}\knitcalc.exe"; Flags: nowait; \
     Check: WizardSilent and RelaunchRequested
 
 [Code]
+const
+  EnvironmentKey = 'Environment';
+
 // True when the installer was invoked with /RELAUNCH (set by the in-app
 // self-updater) so the silent run relaunches KnitCalc after installing.
 function RelaunchRequested: Boolean;
@@ -95,4 +119,69 @@ begin
       Result := True;
       Exit;
     end;
+end;
+
+// Append Path to the per-user PATH (HKCU\Environment), skipping if already
+// present. Standard Inno pattern; ChangesEnvironment=yes broadcasts the update.
+procedure EnvAddPath(Path: string);
+var
+  Paths: string;
+begin
+  if not RegQueryStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths) then
+    Paths := '';
+  if Pos(';' + Uppercase(Path) + ';', ';' + Uppercase(Paths) + ';') > 0 then
+    Exit;
+  if Paths = '' then
+    Paths := Path
+  else
+    Paths := Paths + ';' + Path;
+  RegWriteExpandStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths);
+end;
+
+// Remove Path from the per-user PATH, if present (used on uninstall).
+procedure EnvRemovePath(Path: string);
+var
+  Paths: string;
+  P: Integer;
+begin
+  if not RegQueryStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths) then
+    Exit;
+  P := Pos(';' + Uppercase(Path) + ';', ';' + Uppercase(Paths) + ';');
+  if P = 0 then
+    Exit;
+  Delete(Paths, P - 1, Length(Path) + 1);
+  RegWriteExpandStringValue(HKEY_CURRENT_USER, EnvironmentKey, 'Path', Paths);
+end;
+
+// Record how this copy was installed so the app picks the right update channel
+// (see lib/update/channel.dart): a silent run without /RELAUNCH is winget; an
+// interactive run is a direct download. A self-update (/RELAUNCH) re-runs over an
+// existing install, so it keeps the original marker rather than overwriting it.
+procedure WriteInstallSource;
+var
+  Source: string;
+begin
+  if RelaunchRequested then
+    Exit;
+  if WizardSilent then
+    Source := 'winget'
+  else
+    Source := 'manual';
+  SaveStringToFile(ExpandConstant('{app}\install_source'), Source, False);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    if WizardIsTaskSelected('modifypath') then
+      EnvAddPath(ExpandConstant('{app}'));
+    WriteInstallSource;
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    EnvRemovePath(ExpandConstant('{app}'));
 end;
