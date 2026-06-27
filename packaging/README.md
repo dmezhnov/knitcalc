@@ -15,7 +15,14 @@ installer (per-user, `InstallerType: inno`). The installer adds `{app}` to the
 user PATH (so `knitcalc` runs from a terminal), drops a single Start-menu
 shortcut, and stamps an `install_source` marker (`winget` vs `manual`) so the
 app picks the right update path: a winget install updates with `winget upgrade`,
-a direct install self-updates by downloading and running the new installer.
+a direct install self-updates by downloading and running the new installer. The
+installer's Add/Remove Programs `DisplayVersion` is the **bare** semver
+(`AppVersion={#AppNumeric}`), matching the winget manifest's `PackageVersion`;
+if it carried the full `+build` version winget would never see the install as
+current and `winget upgrade` (and the in-app winget-channel banner) would loop,
+reinstalling the same version on every launch. On uninstall the app always signs
+out (deletes the standalone `auth_session.json`) and, on an interactive uninstall,
+offers to also delete saved projects; a silent `winget uninstall` keeps projects.
 Scoop and Chocolatey install the zip — their shims launch `knitcalc.exe` by full
 path, so the adjacent DLLs resolve (unlike a winget portable alias). The
 installer is the recommended direct download for end users.

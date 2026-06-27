@@ -13,6 +13,7 @@ import 'package:knitcalc/firebase/auth_session.dart';
 import 'package:knitcalc/firebase/firebase_auth_client.dart';
 import 'package:knitcalc/firebase/firebase_config.dart';
 import 'package:knitcalc/firebase/firestore_client.dart';
+import 'package:knitcalc/firebase/session_store.dart';
 import 'package:knitcalc/home.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/l10n/locale_scope.dart';
@@ -40,6 +41,7 @@ AuthService authWith(MockClientHandler handler) {
       config: const FirebaseConfig(projectId: 'p', apiKey: 'K'),
       httpClient: MockClient(handler),
     ),
+    store: PrefsSessionStore(),
   );
 }
 
