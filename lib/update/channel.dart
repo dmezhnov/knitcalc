@@ -56,8 +56,14 @@ enum Channel {
   /// Windows, installed via Chocolatey — updated with `choco upgrade`.
   windowsChocolatey,
 
-  /// Windows, installed by the Inno Setup installer (directly or via winget) —
-  /// self-updates by downloading and running the new installer from GitHub.
+  /// Windows, installed via winget — updated with `winget upgrade`. The Inno
+  /// installer stamps an `install_source` marker so a winget install (which runs
+  /// the same installer) is told apart from a direct download.
+  windowsWinget,
+
+  /// Windows, installed by running the Inno Setup installer directly (not via a
+  /// package manager) — self-updates by downloading and running the new
+  /// installer from GitHub.
   windowsManual,
 
   /// Linux under snap — updated with `snap refresh`.
@@ -203,6 +209,25 @@ Channel androidChannelForInstaller(String? installer) {
   }
 }
 
+/// Reads the Inno installer's `install_source` marker from the directory holding
+/// the executable, trimmed, or `null` when it is absent. The installer writes
+/// `winget` for a silent winget install and `manual` for a direct install (see
+/// packaging/inno/knitcalc.iss); Scoop/Chocolatey installs have no marker.
+typedef InstallSourceReader = String? Function(String executableDir);
+
+String? _readInstallSourceMarker(String executableDir) {
+  try {
+    return File('$executableDir\\install_source').readAsStringSync().trim();
+  } on FileSystemException {
+    return null;
+  }
+}
+
+String _executableDir(String executablePath) {
+  final separator = executablePath.lastIndexOf(RegExp(r'[\\/]'));
+  return separator >= 0 ? executablePath.substring(0, separator) : '.';
+}
+
 /// Maps a Windows executable path to its [Channel].
 ///
 /// Scoop and Chocolatey unpack the app under their own directory, so the
@@ -215,10 +240,16 @@ Channel androidChannelForInstaller(String? installer) {
 ///   channel);
 /// - Chocolatey unpacks zip packages under `…\chocolatey\lib\<id>\…`.
 ///
-/// Anything else is an Inno Setup installer install (directly or via winget,
-/// both landing under `…\Programs\KnitCalc\…`), which self-updates by running
-/// the new installer — [Channel.windowsManual].
-Channel windowsChannelForExecutable(String executablePath) {
+/// Otherwise it is an Inno Setup installer install (under `…\Programs\KnitCalc\`).
+/// winget runs that same installer, so a path check cannot tell the two apart;
+/// instead the installer stamps an `install_source` marker next to the exe —
+/// `winget` routes to [Channel.windowsWinget] (`winget upgrade`), anything else
+/// (a direct install, or a pre-marker install) self-updates via
+/// [Channel.windowsManual]. [readInstallSource] is injectable for tests.
+Channel windowsChannelForExecutable(
+  String executablePath, {
+  InstallSourceReader readInstallSource = _readInstallSourceMarker,
+}) {
   final normalized = executablePath.toLowerCase().replaceAll('/', '\\');
 
   if (normalized.contains('\\scoop\\apps\\')) {
@@ -227,6 +258,10 @@ Channel windowsChannelForExecutable(String executablePath) {
 
   if (normalized.contains('\\chocolatey\\lib\\')) {
     return Channel.windowsChocolatey;
+  }
+
+  if (readInstallSource(_executableDir(executablePath)) == 'winget') {
+    return Channel.windowsWinget;
   }
 
   return Channel.windowsManual;

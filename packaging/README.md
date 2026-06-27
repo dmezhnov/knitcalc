@@ -11,11 +11,14 @@ and Homebrew get the full version (`1.8.23+46`).
 On Windows the release ships two assets: the **Inno Setup installer**
 (`knitcalc-setup-x64-<full>.exe`, built from `packaging/inno/knitcalc.iss`) and
 the loose bundle zip (`knitcalc-windows-x64-<full>.zip`). winget installs the
-installer (per-user, `InstallerType: inno`) and the installer is also what the
-app downloads and runs to self-update. Scoop and Chocolatey install the zip —
-their shims launch `knitcalc.exe` by full path, so the adjacent DLLs resolve
-(unlike a winget portable alias). The installer is the recommended direct
-download for end users.
+installer (per-user, `InstallerType: inno`). The installer adds `{app}` to the
+user PATH (so `knitcalc` runs from a terminal), drops a single Start-menu
+shortcut, and stamps an `install_source` marker (`winget` vs `manual`) so the
+app picks the right update path: a winget install updates with `winget upgrade`,
+a direct install self-updates by downloading and running the new installer.
+Scoop and Chocolatey install the zip — their shims launch `knitcalc.exe` by full
+path, so the adjacent DLLs resolve (unlike a winget portable alias). The
+installer is the recommended direct download for end users.
 
 The job is a no-op (with a workflow warning) until the corresponding secret is
 configured, so releases keep working before the one-time onboarding below.
