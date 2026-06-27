@@ -143,11 +143,24 @@ hide = true
 # reported as success. The release CI then wraps this Release dir in the Inno
 # Setup installer (packaging/inno/knitcalc.iss), which is how Windows installs
 # and self-updates (see lib/update/impl/windows/windows_update_service_io.dart).
+#
+# The MSVC runtime (msvcp140.dll, vcruntime140*.dll) is copied next to the exe
+# so the app is self-contained: a Flutter Windows app links against it, but a
+# clean Windows (e.g. the winget validation sandbox) has no VC++ redistributable
+# and the app dies with STATUS_DLL_NOT_FOUND (0xC0000135). Shipping the CRT app-
+# locally needs no admin, so it works for every channel (installer, zip, self-
+# update). The DLLs come from the VS install that Flutter's build already requires.
 shell = 'pwsh -NoProfile -Command'
 run = '''
 $v = [regex]::Match((Get-Content -Raw pubspec.yaml), '(?m)^version:\s*(.+?)\s*$').Groups[1].Value
 flutter build windows --dart-define=APP_VERSION=$v
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+$vsBase = & $vswhere -latest -property installationPath
+if ($LASTEXITCODE -ne 0 -or -not $vsBase) { Write-Error "vswhere could not locate Visual Studio"; exit 1 }
+$crt = Get-ChildItem "$vsBase\VC\Redist\MSVC\*\x64\Microsoft.VC*.CRT\*.dll"
+if (-not $crt) { Write-Error "No MSVC CRT redistributable DLLs found under $vsBase"; exit 1 }
+Copy-Item $crt.FullName build/windows/x64/runner/Release/ -Force
 '''
 
 [tasks.build-macos]
