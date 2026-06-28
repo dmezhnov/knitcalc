@@ -11,4 +11,4 @@ PRODUCT_NAME = knitcalc
 PRODUCT_BUNDLE_IDENTIFIER = io.github.dmezhnov.knitcalc
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 dmezhnov. All rights reserved.

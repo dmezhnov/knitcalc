@@ -4,9 +4,15 @@ import 'package:knitcalc/firebase/auth_service.dart';
 import 'package:knitcalc/home.dart';
 import 'package:knitcalc/l10n/app_localizations.dart';
 import 'package:knitcalc/l10n/locale_scope.dart';
+import 'package:knitcalc/storage/data_dir_migration.dart';
 import 'package:knitcalc/verify_email_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Carry an existing install's data over if the app-support directory moved
+  // (Windows CompanyName change). Must run before the first SharedPreferences /
+  // AuthService read. No-op on other platforms and web.
+  await migrateLegacyDataDir();
   runApp(const MyApp());
 }
 
