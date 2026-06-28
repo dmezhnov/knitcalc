@@ -192,6 +192,8 @@ end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   DataDir: string;
+  LegacyDir: string;
+  RemoveProjects: Boolean;
 begin
   if CurUninstallStep <> usPostUninstall then
     Exit;
@@ -201,17 +203,27 @@ begin
   // Per-user data lives under %APPDATA%\<CompanyName>\<ProductName> — the dir
   // path_provider's getApplicationSupportDirectory returns, where both
   // shared_preferences (saved projects) and our auth_session.json sit. The names
-  // come from windows/runner/Runner.rc (the default template com.example/knitcalc).
-  DataDir := ExpandConstant('{userappdata}\com.example\knitcalc');
+  // come from windows/runner/Runner.rc (CompanyName=dmezhnov, ProductName=knitcalc).
+  DataDir := ExpandConstant('{userappdata}\dmezhnov\knitcalc');
+  // The pre-rename location (Flutter template com.example). Cleaned up too in
+  // case the app was uninstalled before its first launch ran the in-app data
+  // migration (lib/storage/data_dir_migration_io.dart) that moves it to DataDir.
+  LegacyDir := ExpandConstant('{userappdata}\com.example\knitcalc');
 
   // Always sign out. The session is kept in its own file (see
   // lib/firebase/session_store_io.dart), so deleting just it logs the user out
   // while leaving saved projects untouched.
   DeleteFile(DataDir + '\auth_session.json');
+  DeleteFile(LegacyDir + '\auth_session.json');
 
   // Offer to also wipe the saved projects. On a silent uninstall (e.g.
   // `winget uninstall`) MsgBox is suppressed and returns the default button —
   // MB_DEFBUTTON2 = "No" — so projects are kept while the sign-out above still ran.
-  if MsgBox(CustomMessage('RemoveDataPrompt'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+  RemoveProjects :=
+    MsgBox(CustomMessage('RemoveDataPrompt'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+  if RemoveProjects then
+  begin
     DelTree(DataDir, True, True, True);
+    DelTree(LegacyDir, True, True, True);
+  end;
 end;
