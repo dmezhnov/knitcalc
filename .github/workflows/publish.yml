@@ -463,7 +463,7 @@ jobs:
             # The app reads the available version from a Firestore document
             # instead of the GitHub API (avoids the 60/hour unauthenticated rate
             # limit, which is shared per IP under carrier-grade NAT). Write the
-            # four self-update entries here, now the assets exist; the per-store
+            # self-update entries here, now the assets exist; the per-store
             # fields (samsung/amazon/…) are bumped by hand once each store
             # publishes and are preserved by the updateMask. continue-on-error
             # keeps a Firestore hiccup from failing the release (and the package
