@@ -91,8 +91,8 @@ void main() {
       );
     });
 
-    test('maps a manual or unmarked installer install to windowsManual', () {
-      // A direct install writes "manual"; a pre-marker install has no file.
+    test('maps a "manual" marker to windowsManual', () {
+      // A direct (interactive) installer install writes "manual".
       expect(
         windowsChannelForExecutable(
           r'C:\Users\me\AppData\Local\Programs\KnitCalc\knitcalc.exe',
@@ -100,12 +100,26 @@ void main() {
         ),
         Channel.windowsManual,
       );
+    });
+
+    test('maps an unmarked copy to windowsPortable', () {
+      // No marker means the Inno installer never ran here: it is a loose-zip
+      // portable copy (or a rare pre-marker install) that swaps its own files
+      // rather than running the installer (which would drop a second copy).
       expect(
         windowsChannelForExecutable(
-          r'C:\Program Files\KnitCalc\knitcalc.exe',
+          r'C:\Users\me\Downloads\knitcalc\knitcalc.exe',
           readInstallSource: (_) => null,
         ),
-        Channel.windowsManual,
+        Channel.windowsPortable,
+      );
+      // An unexpected marker value is treated the same (defensive default).
+      expect(
+        windowsChannelForExecutable(
+          r'D:\portable\knitcalc\knitcalc.exe',
+          readInstallSource: (_) => 'something-else',
+        ),
+        Channel.windowsPortable,
       );
     });
 

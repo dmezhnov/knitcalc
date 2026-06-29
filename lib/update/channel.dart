@@ -66,6 +66,13 @@ enum Channel {
   /// installer from GitHub.
   windowsManual,
 
+  /// Windows, run as a portable copy of the loose `knitcalc-windows-x64-*.zip`
+  /// (extracted anywhere, not installed by the Inno installer — so no
+  /// `install_source` marker next to the exe). Self-updates by downloading the
+  /// new zip and swapping the portable folder's files in place, rather than
+  /// running the installer (which would install a *second*, separate copy).
+  windowsPortable,
+
   /// Linux under snap — updated with `snap refresh`.
   linuxSnap,
 
@@ -240,12 +247,20 @@ String _executableDir(String executablePath) {
 ///   channel);
 /// - Chocolatey unpacks zip packages under `…\chocolatey\lib\<id>\…`.
 ///
-/// Otherwise it is an Inno Setup installer install (under `…\Programs\KnitCalc\`).
-/// winget runs that same installer, so a path check cannot tell the two apart;
-/// instead the installer stamps an `install_source` marker next to the exe —
-/// `winget` routes to [Channel.windowsWinget] (`winget upgrade`), anything else
-/// (a direct install, or a pre-marker install) self-updates via
-/// [Channel.windowsManual]. [readInstallSource] is injectable for tests.
+/// Otherwise the `install_source` marker the Inno installer stamps next to the
+/// exe tells the remaining cases apart (winget runs that same installer, so a
+/// path check cannot distinguish it from a direct install):
+///
+/// - `winget` → [Channel.windowsWinget] (`winget upgrade`);
+/// - `manual` → [Channel.windowsManual] (re-run the installer to self-update);
+/// - no marker (or any other value) → [Channel.windowsPortable]: a loose-zip
+///   copy that was never run through the installer. It self-updates by swapping
+///   the portable folder's files, NOT by running the installer (which would
+///   drop a second, installed copy under `…\Programs\KnitCalc`). A rare
+///   pre-marker installer install also lands here; the in-place zip swap still
+///   updates it correctly (its files sit next to the exe just the same).
+///
+/// [readInstallSource] is injectable for tests.
 Channel windowsChannelForExecutable(
   String executablePath, {
   InstallSourceReader readInstallSource = _readInstallSourceMarker,
@@ -260,11 +275,14 @@ Channel windowsChannelForExecutable(
     return Channel.windowsChocolatey;
   }
 
-  if (readInstallSource(_executableDir(executablePath)) == 'winget') {
-    return Channel.windowsWinget;
+  switch (readInstallSource(_executableDir(executablePath))) {
+    case 'winget':
+      return Channel.windowsWinget;
+    case 'manual':
+      return Channel.windowsManual;
+    default:
+      return Channel.windowsPortable;
   }
-
-  return Channel.windowsManual;
 }
 
 /// Maps a macOS executable path to its [Channel].
