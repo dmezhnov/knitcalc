@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Writes the self-update channel entries (android/windows/macos/linux) into the
-# public store-versions document the app reads to decide whether to show the
-# update banner (see lib/update/impl/remote/store_versions.dart).
+# Writes the self-update channel entries (android/windows/windowsPortable/macos/
+# linux) into the public store-versions document the app reads to decide whether
+# to show the update banner (see lib/update/impl/remote/store_versions.dart).
 #
 # Run by the release CI after the GitHub release is created. The download URLs
 # point at the freshly published release assets on the GitHub CDN; only the
@@ -90,6 +90,10 @@ fields="$(
     android_field
     # Windows self-update downloads and runs the inno installer, not the zip.
     channel_field windows "knitcalc-setup-x64-${VERSION}.exe"
+    # The portable copy (loose zip, no installer marker) swaps its own files in
+    # place from the zip instead of running the installer (see
+    # lib/update/impl/windows/windows_portable_update_service_io.dart).
+    channel_field windowsPortable "knitcalc-windows-x64-${VERSION}.zip"
     channel_field macos "knitcalc-macos-${VERSION}.zip"
     channel_field linux "knitcalc-linux-x64-${VERSION}.tar.gz"
 )"
@@ -107,7 +111,7 @@ body="{\"fields\":{$fields}}"
 url="https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/config/storeVersions"
 # updateMask keeps the hand-bumped store fields intact; PATCH creates the
 # document if it does not exist yet.
-url="${url}?updateMask.fieldPaths=android&updateMask.fieldPaths=windows&updateMask.fieldPaths=macos&updateMask.fieldPaths=linux"
+url="${url}?updateMask.fieldPaths=android&updateMask.fieldPaths=windows&updateMask.fieldPaths=windowsPortable&updateMask.fieldPaths=macos&updateMask.fieldPaths=linux"
 
 status="$(
     curl -sS -X PATCH "$url" \

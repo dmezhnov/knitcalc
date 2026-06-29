@@ -44,7 +44,7 @@ AppName=KnitCalc
 AppVersion={#AppNumeric}
 AppVerName=KnitCalc {#AppNumeric}
 VersionInfoVersion={#AppNumeric}
-AppPublisher=Dmitry Mezhnov
+AppPublisher=dmezhnov
 AppPublisherURL=https://github.com/dmezhnov/knitcalc
 AppSupportURL=https://github.com/dmezhnov/knitcalc/issues
 ; Per-user install: {autopf} resolves to {localappdata}\Programs without admin.

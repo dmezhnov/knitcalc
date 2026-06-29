@@ -16,6 +16,7 @@ import 'package:knitcalc/update/impl/store/ios_app_store_service.dart';
 import 'package:knitcalc/update/impl/store/play_update_service.dart';
 import 'package:knitcalc/update/impl/store/store_listing_service.dart';
 import 'package:knitcalc/update/impl/web/web_update_service.dart';
+import 'package:knitcalc/update/impl/windows/windows_portable_update_service.dart';
 import 'package:knitcalc/update/impl/windows/windows_update_service.dart';
 import 'package:knitcalc/update/update_service.dart';
 
@@ -91,6 +92,12 @@ UpdateService createUpdateService(Channel channel) {
     // exits. winget installs use windowsWinget above instead.
     case Channel.windowsManual:
       return createWindowsUpdateService(currentAppVersion());
+
+    // Portable Windows copy (loose zip, no installer marker): download the new
+    // zip from GitHub Releases and swap the portable folder's files in place via
+    // a detached script after the app exits — no installer, no second copy.
+    case Channel.windowsPortable:
+      return createWindowsPortableUpdateService(currentAppVersion());
 
     // Manually installed Linux bundle: download the new tarball from GitHub
     // Releases and swap it in via a detached script.
