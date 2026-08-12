@@ -4,12 +4,16 @@ experimental = true
 auto_install = true
 exec_auto_install = true
 not_found_auto_install = true
-task_run_auto_install = true
 lockfile = true
 all_compile = false
 
 [settings.status]
 missing_tools = "always"
+
+# Renamed from the flat settings.task_run_auto_install, which mise deprecated in
+# 2026.8 (it warns on every invocation) and drops in 2027.2.
+[settings.task]
+run_auto_install = true
 
 [plugins]
 android-sdk = "https://github.com/mise-plugins/mise-android-sdk"
