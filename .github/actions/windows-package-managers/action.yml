@@ -1,0 +1,132 @@
+name: Publish to Windows package managers
+description: >-
+    Submits a released version to winget-pkgs and pushes it to Chocolatey,
+    recording both channel outcomes for the release channel report. Shared by
+    the release workflow and the retry workflow, so a channel can be re-published
+    for an existing release without cutting a new version.
+
+inputs:
+    bare:
+        description: Bare semver (winget and Chocolatey both reject +build metadata).
+        required: true
+    url:
+        description: Release URL of the bundle zip (what the Chocolatey package installs).
+        required: true
+    setup_url:
+        description: Release URL of the Inno installer (what the winget manifest installs).
+        required: true
+    sha256:
+        description: SHA-256 of the bundle zip, pinned by the Chocolatey install script.
+        required: true
+    channels:
+        description: Which channels to publish — both, winget or chocolatey.
+        default: both
+    packaging_github_token:
+        description: PAT that opens the winget-pkgs pull request. Empty skips winget.
+        default: ''
+    choco_api_key:
+        description: Chocolatey push key. Empty skips Chocolatey.
+        default: ''
+
+runs:
+    using: composite
+    steps:
+        # The first inno-installer version had to be submitted by hand
+        # (wingetcreate update can bump the url/version/hash but not switch the
+        # existing manifest's InstallerType from zip to inno); see
+        # packaging/README.md. Failures are recorded and downgraded to warnings
+        # so a store problem cannot abort an already-tagged release — the
+        # channel report job is what turns them red.
+        - name: Submit to winget-pkgs
+          if: inputs.channels == 'both' || inputs.channels == 'winget'
+          shell: pwsh
+          env:
+              PACKAGING_GITHUB_TOKEN: ${{ inputs.packaging_github_token }}
+          run: |
+              if (-not $env:PACKAGING_GITHUB_TOKEN) {
+                Write-Host "::warning::PACKAGING_GITHUB_TOKEN is not set; skipping the winget submission."
+                ./packaging/ci/channel_status.ps1 -Channel winget -State skipped -Detail 'PACKAGING_GITHUB_TOKEN is not set'
+                exit 0
+              }
+              Invoke-WebRequest -Uri 'https://aka.ms/wingetcreate/latest' -OutFile wingetcreate.exe
+              # Capture the output: wingetcreate's own last line names the actual
+              # cause, and the causes need different fixes — a fork that drifted
+              # from upstream ("The forked repository could not be synced with
+              # the upstream commits") is repaired by syncing dmezhnov/winget-pkgs,
+              # a rejected token by issuing a new PAT. Without it every failure
+              # reads the same.
+              #
+              # The GitHub pwsh shell runs with $ErrorActionPreference='stop',
+              # where merging a native command's stderr into the pipeline raises
+              # NativeCommandError — that would kill the step before the
+              # exit-code check below, so relax it just for the capture.
+              $eap = $ErrorActionPreference
+              $ErrorActionPreference = 'Continue'
+              $out = & ./wingetcreate.exe update Dmezhnov.KnitCalc `
+                --version '${{ inputs.bare }}' `
+                --urls '${{ inputs.setup_url }}' `
+                --submit --token $env:PACKAGING_GITHUB_TOKEN 2>&1
+              $code = $LASTEXITCODE
+              $ErrorActionPreference = $eap
+              $out | ForEach-Object { Write-Host $_ }
+              if ($code -ne 0) {
+                $reason = ($out | Where-Object { "$_" -match '\S' } | Select-Object -Last 1)
+                $reason = "$reason".Replace($env:PACKAGING_GITHUB_TOKEN, '***').Trim()
+                Write-Host "::warning::wingetcreate failed (exit $code): $reason"
+                ./packaging/ci/channel_status.ps1 -Channel winget -State failed -Detail "exit $code - $reason"
+                exit 0
+              }
+              ./packaging/ci/channel_status.ps1 -Channel winget -State ok -Detail '${{ inputs.bare }}'
+
+        - name: Push to Chocolatey
+          if: inputs.channels == 'both' || inputs.channels == 'chocolatey'
+          shell: pwsh
+          env:
+              CHOCO_API_KEY: ${{ inputs.choco_api_key }}
+          run: |
+              if (-not $env:CHOCO_API_KEY) {
+                Write-Host "::warning::CHOCO_API_KEY is not set; skipping the Chocolatey push."
+                ./packaging/ci/channel_status.ps1 -Channel chocolatey -State skipped -Detail 'CHOCO_API_KEY is not set'
+                exit 0
+              }
+              # The key travels in the X-NuGet-ApiKey header, so a stray newline
+              # or space in the secret makes the gallery answer 400 (Bad Request)
+              # instead of the 403 it returns for a key it merely rejects — the
+              # exact symptom this repo saw from 2026-06-14 on. Trim first, and
+              # refuse anything that still cannot go into a header.
+              $apiKey = $env:CHOCO_API_KEY.Trim()
+              if ($apiKey -notmatch '^[\x21-\x7E]+$') {
+                Write-Host "::warning::CHOCO_API_KEY contains characters that cannot be sent in an HTTP header; re-copy it from https://community.chocolatey.org/account."
+                ./packaging/ci/channel_status.ps1 -Channel chocolatey -State failed -Detail 'CHOCO_API_KEY has characters that are invalid in an HTTP header'
+                exit 0
+              }
+              $pkg = 'packaging/chocolatey'
+              (Get-Content "$pkg/knitcalc.nuspec") `
+                -replace '\{\{VERSION\}\}', '${{ inputs.bare }}' |
+                Set-Content "$pkg/knitcalc.nuspec"
+              (Get-Content "$pkg/tools/chocolateyinstall.ps1") `
+                -replace '\{\{URL\}\}', '${{ inputs.url }}' `
+                -replace '\{\{SHA256\}\}', '${{ inputs.sha256 }}' |
+                Set-Content "$pkg/tools/chocolateyinstall.ps1"
+              choco pack "$pkg/knitcalc.nuspec" --outputdirectory $pkg
+              # --verbose so the gallery's own message reaches the log: the bare
+              # exit code cannot tell 403 (key rejected, or a version still in
+              # first-time moderation) from 400 (malformed request) or 409
+              # (already pushed). Same $ErrorActionPreference dance as above.
+              $eap = $ErrorActionPreference
+              $ErrorActionPreference = 'Continue'
+              $out = & choco push "$pkg/knitcalc.${{ inputs.bare }}.nupkg" `
+                --source https://push.chocolatey.org/ --api-key $apiKey --verbose 2>&1
+              $code = $LASTEXITCODE
+              $ErrorActionPreference = $eap
+              $safe = $out | ForEach-Object { "$_".Replace($apiKey, '***') }
+              $safe | ForEach-Object { Write-Host $_ }
+              if ($code -ne 0) {
+                $reason = ($safe | Where-Object { $_ -match 'status code|error|denied|forbidden|moderation' } | Select-Object -Last 1)
+                if (-not $reason) { $reason = ($safe | Where-Object { "$_" -match '\S' } | Select-Object -Last 1) }
+                $reason = "$reason".Trim()
+                Write-Host "::warning::choco push failed (exit $code): $reason"
+                ./packaging/ci/channel_status.ps1 -Channel chocolatey -State failed -Detail "exit $code - $reason"
+                exit 0
+              }
+              ./packaging/ci/channel_status.ps1 -Channel chocolatey -State ok -Detail '${{ inputs.bare }}'
