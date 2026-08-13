@@ -1,8 +1,8 @@
 # KnitCalc
 
-KnitCalc is a Flutter calculator for knitting. It converts a sample swatch into
-target stitch, row, and yarn-length estimates. The interface is available in
-Russian and English.
+KnitCalc is a cross-platform calculator for knitting. It converts a sample
+swatch into target stitch, row, and yarn-length estimates. The interface is
+available in Russian and English.
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/knitcalc.svg)](https://repology.org/project/knitcalc/versions)
 
