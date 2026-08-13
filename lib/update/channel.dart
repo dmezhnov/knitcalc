@@ -73,6 +73,11 @@ enum Channel {
   /// running the installer (which would install a *second*, separate copy).
   windowsPortable,
 
+  /// Installed by the mise version manager (Linux, macOS or Windows alike) —
+  /// updated with `mise upgrade`. mise owns the install directory, so the app
+  /// must never swap files in it the way the tarball/portable channels do.
+  mise,
+
   /// Linux under snap — updated with `snap refresh`.
   linuxSnap,
 
@@ -230,6 +235,20 @@ String? _readInstallSourceMarker(String executableDir) {
   }
 }
 
+/// Whether the executable lives inside a mise install directory, on any OS.
+///
+/// mise unpacks every tool into `<data dir>/mise/installs/<tool>/<version>/`
+/// (the data dir follows XDG/`MISE_DATA_DIR`, but the `mise/installs` pair is
+/// fixed), and the shims exec that real path, so the resolved executable
+/// identifies the owner. Checked before every other heuristic on all three
+/// desktop platforms: a mise copy otherwise looks like a plain tarball /
+/// portable zip / unzipped .app and the app would self-update over files mise
+/// owns instead of leaving the upgrade to `mise upgrade`.
+bool isMiseInstall(String executablePath) => executablePath
+    .toLowerCase()
+    .replaceAll(r'\', '/')
+    .contains('/mise/installs/');
+
 String _executableDir(String executablePath) {
   final separator = executablePath.lastIndexOf(RegExp(r'[\\/]'));
   return separator >= 0 ? executablePath.substring(0, separator) : '.';
@@ -265,6 +284,10 @@ Channel windowsChannelForExecutable(
   String executablePath, {
   InstallSourceReader readInstallSource = _readInstallSourceMarker,
 }) {
+  if (isMiseInstall(executablePath)) {
+    return Channel.mise;
+  }
+
   final normalized = executablePath.toLowerCase().replaceAll('/', '\\');
 
   if (normalized.contains('\\scoop\\apps\\')) {
@@ -292,6 +315,10 @@ Channel windowsChannelForExecutable(
 /// a Caskroom is owned by Homebrew and updates with `brew upgrade --cask`.
 /// Anything else is a manually unzipped `.app` (GitHub self-update).
 Channel macosChannelForExecutable(String executablePath) {
+  if (isMiseInstall(executablePath)) {
+    return Channel.mise;
+  }
+
   if (executablePath.contains('/Caskroom/')) {
     return Channel.macosHomebrew;
   }
@@ -313,6 +340,10 @@ Channel _detectLinuxChannel() {
 
   if (env.containsKey('APPIMAGE')) {
     return Channel.linuxAppImage;
+  }
+
+  if (isMiseInstall(Platform.resolvedExecutable)) {
+    return Channel.mise;
   }
 
   // A bundle living under the system prefix came from a .deb (dpkg/apt); a

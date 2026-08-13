@@ -180,6 +180,69 @@ void main() {
     });
   });
 
+  group('isMiseInstall', () {
+    test('recognizes the mise install directory on every OS', () {
+      expect(
+        isMiseInstall(
+          '/home/me/.local/share/mise/installs/knitcalc/1.8.8/knitcalc',
+        ),
+        isTrue,
+      );
+      expect(
+        isMiseInstall(
+          '/Users/me/.local/share/mise/installs/knitcalc/1.8.8/'
+          'knitcalc.app/Contents/MacOS/knitcalc',
+        ),
+        isTrue,
+      );
+      expect(
+        isMiseInstall(
+          r'C:\Users\me\AppData\Local\mise\installs\knitcalc\1.8.8\knitcalc.exe',
+        ),
+        isTrue,
+      );
+      // A tool installed under its raw backend id lands in the same tree.
+      expect(
+        isMiseInstall(
+          '/home/me/.local/share/mise/installs/github-dmezhnov-knitcalc/'
+          '1.8.8/knitcalc',
+        ),
+        isTrue,
+      );
+    });
+
+    test('does not fire on paths that merely mention mise', () {
+      expect(isMiseInstall('/home/me/mise/knitcalc/knitcalc'), isFalse);
+      expect(isMiseInstall('/opt/promise/installs/knitcalc'), isFalse);
+    });
+
+    test('takes precedence over the per-OS fallbacks', () {
+      // Without the mise check these would be windowsPortable (no installer
+      // marker), macosManual and — via linuxIsSystemInstall — linuxTarball,
+      // i.e. channels that swap files in a directory mise owns.
+      expect(
+        windowsChannelForExecutable(
+          r'C:\Users\me\AppData\Local\mise\installs\knitcalc\1.8.8\knitcalc.exe',
+          readInstallSource: (_) => null,
+        ),
+        Channel.mise,
+      );
+      expect(
+        macosChannelForExecutable(
+          '/Users/me/.local/share/mise/installs/knitcalc/1.8.8/'
+          'knitcalc.app/Contents/MacOS/knitcalc',
+        ),
+        Channel.mise,
+      );
+      expect(
+        linuxIsSystemInstall(
+          '/home/me/.local/share/mise/installs/knitcalc/1.8.8/knitcalc',
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('linuxIsSystemInstall', () {
     test('treats a /usr prefix as a system (apt/dpkg) install', () {
       expect(linuxIsSystemInstall('/usr/bin/knitcalc'), isTrue);

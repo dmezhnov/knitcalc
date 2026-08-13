@@ -19,6 +19,11 @@ apply_standard_settings(${BINARY_NAME})
 # Add preprocessor definitions for the application ID.
 add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 
+# Add the build version, so `knitcalc --version` can answer without starting the
+# engine (see main.cc). FLUTTER_VERSION carries the full pubspec version and is
+# set by flutter/ephemeral/generated_config.cmake, mirroring the Windows runner.
+target_compile_definitions(${BINARY_NAME} PRIVATE "KNITCALC_VERSION=\"${FLUTTER_VERSION}\"")
+
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
