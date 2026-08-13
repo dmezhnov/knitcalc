@@ -25,6 +25,9 @@ channels=(
     "chocolatey|Chocolatey"
     "snap|Snap Store"
     "aur|AUR"
+    "mise-linux|mise (Linux install check)"
+    "mise-windows|mise (Windows install check)"
+    "mise-macos|mise (macOS install check)"
 )
 
 {

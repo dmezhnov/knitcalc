@@ -436,6 +436,23 @@ jobs:
                   git add Casks/knitcalc.rb
                   git commit -m "Homebrew cask ${{ needs.linux-android-web.outputs.version }}"
 
+            # And the repo doubles as its own mise plugin (`mise plugin install
+            # knitcalc https://github.com/dmezhnov/knitcalc`): mise clones the
+            # repository and reads metadata.lua/hooks/ from its root, so the
+            # generated plugin tree is copied there on main. Unlike the bucket
+            # and the cask it carries no version — the plugin asks the GitHub
+            # API — so it only commits when the plugin itself changed.
+            - name: Render mise plugin
+              run: |
+                  rm -rf hooks metadata.lua knitcalc.lua
+                  cp -R packaging/mise/plugin/. .
+                  git add metadata.lua knitcalc.lua hooks
+                  if git diff --cached --quiet -- metadata.lua knitcalc.lua hooks; then
+                    echo "mise plugin unchanged."
+                  else
+                    git commit -m "mise plugin ${{ needs.linux-android-web.outputs.version }}"
+                  fi
+
             # The Flathub manifest installs packaging/flatpak/* from the release
             # tag, so the metainfo must list the version being released. The file
             # keeps a single <release> entry; rewrite it before the tag is cut.
@@ -713,6 +730,159 @@ jobs:
                   path: channel-status
                   if-no-files-found: ignore
 
+    # mise installs the release assets straight from GitHub, so there is nothing
+    # to publish per release. What can break silently is the *install*: an asset
+    # rename, a different bundle layout or a runner that stops answering
+    # `--version` would make `mise use knitcalc` fail without any store
+    # complaining. So this channel reports on a check rather than an upload —
+    # the same steps packaging/README.md gives users, and the same command
+    # jdx/mise's registry test runs, on all three desktop OSes.
+    mise-install:
+        name: Verify the mise install
+        needs:
+            - linux-android-web
+            - publish
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: ubuntu-latest
+                      channel: mise-linux
+                    - os: windows-latest
+                      channel: mise-windows
+                    - os: macos-latest
+                      channel: mise-macos
+        runs-on: ${{ matrix.os }}
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            # The Linux bundle links GTK, so even `--version` (which answers
+            # before the toolkit is touched) needs the shared libraries present
+            # for the loader — a bare runner has the runtime but not always this
+            # set. Same reason mise's own registry CI needs them; see
+            # packaging/README.md.
+            - name: Install GTK runtime
+              if: runner.os == 'Linux'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y libgtk-3-0 liblzma5
+
+            - name: Install mise
+              uses: jdx/mise-action@v4
+              with:
+                  # Deliberately unpinned, unlike the build jobs: this check is
+                  # about what a user's current mise does with our release, and
+                  # the pin there works around a Windows *shim* cache
+                  # regression that neither `mise exec` nor an uncached run hits.
+                  #
+                  # Only the mise binary: `mise install` here would build this
+                  # repo's own toolchain (Flutter, Dart, Bun).
+                  install: false
+                  cache: false
+
+            - name: Install knitcalc through mise and check --version
+              shell: bash
+              env:
+                  # Release listing goes through the GitHub API; the default
+                  # token lifts the anonymous rate limit.
+                  MISE_GITHUB_TOKEN: ${{ github.token }}
+              run: |
+                  set -uo pipefail
+                  export CHANNEL_STATUS_DIR="$GITHUB_WORKSPACE/channel-status"
+                  status="$GITHUB_WORKSPACE/packaging/ci/channel_status.sh"
+                  channel='${{ matrix.channel }}'
+                  version='${{ needs.linux-android-web.outputs.version }}'
+
+                  # Both documented install paths are checked, each in its own
+                  # config, data and cache dirs outside the repo: this repo's
+                  # mise.toml pulls in the whole build toolchain, and a global
+                  # config left by the setup action would be installed too —
+                  # `mise install` builds every tool in scope, not just the one
+                  # named in the local config.
+                  isolate() {
+                    work="$RUNNER_TEMP/$1"
+                    rm -rf "$work"
+                    mkdir -p "$work/config"
+                    : > "$work/config/config.toml"
+                    export MISE_DATA_DIR="$work/data"
+                    export MISE_CACHE_DIR="$work/cache"
+                    export MISE_CONFIG_DIR="$work/config"
+                    export MISE_GLOBAL_CONFIG_FILE="$work/config/config.toml"
+                    cd "$work"
+                  }
+
+                  # Runs headless on every runner: the native --version path
+                  # must answer without a window, exactly as mise's registry
+                  # test needs it to.
+                  check_version() {
+                    out="$(mise exec -- knitcalc --version)"
+                    echo "$1: knitcalc --version -> $out"
+
+                    if [ "$out" != "knitcalc $version" ]; then
+                      echo "::warning::$1: knitcalc --version printed '$out', expected 'knitcalc $version'."
+                      bash "$status" "$channel" failed "$1: --version printed '$out'"
+                      exit 1
+                    fi
+                  }
+
+                  # 1. The plugin: the repository is its own mise plugin
+                  # registry, and the tree rendered onto main by the publish job
+                  # is what users clone.
+                  isolate mise-plugin
+                  if ! mise plugin install knitcalc "https://github.com/${GITHUB_REPOSITORY}"; then
+                    echo "::warning::mise plugin install failed on ${{ matrix.os }}."
+                    bash "$status" "$channel" failed "plugin install failed"
+                    exit 1
+                  fi
+
+                  if ! mise use -g "knitcalc@$version"; then
+                    echo "::warning::the mise plugin could not install knitcalc $version on ${{ matrix.os }}."
+                    bash "$status" "$channel" failed "plugin could not install $version"
+                    exit 1
+                  fi
+
+                  check_version plugin
+
+                  # 2. The plugin-less path: the github backend block that
+                  # packaging/README.md documents, pinned to this release.
+                  isolate mise-backend
+                  cat > mise.toml <<EOF
+                  [tool_alias]
+                  knitcalc = "github:dmezhnov/knitcalc"
+
+                  [tools.knitcalc]
+                  version = "$version"
+
+                  [tools.knitcalc.platforms]
+                  linux-x64 = { asset_pattern = "knitcalc-linux-x64-*.tar.gz" }
+                  windows-x64 = { asset_pattern = "knitcalc-windows-x64-*.zip" }
+                  macos-arm64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
+                  macos-x64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
+                  EOF
+                  mise trust mise.toml
+
+                  if ! mise install; then
+                    echo "::warning::mise could not install knitcalc $version on ${{ matrix.os }}."
+                    bash "$status" "$channel" failed "github backend install failed for $version"
+                    exit 1
+                  fi
+
+                  check_version backend
+
+                  bash "$status" "$channel" ok "$version (plugin + github backend)"
+
+            - name: Upload channel status
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: channel-status-${{ matrix.channel }}
+                  path: channel-status
+                  if-no-files-found: ignore
+
     deploy-pages:
         name: Deploy GitHub Pages
         runs-on: ubuntu-latest
@@ -767,6 +937,7 @@ jobs:
             - windows-package-managers
             - snap-store
             - aur
+            - mise-install
             - deploy-pages
 
         steps:

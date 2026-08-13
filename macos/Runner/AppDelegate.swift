@@ -1,7 +1,8 @@
 import Cocoa
 import FlutterMacOS
 
-@main
+// No @main here: main.swift is the entry point, so `--version` can be answered
+// before AppKit starts (see macos/Runner/main.swift).
 class AppDelegate: FlutterAppDelegate {
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     return true

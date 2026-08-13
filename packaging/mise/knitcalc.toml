@@ -1,0 +1,30 @@
+# Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.
+# Edit that file and run `mise metadata`; changes here are overwritten.
+#
+# Copy to registry/knitcalc.toml in a fork of jdx/mise; users then
+# install with `mise use -g knitcalc`. Until that PR lands, the
+# install instructions in packaging/README.md spell the same backend and
+# options out in the user's own mise config.
+description = "Knitting calculator: gauge conversion, stitch counts, yarn estimation"
+version_order = "semver"
+
+bins = ["knitcalc"]
+test = { cmd = "knitcalc --version", expected = "knitcalc {{version}}" }
+
+[[backends]]
+full = "github:dmezhnov/knitcalc"
+
+[backends.options.platforms.linux-x64]
+asset_pattern = "knitcalc-linux-x64-*.tar.gz"
+
+[backends.options.platforms.windows-x64]
+asset_pattern = "knitcalc-windows-x64-*.zip"
+
+# The macOS asset is an .app bundle, so the binary sits inside it.
+[backends.options.platforms.macos-arm64]
+asset_pattern = "knitcalc-macos-*.zip"
+bin_path = "knitcalc.app/Contents/MacOS"
+
+[backends.options.platforms.macos-x64]
+asset_pattern = "knitcalc-macos-*.zip"
+bin_path = "knitcalc.app/Contents/MacOS"
