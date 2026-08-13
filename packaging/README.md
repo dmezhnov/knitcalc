@@ -30,6 +30,52 @@ installer is the recommended direct download for end users.
 The job is a no-op (with a workflow warning) until the corresponding secret is
 configured, so releases keep working before the one-time onboarding below.
 
+## Release channel report
+
+Because every publishing step is warn-and-continue (an outage at a store must
+not abort a release that is already tagged and uploaded), a channel can fail to
+update without reddening anything. The **Release channel report** job closes
+that gap:
+
+- each publishing step records its verdict with
+  `packaging/ci/channel_status.sh <channel> ok|skipped|failed [detail]`
+  (`channel_status.ps1` on the Windows runner), and its job uploads the
+  directory as a `channel-status-*` artifact;
+- `packaging/ci/channel_report.sh` merges them into a table on the run summary,
+  emits one annotation per channel, and **exits non-zero if any channel is not
+  `ok`** — including channels with no status file at all (`unknown`: the owning
+  job never got that far), so a dead job cannot pass for silence;
+- `mise publish` prints those annotations after `gh run watch` and exits with
+  the run's status, so the terminal shows which channels published.
+
+A red report does not mean a bad release: the tag, the assets and every channel
+marked `ok` are live. Fix the cause and re-run the owning job — no version bump
+is needed.
+
+For the two Windows channels there is a dedicated retry:
+`.github/workflows/republish-windows.yml` (**Republish Windows package
+managers**, `workflow_dispatch`) re-submits an existing release to winget and/or
+Chocolatey, recomputing the zip hash from the published asset. Both it and the
+release job call the same composite action,
+`.github/actions/windows-package-managers`, so the submission logic has one
+home. Note that a `workflow_dispatch` workflow is only offered once it exists on
+the default branch, i.e. after the release that first carries it.
+
+Known causes behind the two Windows channels going quiet:
+
+- **winget** — `The forked repository could not be synced with the upstream
+commits`: `dmezhnov/winget-pkgs` drifted from upstream and wingetcreate
+  refuses to branch off it. Fix with
+  `gh api repos/dmezhnov/winget-pkgs/merge-upstream -f branch=master`, then
+  retry the channel.
+- **Chocolatey** — `403` means the key was rejected or a previous version is
+  still in first-time moderation; `400` means the request itself was malformed,
+  and in practice that is a `CHOCO_API_KEY` secret carrying a stray newline or
+  space (the key goes out as the `X-NuGet-ApiKey` header). The action trims the
+  value and refuses characters that cannot go into a header, but a wrong or
+  truncated key still needs re-copying from
+  <https://community.chocolatey.org/account>.
+
 ## One-time onboarding
 
 ### winget (`packaging/winget/`)

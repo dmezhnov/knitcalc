@@ -1,0 +1,105 @@
+name: Republish Windows package managers
+
+# Retries winget and/or Chocolatey for a release that already exists. The
+# release workflow publishes every channel once; when only a Windows channel
+# fails (a drifted winget fork, a rejected Chocolatey key), this re-runs just
+# that submission instead of burning a new version to trigger a release.
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: Full version to (re)publish, e.g. 1.8.72+95. Empty uses the latest release.
+                required: false
+                default: ''
+            channels:
+                description: Which channels to retry.
+                type: choice
+                options:
+                    - both
+                    - winget
+                    - chocolatey
+                default: both
+
+permissions:
+    contents: read
+
+jobs:
+    republish:
+        name: Republish to winget/Chocolatey
+        runs-on: windows-latest
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            # The build outputs are long gone, so the zip hash the Chocolatey
+            # install script pins is recomputed from the published asset — which
+            # is also what an end user downloads, so a mismatch here is a real
+            # problem worth failing on.
+            - name: Resolve release facts
+              id: facts
+              shell: pwsh
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  $full = '${{ inputs.version }}'
+                  if (-not $full) {
+                    $tag = gh release view --repo $env:GITHUB_REPOSITORY --json tagName --jq .tagName
+                    if ($LASTEXITCODE -ne 0) { throw "Could not resolve the latest release" }
+                    $full = $tag -replace '^v', ''
+                  }
+                  $bare = $full.Split('+')[0]
+                  $base = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/v$full"
+                  $url = "$base/knitcalc-windows-x64-$full.zip"
+                  $setupUrl = "$base/knitcalc-setup-x64-$full.exe"
+                  Invoke-WebRequest -Uri $url -OutFile bundle.zip
+                  $sha = (Get-FileHash bundle.zip -Algorithm SHA256).Hash.ToLower()
+                  Write-Host "Republishing $full (bare $bare), zip sha256 $sha"
+                  "bare=$bare" >> $env:GITHUB_OUTPUT
+                  "url=$url" >> $env:GITHUB_OUTPUT
+                  "setup_url=$setupUrl" >> $env:GITHUB_OUTPUT
+                  "sha256=$sha" >> $env:GITHUB_OUTPUT
+
+            - name: Publish to winget and Chocolatey
+              uses: ./.github/actions/windows-package-managers
+              with:
+                  bare: ${{ steps.facts.outputs.bare }}
+                  url: ${{ steps.facts.outputs.url }}
+                  setup_url: ${{ steps.facts.outputs.setup_url }}
+                  sha256: ${{ steps.facts.outputs.sha256 }}
+                  channels: ${{ inputs.channels }}
+                  packaging_github_token: ${{ secrets.PACKAGING_GITHUB_TOKEN }}
+                  choco_api_key: ${{ secrets.CHOCO_API_KEY }}
+
+            # Same contract as the release run: the submission steps warn instead
+            # of failing, so the outcome has to be asserted afterwards.
+            - name: Report outcome
+              if: always()
+              shell: bash
+              run: |
+                  shopt -s nullglob
+                  files=(channel-status/*.tsv)
+                  if [ ${#files[@]} -eq 0 ]; then
+                    echo "::error::No channel was attempted; the submission step did not run."
+                    exit 1
+                  fi
+                  failed=0
+                  {
+                    echo "| Channel | Status | Detail |"
+                    echo "| --- | --- | --- |"
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  for f in "${files[@]}"; do
+                    channel="$(head -1 "$f" | cut -f1)"
+                    state="$(head -1 "$f" | cut -f2)"
+                    detail="$(head -1 "$f" | cut -f3- | tr -d '\r' | sed 's/|/\\|/g')"
+                    printf '| %s | %s | %s |\n' "$channel" "$state" "$detail" >> "$GITHUB_STEP_SUMMARY"
+                    if [ "$state" != ok ]; then
+                      failed=1
+                      echo "::error::${channel}: ${state} — ${detail}"
+                    else
+                      echo "::notice::${channel}: ${detail}"
+                    fi
+                  done
+                  exit "$failed"
