@@ -196,6 +196,7 @@ jobs:
               run: |
                   if [ -z "$APT_GPG_PRIVATE_KEY" ]; then
                     echo "::warning::APT_GPG_PRIVATE_KEY is not set; skipping the apt repository."
+                    bash packaging/ci/channel_status.sh apt skipped "APT_GPG_PRIVATE_KEY is not set"
                     exit 0
                   fi
                   sudo apt-get install -y dpkg-dev apt-utils
@@ -217,11 +218,20 @@ jobs:
                   GPG_KEY_ID="$key_id" \
                   GPG_PASSPHRASE="$APT_GPG_PASSPHRASE" \
                     bash packaging/apt/build-repo.sh
+                  bash packaging/ci/channel_status.sh apt ok "${{ steps.version.outputs.version }}"
 
             - name: Upload GitHub Pages artifact
               uses: actions/upload-pages-artifact@v5
               with:
                   path: build/web
+
+            - name: Upload channel status
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: channel-status-linux-android-web
+                  path: channel-status
+                  if-no-files-found: ignore
 
     windows:
         name: Build Windows
@@ -459,6 +469,12 @@ jobs:
                     --repo "$GITHUB_REPOSITORY" \
                     --title "KnitCalc ${{ needs.linux-android-web.outputs.version }}" \
                     --notes "Automated release for ${{ needs.linux-android-web.outputs.tag }}"
+                  # The bucket/cask commits rendered above are only live once the
+                  # push in the previous step landed, so record all three here.
+                  version='${{ needs.linux-android-web.outputs.version }}'
+                  bash packaging/ci/channel_status.sh github-release ok "$version"
+                  bash packaging/ci/channel_status.sh scoop ok "$version"
+                  bash packaging/ci/channel_status.sh homebrew ok "$version"
 
             # The app reads the available version from a Firestore document
             # instead of the GitHub API (avoids the 60/hour unauthenticated rate
@@ -470,7 +486,6 @@ jobs:
             # manager jobs that need it); skipped when FIREBASE_SA_KEY is unset.
             - name: Publish self-update versions to Firestore
               if: ${{ env.FIREBASE_SA_KEY != '' }}
-              continue-on-error: true
               env:
                   VERSION: ${{ needs.linux-android-web.outputs.version }}
                   ARTIFACT_DIR: release-download
@@ -482,15 +497,37 @@ jobs:
                   # preinstalled). This avoids the IAM Service Account Credentials
                   # API (iamcredentials.googleapis.com), which is not enabled on
                   # the project — unlike google-github-actions/auth access tokens.
-                  gcloud auth activate-service-account --key-file="$key" --quiet
-                  ACCESS_TOKEN="$(gcloud auth print-access-token)"
-                  export ACCESS_TOKEN
-                  packaging/firebase/publish_store_versions.sh
+                  #
+                  # The failure path records the channel and exits 0 instead of
+                  # using continue-on-error: the release must not abort here, but
+                  # the report job has to see that the banner is stale.
+                  status=ok
+                  detail="$VERSION"
+                  if gcloud auth activate-service-account --key-file="$key" --quiet \
+                      && ACCESS_TOKEN="$(gcloud auth print-access-token)" \
+                      && ACCESS_TOKEN="$ACCESS_TOKEN" packaging/firebase/publish_store_versions.sh; then
+                    :
+                  else
+                    status=failed
+                    detail="gcloud auth or publish_store_versions.sh failed; see this step's log"
+                    echo "::warning::Firestore store-versions publish failed; the in-app update banner keeps advertising the previous version."
+                  fi
                   rm -f "$key"
+                  bash packaging/ci/channel_status.sh firestore "$status" "$detail"
 
             - name: Note skipped Firestore publish
               if: ${{ env.FIREBASE_SA_KEY == '' }}
-              run: echo "::warning::FIREBASE_SA_KEY is not set; skipping the store-versions publish. The update banner will not appear until the document is updated (see packaging/firebase/README.md)."
+              run: |
+                  echo "::warning::FIREBASE_SA_KEY is not set; skipping the store-versions publish. The update banner will not appear until the document is updated (see packaging/firebase/README.md)."
+                  bash packaging/ci/channel_status.sh firestore skipped "FIREBASE_SA_KEY is not set"
+
+            - name: Upload channel status
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: channel-status-publish
+                  path: channel-status
+                  if-no-files-found: ignore
 
     windows-package-managers:
         name: Publish to Windows package managers
@@ -524,53 +561,23 @@ jobs:
                   "setup_url=$setupUrl" >> $env:GITHUB_OUTPUT
                   "sha256=${{ needs.windows.outputs.sha256 }}" >> $env:GITHUB_OUTPUT
 
-            # The first inno-installer version has to be submitted by hand
-            # (wingetcreate update can bump the url/version/hash but not switch
-            # the existing manifest's InstallerType from zip to inno); see
-            # packaging/README.md. Failures are downgraded to warnings so a
-            # missing first submission doesn't redden the release.
-            - name: Submit to winget-pkgs
-              shell: pwsh
-              env:
-                  PACKAGING_GITHUB_TOKEN: ${{ secrets.PACKAGING_GITHUB_TOKEN }}
-              run: |
-                  if (-not $env:PACKAGING_GITHUB_TOKEN) {
-                    Write-Host "::warning::PACKAGING_GITHUB_TOKEN is not set; skipping the winget submission."
-                    exit 0
-                  }
-                  Invoke-WebRequest -Uri 'https://aka.ms/wingetcreate/latest' -OutFile wingetcreate.exe
-                  ./wingetcreate.exe update Dmezhnov.KnitCalc `
-                    --version '${{ steps.facts.outputs.bare }}' `
-                    --urls '${{ steps.facts.outputs.setup_url }}' `
-                    --submit --token $env:PACKAGING_GITHUB_TOKEN
-                  if ($LASTEXITCODE -ne 0) {
-                    Write-Host "::warning::wingetcreate failed — either Dmezhnov.KnitCalc is not in winget-pkgs yet (first submission is manual) or the token was rejected."
-                    exit 0
-                  }
+            - name: Publish to winget and Chocolatey
+              uses: ./.github/actions/windows-package-managers
+              with:
+                  bare: ${{ steps.facts.outputs.bare }}
+                  url: ${{ steps.facts.outputs.url }}
+                  setup_url: ${{ steps.facts.outputs.setup_url }}
+                  sha256: ${{ steps.facts.outputs.sha256 }}
+                  packaging_github_token: ${{ secrets.PACKAGING_GITHUB_TOKEN }}
+                  choco_api_key: ${{ secrets.CHOCO_API_KEY }}
 
-            - name: Push to Chocolatey
-              shell: pwsh
-              env:
-                  CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
-              run: |
-                  if (-not $env:CHOCO_API_KEY) {
-                    Write-Host "::warning::CHOCO_API_KEY is not set; skipping the Chocolatey push."
-                    exit 0
-                  }
-                  $pkg = 'packaging/chocolatey'
-                  (Get-Content "$pkg/knitcalc.nuspec") `
-                    -replace '\{\{VERSION\}\}', '${{ steps.facts.outputs.bare }}' |
-                    Set-Content "$pkg/knitcalc.nuspec"
-                  (Get-Content "$pkg/tools/chocolateyinstall.ps1") `
-                    -replace '\{\{URL\}\}', '${{ steps.facts.outputs.url }}' `
-                    -replace '\{\{SHA256\}\}', '${{ steps.facts.outputs.sha256 }}' |
-                    Set-Content "$pkg/tools/chocolateyinstall.ps1"
-                  choco pack "$pkg/knitcalc.nuspec" --outputdirectory $pkg
-                  choco push "$pkg/knitcalc.${{ steps.facts.outputs.bare }}.nupkg" --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
-                  if ($LASTEXITCODE -ne 0) {
-                    Write-Host "::warning::choco push failed — a 403 means the CHOCO_API_KEY is invalid/expired or not authorized for this package; the version may also be awaiting initial moderation. The release itself is unaffected."
-                    exit 0
-                  }
+            - name: Upload channel status
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: channel-status-windows-package-managers
+                  path: channel-status
+                  if-no-files-found: ignore
 
     snap-store:
         name: Publish to the Snap Store
@@ -603,6 +610,7 @@ jobs:
               run: |
                   if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
                     echo "::warning::SNAPCRAFT_STORE_CREDENTIALS is not set; skipping the Snap Store."
+                    bash packaging/ci/channel_status.sh snap skipped "SNAPCRAFT_STORE_CREDENTIALS is not set"
                     exit 0
                   fi
                   version='${{ needs.linux-android-web.outputs.version }}'
@@ -615,6 +623,15 @@ jobs:
                   # on the host; the upload runs unprivileged with the credentials.
                   sudo snapcraft pack --destructive-mode
                   snapcraft upload --release=stable "knitcalc_${version}_amd64.snap"
+                  bash packaging/ci/channel_status.sh snap ok "$version"
+
+            - name: Upload channel status
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: channel-status-snap-store
+                  path: channel-status
+                  if-no-files-found: ignore
 
     aur:
         name: Publish to the AUR
@@ -639,8 +656,12 @@ jobs:
               run: |
                   if [ -z "$AUR_SSH_PRIVATE_KEY" ]; then
                     echo "::warning::AUR_SSH_PRIVATE_KEY is not set; skipping the AUR push."
+                    bash packaging/ci/channel_status.sh aur skipped "AUR_SSH_PRIVATE_KEY is not set"
                     exit 0
                   fi
+                  # The status file must land in the workspace, not in /tmp/aur
+                  # the push below cd's into.
+                  export CHANNEL_STATUS_DIR="$GITHUB_WORKSPACE/channel-status"
                   version='${{ needs.linux-android-web.outputs.version }}'
                   tarball_sha='${{ needs.linux-android-web.outputs.linux_sha256 }}'
                   license_sha="$(sha256sum LICENSE | cut -d' ' -f1)"
@@ -666,15 +687,28 @@ jobs:
                   git add PKGBUILD .SRCINFO
                   if git diff --cached --quiet; then
                     echo "AUR package already up to date."
+                    bash "$GITHUB_WORKSPACE/packaging/ci/channel_status.sh" aur ok "$version (already up to date)"
                     exit 0
                   fi
                   git commit -m "knitcalc-bin $version"
                   git push origin HEAD:master
+                  bash "$GITHUB_WORKSPACE/packaging/ci/channel_status.sh" aur ok "$version"
+
+            - name: Upload channel status
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: channel-status-aur
+                  path: channel-status
+                  if-no-files-found: ignore
 
     deploy-pages:
         name: Deploy GitHub Pages
         runs-on: ubuntu-latest
         needs:
+            # linux-android-web only for outputs.version in the channel report;
+            # publish already depends on it, so this adds no waiting.
+            - linux-android-web
             - publish
 
         environment:
@@ -685,3 +719,60 @@ jobs:
             - name: Deploy GitHub Pages
               id: deployment
               uses: actions/deploy-pages@v5
+
+            # Only for the channel report: the deploy action needs no checkout,
+            # but the status helper lives in the repo.
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            - name: Record channel status
+              run: bash packaging/ci/channel_status.sh pages ok "${{ needs.linux-android-web.outputs.version }}"
+
+            - name: Upload channel status
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: channel-status-deploy-pages
+                  path: channel-status
+                  if-no-files-found: ignore
+
+    # Publishing steps stay warn-and-continue so a store outage cannot abort an
+    # already-tagged release. This job is what makes a channel that quietly did
+    # not update visible: it merges the per-channel status files into a table on
+    # the run summary and fails the run (and therefore `mise publish`) if any
+    # channel is behind. The release itself is unaffected — re-run the owning
+    # job once the cause is fixed, no new version needed.
+    channel-report:
+        name: Release channel report
+        runs-on: ubuntu-latest
+        if: always()
+        needs:
+            - linux-android-web
+            - windows
+            - apple
+            - publish
+            - windows-package-managers
+            - snap-store
+            - aur
+            - deploy-pages
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            # A job that died before writing its status uploads no artifact; the
+            # report calls those channels `unknown` rather than passing them.
+            - name: Download channel statuses
+              continue-on-error: true
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: channel-status-*
+                  path: channel-status
+                  merge-multiple: true
+
+            - name: Report release channels
+              run: bash packaging/ci/channel_report.sh

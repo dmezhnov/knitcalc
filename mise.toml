@@ -257,7 +257,7 @@ arg "<message>" help="Commit message for the release commit"
 '''
 run = '''
 {%- if os() == "windows" -%}
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p='pubspec.yaml'; $raw=Get-Content -Raw $p; $new=[regex]::Replace($raw, '(?m)^version:[^\r\n]*', 'version: '+$env:usage_version); [IO.File]::WriteAllText((Resolve-Path $p).Path, $new, (New-Object Text.UTF8Encoding $false)); git add -A; if($LASTEXITCODE){exit 1}; git commit -m $env:usage_message; if($LASTEXITCODE){exit 1}; git push origin HEAD:test --force-with-lease; if($LASTEXITCODE){exit 1}; if(Get-Command gh -ErrorAction SilentlyContinue){ $sha=(git rev-parse HEAD).Trim(); $id=$null; foreach($i in 1..10){ Start-Sleep -Seconds 3; $id = gh run list --branch test --limit 10 --json databaseId,headSha --jq ('map(select(.headSha==\"'+$sha+'\")) | .[0].databaseId'); if($id){break} }; if($id){ gh run watch $id --exit-status } else { Write-Host 'Release run not found yet; check GitHub Actions manually.' } } else { Write-Host 'gh CLI not found; skipping run watch.' }"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $p='pubspec.yaml'; $raw=Get-Content -Raw $p; $new=[regex]::Replace($raw, '(?m)^version:[^\r\n]*', 'version: '+$env:usage_version); [IO.File]::WriteAllText((Resolve-Path $p).Path, $new, (New-Object Text.UTF8Encoding $false)); git add -A; if($LASTEXITCODE){exit 1}; git commit -m $env:usage_message; if($LASTEXITCODE){exit 1}; git push origin HEAD:test --force-with-lease; if($LASTEXITCODE){exit 1}; if(Get-Command gh -ErrorAction SilentlyContinue){ $sha=(git rev-parse HEAD).Trim(); $id=$null; foreach($i in 1..10){ Start-Sleep -Seconds 3; $id = gh run list --branch test --limit 10 --json databaseId,headSha --jq ('map(select(.headSha==\"'+$sha+'\")) | .[0].databaseId'); if($id){break} }; if($id){ gh run watch $id --exit-status; $w=$LASTEXITCODE; $repo=(gh repo view --json nameWithOwner --jq .nameWithOwner).Trim(); Write-Host ''; Write-Host 'Release channels:'; foreach($j in (gh api ('repos/'+$repo+'/actions/runs/'+$id+'/jobs') --jq '.jobs[].id')){ gh api ('repos/'+$repo+'/check-runs/'+$j+'/annotations') --jq '.[] | \"  \" + (.annotation_level | ascii_upcase) + \": \" + .message' 2>$null }; exit $w } else { Write-Host 'Release run not found yet; check GitHub Actions manually.' } } else { Write-Host 'gh CLI not found; skipping run watch.' }"
 {%- else -%}
 grep -qE '^version: ' pubspec.yaml || { echo "pubspec.yaml: no 'version:' line found" >&2; exit 1; }
 tmp="$(mktemp)"
@@ -282,10 +282,27 @@ for _ in $(seq 1 10); do
   [ -n "$run_id" ] && break
 done
 
-if [ -n "$run_id" ]; then
-  gh run watch "$run_id" --exit-status
-else
+if [ -z "$run_id" ]; then
   echo "Release run not found yet; check GitHub Actions manually." >&2
+  exit 0
 fi
+
+watch_status=0
+gh run watch "$run_id" --exit-status || watch_status=$?
+
+# `gh run watch` only reports job conclusions, and every package-manager step is
+# warn-and-continue by design (a store outage must not abort a tagged release),
+# so a channel that did not update leaves the stream all-green. The per-channel
+# verdicts ride out as annotations from the "Release channel report" job — print
+# them here, or the terminal keeps the silence gh does.
+repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
+echo
+echo "Release channels:"
+gh api "repos/${repo}/actions/runs/${run_id}/jobs" --jq '.jobs[].id' | while read -r job_id; do
+  gh api "repos/${repo}/check-runs/${job_id}/annotations" \
+    --jq '.[] | "  \(.annotation_level | ascii_upcase): \(.message)"' 2>/dev/null || true
+done
+
+exit "$watch_status"
 {%- endif -%}
 '''
