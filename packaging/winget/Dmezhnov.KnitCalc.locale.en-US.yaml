@@ -1,3 +1,7 @@
+# Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.
+# Edit that file and run `mise metadata`; changes here are overwritten.
+# {{VERSION}} is the bare semver (no +build), filled in by the publish
+# workflow / wingetcreate.
 PackageIdentifier: Dmezhnov.KnitCalc
 PackageVersion: '{{VERSION}}'
 PackageLocale: en-US
@@ -8,11 +12,18 @@ PackageName: KnitCalc
 PackageUrl: https://github.com/dmezhnov/knitcalc
 License: MIT
 LicenseUrl: https://github.com/dmezhnov/knitcalc/blob/main/LICENSE
-ShortDescription: Knitting calculator
-Description: 'KnitCalc is a knitting calculator: gauge conversion, increases/decreases distribution, yarn estimation and project notes with photos.'
+ShortDescription: 'Knitting calculator: gauge conversion, stitch counts, yarn estimation'
+Description: |-
+    KnitCalc is a cross-platform helper for the arithmetic of knitting: it converts counts between gauges, distributes increases and decreases evenly across a row, and estimates how much yarn a project needs.
+
+    - Gauge conversion between a swatch and a pattern
+    - Even distribution of increases and decreases
+    - Yarn usage estimation
+    - Project notes with photos, optionally synced between devices
 Tags:
     - knitting
     - calculator
     - craft
+    - knitcalc
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

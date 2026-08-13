@@ -6,12 +6,16 @@
 name: knitcalc
 title: KnitCalc
 version: '{{VERSION}}'
-summary: KnitCalc is a knitting calculator
-description: >
-    Gauge conversion, increases/decreases distribution, yarn estimation and
-    project notes with photos.
+summary: 'Knitting calculator: gauge conversion, stitch counts, yarn estimation'
+description: |
+    KnitCalc is a cross-platform helper for the arithmetic of knitting: it converts counts between gauges, distributes increases and decreases evenly across a row, and estimates how much yarn a project needs.
+
+    - Gauge conversion between a swatch and a pattern
+    - Even distribution of increases and decreases
+    - Yarn usage estimation
+    - Project notes with photos, optionally synced between devices
 license: MIT
-website: https://github.com/dmezhnov/knitcalc
+website: https://dmezhnov.github.io/knitcalc/
 source-code: https://github.com/dmezhnov/knitcalc
 issues: https://github.com/dmezhnov/knitcalc/issues
 
