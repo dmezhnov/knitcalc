@@ -249,6 +249,79 @@ run = "flutter run"
 description = "Render every store listing from packaging/metadata/metadata.yaml"
 run = "dart run tool/packaging_metadata.dart"
 
+[tasks.mise-install-check]
+description = "Install a published release through mise (plugin and github backend) and check `knitcalc --version`"
+usage = '''
+arg "[version]" help="Released version to install, e.g. 1.8.75+98 (default: latest)"
+'''
+run = '''
+set -eu
+version="${usage_version:-latest}"
+root="$PWD"
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+# Each check gets its own mise dirs: a bare `mise install` otherwise also
+# installs everything the developer's global config lists.
+isolate() {
+  dir="$work/$1"
+  mkdir -p "$dir/config"
+  : > "$dir/config/config.toml"
+  export MISE_DATA_DIR="$dir/data"
+  export MISE_CACHE_DIR="$dir/cache"
+  export MISE_CONFIG_DIR="$dir/config"
+  export MISE_GLOBAL_CONFIG_FILE="$dir/config/config.toml"
+  cd "$dir"
+}
+
+check_version() {
+  out="$(mise exec -- knitcalc --version)"
+  echo "$1: $out"
+  case "$out" in
+    "knitcalc "*) ;;
+    *) echo "$1: unexpected output from 'knitcalc --version'" >&2; exit 1 ;;
+  esac
+  if [ "$version" != latest ] && [ "$out" != "knitcalc $version" ]; then
+    echo "$1: expected 'knitcalc $version'" >&2
+    exit 1
+  fi
+}
+
+# 1. The plugin, from the working tree rather than from main: mise clones
+# plugins with git, so the rendered tree becomes a throwaway repo first. These
+# are the files the publish job copies to the root of main.
+plugin="$work/plugin"
+mkdir -p "$plugin"
+cp -R "$root/packaging/mise/plugin/." "$plugin/"
+git -C "$plugin" init -q -b main
+git -C "$plugin" add -A
+git -C "$plugin" -c user.email=mise@localhost -c user.name=mise commit -qm knitcalc
+
+isolate plugin-check
+mise plugin install knitcalc "file://$plugin"
+mise use -g "knitcalc@$version"
+check_version plugin
+
+# 2. The plugin-less path: the github backend block from packaging/README.md.
+isolate backend-check
+cat > mise.toml <<EOF
+[tool_alias]
+knitcalc = "github:dmezhnov/knitcalc"
+
+[tools.knitcalc]
+version = "$version"
+
+[tools.knitcalc.platforms]
+linux-x64 = { asset_pattern = "knitcalc-linux-x64-*.tar.gz" }
+windows-x64 = { asset_pattern = "knitcalc-windows-x64-*.zip" }
+macos-arm64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
+macos-x64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
+EOF
+mise trust mise.toml
+mise install
+check_version backend
+'''
+
 [tasks.lint]
 # The --check pass fails if any channel's listing (winget, Scoop, Chocolatey,
 # Homebrew, apt, AUR, rpm, Snap, Flathub, fastlane, the Inno installer, the

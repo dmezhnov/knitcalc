@@ -26,6 +26,34 @@ sudo snap install knitcalc      # Snap Store
 yay -S knitcalc-bin             # AUR
 ```
 
+On Linux, Windows and macOS alike the release assets can also be installed with
+the [mise](https://mise.jdx.dev) version manager, which puts `knitcalc` on PATH
+(no desktop entry). This repository doubles as its own mise plugin, so no entry
+in mise's registry is involved:
+
+```bash
+mise plugin install knitcalc https://github.com/dmezhnov/knitcalc
+mise use -g knitcalc@latest
+```
+
+Without installing a plugin the same builds are reachable through mise's
+`github` backend — add this to `~/.config/mise/config.toml` and run
+`mise install`:
+
+```toml
+[tool_alias]
+knitcalc = "github:dmezhnov/knitcalc"
+
+[tools.knitcalc]
+version = "latest"
+
+[tools.knitcalc.platforms]
+linux-x64 = { asset_pattern = "knitcalc-linux-x64-*.tar.gz" }
+windows-x64 = { asset_pattern = "knitcalc-windows-x64-*.zip" }
+macos-arm64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
+macos-x64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
+```
+
 Linux users can also take the AppImage (with zsync delta updates) from the
 release assets, or add the apt repository hosted on the GitHub Pages site —
 setup commands for it and the remaining channels (winget, Chocolatey,

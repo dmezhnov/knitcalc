@@ -3,6 +3,7 @@ import 'package:knitcalc/update/impl/pm/specs/apt_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/chocolatey_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/flatpak_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/homebrew_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/mise_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/scoop_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
@@ -127,6 +128,54 @@ other|1.0.0|2.0.0|false
     test('returns null on malformed json', () {
       expect(parseBrewOutdated('not json'), isNull);
       expect(parseBrewOutdated(''), isNull);
+    });
+  });
+
+  group('parseMiseOutdated', () {
+    const tool = 'knitcalc';
+
+    test('reads the latest field of the tool entry', () {
+      const out = '''
+{
+  "knitcalc": {
+    "name": "knitcalc",
+    "requested": "latest",
+    "current": "1.8.7",
+    "bump": null,
+    "latest": "1.8.8",
+    "source": { "type": "mise.toml", "path": "/home/me/.config/mise/config.toml" }
+  }
+}
+''';
+      expect(parseMiseOutdated(out, tool: tool), '1.8.8');
+    });
+
+    test('returns null when nothing is outdated', () {
+      expect(parseMiseOutdated('{}', tool: tool), isNull);
+    });
+
+    test('ignores other outdated tools', () {
+      const out =
+          '{"claude-code":{"current":"2.1.226","latest":"2.1.228"},'
+          '"npm:@llmtrim/cli":{"current":"0.12.5","latest":"0.12.6"}}';
+      expect(parseMiseOutdated(out, tool: tool), isNull);
+    });
+
+    test('ignores an install made under the raw backend id', () {
+      // `mise upgrade knitcalc` would not resolve such an install, so no
+      // banner is better than a banner whose button fails.
+      const out =
+          '{"github:dmezhnov/knitcalc":{"current":"1.8.7","latest":"1.8.8"}}';
+      expect(parseMiseOutdated(out, tool: tool), isNull);
+    });
+
+    test('returns null on malformed json', () {
+      expect(parseMiseOutdated('not json', tool: tool), isNull);
+      expect(parseMiseOutdated('', tool: tool), isNull);
+      expect(
+        parseMiseOutdated('{"knitcalc":{"latest":null}}', tool: tool),
+        isNull,
+      );
     });
   });
 
