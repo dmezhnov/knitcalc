@@ -1,10 +1,14 @@
 {
-    "version": "1.8.73+96",
-    "description": "KnitCalc is a knitting calculator",
+    "##": [
+        "Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.",
+        "Edit that file and run `mise metadata`; changes here are overwritten."
+    ],
+    "version": "1.8.74+97",
+    "description": "Knitting calculator: gauge conversion, stitch counts, yarn estimation",
     "homepage": "https://github.com/dmezhnov/knitcalc",
     "license": "MIT",
-    "url": "https://github.com/dmezhnov/knitcalc/releases/download/v1.8.73+96/knitcalc-windows-x64-1.8.73+96.zip",
-    "hash": "d637f674eade9ed8c7a0842a575c791e609bc632f9db4e4b06e426bc28d89ae3",
+    "url": "https://github.com/dmezhnov/knitcalc/releases/download/v1.8.74+97/knitcalc-windows-x64-1.8.74+97.zip",
+    "hash": "f33542c6c4494109f48c2954731323b4aa91c527d6ab1642b74547a3fe725eb9",
     "bin": "knitcalc.exe",
     "shortcuts": [["knitcalc.exe", "KnitCalc"]],
     "checkver": {
