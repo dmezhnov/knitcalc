@@ -45,6 +45,8 @@ void main(List<String> args) {
   _renderDesktopEntries(meta, plan);
   _renderMetainfo(meta, plan);
   _renderHomebrew(meta, plan);
+  _renderMise(meta, plan);
+  _renderMisePlugin(meta, plan);
   _renderGithubRepo(meta, plan);
   _renderScreenshots(meta, plan);
 
@@ -611,6 +613,120 @@ void _renderHomebrew(Meta meta, Plan plan) {
         '    "~/Library/Saved Application State/${meta.appId}.savedState",\n'
         '  ]\n'
         'end\n',
+  );
+}
+
+/// Registry entry for the mise version manager, ready to be copied into
+/// `registry/${meta.package}.toml` of a jdx/mise fork (see packaging/README.md).
+///
+/// Unlike every other channel there is nothing to publish per release: mise
+/// installs the GitHub release assets directly, so the entry carries no version
+/// and the release workflow only verifies that the install still works. The
+/// per-platform asset globs are deliberate — a release also carries the
+/// AppImage, the Android APKs, the web tarball, the iOS zip and the Inno
+/// setup.exe, and mise's autodetection could pick any of them.
+void _renderMise(Meta meta, Plan plan) {
+  final l = meta.defaultLocale;
+  final bundle = '${meta.package}.app/Contents/MacOS';
+  plan.text(
+    'packaging/mise/${meta.package}.toml',
+    '${banner('#')}'
+        '#\n'
+        '# Copy to registry/${meta.package}.toml in a fork of jdx/mise; users then\n'
+        '# install with `mise use -g ${meta.package}`. Until that PR lands, the\n'
+        '# install instructions in packaging/README.md spell the same backend and\n'
+        '# options out in the user\'s own mise config.\n'
+        'description = ${_json(l.summary)}\n'
+        'version_order = "semver"\n'
+        '\n'
+        'bins = ["${meta.package}"]\n'
+        'test = { cmd = "${meta.package} --version", '
+        'expected = "${meta.package} {{version}}" }\n'
+        '\n'
+        '[[backends]]\n'
+        'full = "github:${meta.publisherAccount}/${meta.package}"\n'
+        '\n'
+        '[backends.options.platforms.linux-x64]\n'
+        'asset_pattern = "${meta.package}-linux-x64-*.tar.gz"\n'
+        '\n'
+        '[backends.options.platforms.windows-x64]\n'
+        'asset_pattern = "${meta.package}-windows-x64-*.zip"\n'
+        '\n'
+        '# The macOS asset is an .app bundle, so the binary sits inside it.\n'
+        '[backends.options.platforms.macos-arm64]\n'
+        'asset_pattern = "${meta.package}-macos-*.zip"\n'
+        'bin_path = "$bundle"\n'
+        '\n'
+        '[backends.options.platforms.macos-x64]\n'
+        'asset_pattern = "${meta.package}-macos-*.zip"\n'
+        'bin_path = "$bundle"\n',
+  );
+}
+
+/// The mise **tool plugin** that makes this repository its own tool registry:
+/// `mise plugin install knitcalc <repo url>` then `mise use -g knitcalc`, no
+/// entry in jdx/mise needed. Only these two files are generated — the hooks
+/// next to them are code and stay hand-written; everything of theirs that could
+/// drift from this file (repository, package name) lives in `lib/knitcalc.lua`.
+///
+/// The publish job copies the rendered tree to the root of `main`, where mise
+/// expects a plugin's `metadata.lua`/`hooks/`, exactly as it does for the Scoop
+/// bucket and the Homebrew cask. The shared module therefore sits at the plugin
+/// root rather than in the documented `lib/` — `lib/` at the root of *this*
+/// repository is the Flutter source tree; mise resolves `require` from the
+/// plugin root just as well (verified).
+void _renderMisePlugin(Meta meta, Plan plan) {
+  final l = meta.defaultLocale;
+  const root = 'packaging/mise/plugin';
+
+  plan.text(
+    '$root/metadata.lua',
+    '${banner('--')}'
+        'PLUGIN = {\n'
+        '    name = "${meta.package}",\n'
+        '    version = "1.0.0",\n'
+        '    description = ${_json(l.summary)},\n'
+        '    author = ${_json(meta.publisherName)},\n'
+        '}\n',
+  );
+
+  plan.text(
+    '$root/${meta.package}.lua',
+    '${banner('--')}'
+        'local M = {}\n'
+        '\n'
+        'M.repo = "${meta.publisherAccount}/${meta.package}"\n'
+        'M.package = "${meta.package}"\n'
+        'M.apiHeaders = {\n'
+        '    Accept = "application/vnd.github+json",\n'
+        '    ["User-Agent"] = "mise-${meta.package}-plugin",\n'
+        '    ["X-GitHub-Api-Version"] = "2022-11-28",\n'
+        '}\n'
+        '\n'
+        '-- Release tags are the pubspec version with a "v" prefix ("v1.2.3+45").\n'
+        'function M.versionFromTag(tag)\n'
+        '    return (string.gsub(tag, "^v", ""))\n'
+        'end\n'
+        '\n'
+        '-- Desktop bundles published per platform. Linux and Windows ship x64\n'
+        '-- only; the macOS zip is a universal .app bundle, so both arches take it.\n'
+        'function M.assetName(version)\n'
+        '    local os_type = RUNTIME.osType\n'
+        '    local arch = RUNTIME.archType\n'
+        '\n'
+        '    if os_type == "linux" and arch == "amd64" then\n'
+        '        return "${meta.package}-linux-x64-" .. version .. ".tar.gz"\n'
+        '    elseif os_type == "windows" and arch == "amd64" then\n'
+        '        return "${meta.package}-windows-x64-" .. version .. ".zip"\n'
+        '    elseif os_type == "darwin" then\n'
+        '        return "${meta.package}-macos-" .. version .. ".zip"\n'
+        '    end\n'
+        '\n'
+        '    error("${meta.package}: no release build for " '
+        '.. tostring(os_type) .. "-" .. tostring(arch))\n'
+        'end\n'
+        '\n'
+        'return M\n',
   );
 }
 

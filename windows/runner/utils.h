@@ -8,6 +8,11 @@
 // it for both the runner and the Flutter library.
 void CreateAndAttachConsole();
 
+// Points stdout and stderr at the console this process is attached to. Only
+// needed when the process has no inherited standard handles to write to (a GUI
+// binary started from a console without redirection).
+void RedirectOutputToConsole();
+
 // Takes a null-terminated wchar_t* encoded in UTF-16 and returns a std::string
 // encoded in UTF-8. Returns an empty std::string on failure.
 std::string Utf8FromUtf16(const wchar_t* utf16_string);

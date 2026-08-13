@@ -9,6 +9,7 @@ import 'package:knitcalc/update/impl/pm/specs/apt_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/chocolatey_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/flatpak_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/homebrew_spec.dart';
+import 'package:knitcalc/update/impl/pm/specs/mise_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/scoop_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/snap_spec.dart';
 import 'package:knitcalc/update/impl/pm/specs/winget_spec.dart';
@@ -80,6 +81,10 @@ UpdateService createUpdateService(Channel channel) {
       return createPackageManagerUpdateService(flatpakSpec());
     case Channel.linuxDpkg:
       return createPackageManagerUpdateService(aptSpec());
+    // mise, on any desktop OS: it unpacks the release asset into its own
+    // install directory, so the upgrade goes through `mise upgrade`.
+    case Channel.mise:
+      return createPackageManagerUpdateService(miseSpec());
 
     // Manually installed macOS app bundle: download the new zip from GitHub
     // Releases and swap the .app in via a detached script after the app exits.

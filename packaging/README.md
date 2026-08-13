@@ -15,6 +15,8 @@ categories and screenshots. `mise metadata`
 | `packaging/scoop/knitcalc.json`                | Scoop                                                                               |
 | `packaging/chocolatey/knitcalc.nuspec`         | Chocolatey                                                                          |
 | `packaging/homebrew/knitcalc.rb`               | Homebrew                                                                            |
+| `packaging/mise/knitcalc.toml`                 | mise (registry entry for jdx/mise)                                                  |
+| `packaging/mise/plugin/*.lua`                  | mise plugin (copied to the root of `main`)                                          |
 | `packaging/apt/{control,knitcalc.desktop}`     | apt / `.deb`                                                                        |
 | `packaging/obs/knitcalc.spec`                  | openSUSE Build Service (rpm)                                                        |
 | `packaging/aur/{PKGBUILD,SRCINFO}`             | AUR                                                                                 |
@@ -159,6 +161,98 @@ involved. The macOS build is unsigned and unnotarized, so install with
 
     brew tap dmezhnov/knitcalc https://github.com/dmezhnov/knitcalc
     brew install --cask --no-quarantine knitcalc
+
+### mise (`packaging/mise/`)
+
+The [mise](https://mise.jdx.dev) version manager installs the release assets
+straight from GitHub Releases on Linux, Windows and macOS. Nothing is published
+per release; what the release job does instead is **verify the install** — the
+`mise-install` matrix job runs both paths below on all three runners and reports
+`mise-linux`/`mise-windows`/`mise-macos` in the channel report, so an asset
+rename or a broken bundle layout cannot break the channel silently.
+
+#### The plugin: this repository as its own tool registry
+
+mise's shorthand names (`mise use -g knitcalc`) come from the registry compiled
+into mise itself — there is no setting pointing it at a third-party registry.
+A **tool plugin** is the way around that: mise clones a git repository and reads
+`metadata.lua` plus `hooks/` from its root, which makes this repository its own
+one-tool registry, exactly as it doubles as the Scoop bucket and the Homebrew
+tap:
+
+    mise plugin install knitcalc https://github.com/dmezhnov/knitcalc
+    mise use -g knitcalc@latest
+
+The plugin is generated into `packaging/mise/plugin/` — `metadata.lua` and
+`knitcalc.lua` (repository, package name, per-platform asset names) come from
+`metadata.yaml`, the four hooks next to them are hand-written code:
+`available.lua` lists the GitHub releases, `pre_install.lua` resolves the
+platform's asset through the API (that gives both the percent-encoded download
+URL for the `+build` tag and the asset's sha256 digest, which mise verifies),
+`env_keys.lua` puts the install directory on PATH and `post_install.lua`
+symlinks the macOS `.app` binary next to it so that one PATH entry fits all
+three platforms. The shared module sits at the plugin root instead of the
+documented `lib/` because `lib/` at the root of this repository is the Flutter
+source tree; `require` resolves from the plugin root just as well.
+
+The `Render mise plugin` step of the publish job copies that tree to the root of
+`main` (mise clones the default branch), and it commits only when the plugin
+itself changed — unlike the bucket and the cask it carries no version, since the
+plugin asks the GitHub API. Note that mise deliberately keeps plugins out of its
+registry: their code runs on the user's machine. That is a reason for _mise_ not
+to bless third-party plugins, not a reason for us not to publish our own.
+
+#### Without a plugin: the `github` backend
+
+The same builds install through mise's `github` backend (its `ubi` backend is
+deprecated and disappears in 2027.1), at the cost of spelling the platform
+details out. The per-platform `asset_pattern` globs are not optional: a release
+also carries the AppImage, the Android APKs, the web tarball, the iOS zip and
+the Inno `setup.exe`, and mise's asset autodetection is free to pick any of
+them. The macOS asset is an `.app` bundle, hence its `bin_path`. The
+`[tool_alias]` line is what makes the tool answer to the plain name `knitcalc`,
+so that its install directory and `mise upgrade knitcalc` match the plugin
+install:
+
+    [tool_alias]
+    knitcalc = "github:dmezhnov/knitcalc"
+
+    [tools.knitcalc]
+    version = "latest"
+
+    [tools.knitcalc.platforms]
+    linux-x64 = { asset_pattern = "knitcalc-linux-x64-*.tar.gz" }
+    windows-x64 = { asset_pattern = "knitcalc-windows-x64-*.zip" }
+    macos-arm64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
+    macos-x64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
+
+mise puts `knitcalc` on PATH and installs no desktop entry or icon. An app
+installed this way detects `Channel.mise` (the executable resolves inside
+`…/mise/installs/…`) and never self-updates: the banner comes from
+`mise outdated --json` and its button runs `mise upgrade knitcalc` in a
+terminal — see `lib/update/impl/pm/specs/mise_spec.dart`.
+
+#### Optional onboarding: the upstream registry
+
+Neither path above needs anything from upstream. A registry entry only removes
+the one-off `mise plugin install`, so that `mise use -g knitcalc` works on a
+bare mise — worth a PR, not worth blocking on:
+
+1. Fork [jdx/mise](https://github.com/jdx/mise) and copy the generated
+   `packaging/mise/knitcalc.toml` to `registry/knitcalc.toml`.
+2. Check it with `mise test-tool knitcalc`, then open a PR titled
+   `registry: add knitcalc (github:dmezhnov/knitcalc)`.
+3. The registry's `validate-new-tools` job requires the `test` field, which runs
+   `knitcalc --version` on their runners. That is why the native runners answer
+   `--version` before any window opens (`linux/runner/main.cc`,
+   `windows/runner/main.cpp`, `macos/Runner/main.swift`) — so the PR can only go
+   out after a release that carries them. `mise run mise-install-check` runs the
+   same check locally against the published release.
+4. One thing that check cannot control upstream: the Linux bundle links GTK, so
+   the loader needs `libgtk-3-0` (and `liblzma5`) present even for `--version`.
+   Our own `mise-install` job installs them; if mise's Linux runner turns out
+   not to have them, the entry may have to declare `os = ["macos", "windows"]`
+   or the test be discussed in the PR.
 
 ### Chocolatey (`packaging/chocolatey/`)
 
