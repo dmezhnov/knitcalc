@@ -15,6 +15,7 @@ summary="${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 # Every channel a release is expected to reach, in reporting order.
 channels=(
     "github-release|GitHub release"
+    "github-repo|GitHub repository listing"
     "pages|GitHub Pages (web + apt repo)"
     "apt|apt repository"
     "scoop|Scoop bucket"

@@ -2,18 +2,18 @@
 # following page: https://dart.dev/tools/pub/pubspec
 
 name: knitcalc
-description: 'KnitCalc is a knitting calculator'
+description: 'Knitting calculator: gauge conversion, stitch counts, yarn estimation'
 
 publish_to: none
 
-version: 1.8.73+96
+version: 1.8.74+97
 
 environment:
     sdk: ^3.11.4
 
-homepage: 'https://dmezhnov.github.io/knitcalc/'
-repository: 'https://github.com/dmezhnov/knitcalc'
-issue_tracker: 'https://github.com/dmezhnov/knitcalc/issues'
+homepage: https://dmezhnov.github.io/knitcalc/
+repository: https://github.com/dmezhnov/knitcalc
+issue_tracker: https://github.com/dmezhnov/knitcalc/issues
 
 dependencies:
     flutter:
@@ -58,6 +58,9 @@ dev_dependencies:
 
     flutter_lints: ^6.0.0
     icons_launcher: ^3.1.0
+    # Reads packaging/metadata/metadata.yaml in tool/packaging_metadata.dart,
+    # which renders every store listing from it.
+    yaml: ^3.1.3
     # Test-only: let the desktop update service tests stub getTemporaryDirectory
     # via PathProviderPlatform.instance (already transitive via path_provider).
     path_provider_platform_interface: ^2.1.0

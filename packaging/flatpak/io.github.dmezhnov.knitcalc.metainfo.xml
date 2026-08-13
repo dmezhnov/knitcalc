@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.
+     Edit that file and run `mise metadata`; changes here are
+     overwritten — except <releases>, which the publish workflow
+     rewrites with the version being released. -->
 <component type="desktop-application">
   <id>io.github.dmezhnov.knitcalc</id>
   <name>KnitCalc</name>
@@ -15,14 +19,16 @@
   </provides>
   <description>
     <p>
-      KnitCalc helps with the arithmetic of knitting: it converts counts
-      between gauges, distributes increases and decreases evenly across a row,
-      and estimates how much yarn a project needs.
+      KnitCalc is a cross-platform helper for the arithmetic of knitting:
+      it converts counts between gauges, distributes increases and
+      decreases evenly across a row, and estimates how much yarn a project
+      needs.
     </p>
     <p xml:lang="ru">
-      KnitCalc берёт на себя вязальную арифметику: пересчитывает петли между
-      плотностями, равномерно распределяет прибавки и убавки в ряду и
-      оценивает расход пряжи.
+      KnitCalc — кроссплатформенное приложение, которое берёт на себя
+      вязальную арифметику: пересчитывает петли между плотностями,
+      равномерно распределяет прибавки и убавки в ряду и оценивает расход
+      пряжи.
     </p>
     <ul>
       <li>Gauge conversion between a swatch and a pattern</li>
@@ -37,8 +43,8 @@
   </description>
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/dmezhnov/knitcalc/main/packaging/flatpak/screenshots/calculator.png</image>
-      <image xml:lang="ru">https://raw.githubusercontent.com/dmezhnov/knitcalc/main/packaging/flatpak/screenshots/calculator.ru.png</image>
+      <image>https://raw.githubusercontent.com/dmezhnov/knitcalc/main/packaging/metadata/screenshots/en-US/desktop/calculator.png</image>
+      <image xml:lang="ru">https://raw.githubusercontent.com/dmezhnov/knitcalc/main/packaging/metadata/screenshots/ru-RU/desktop/calculator.png</image>
       <caption>Gauge conversion for a new project</caption>
       <caption xml:lang="ru">Пересчёт петель для нового изделия</caption>
     </screenshot>

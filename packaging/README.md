@@ -1,5 +1,52 @@
 # Packaging for desktop package managers
 
+## Listing metadata: one file, every channel
+
+`packaging/metadata/metadata.yaml` is the **single source of truth** for
+everything a store shows: application name, tagline, one-line summary, long
+description and feature list (per locale), publisher, license, URLs, tags,
+categories and screenshots. `mise metadata`
+(`tool/packaging_metadata.dart`) renders it into every channel:
+
+| Rendered file                                  | Channel                                                                             |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `fastlane/metadata/android/<locale>/*`         | Play, IzzyOnDroid, RuStore, Samsung, Amazon, Huawei, Accrescent, NashStore/RuMarket |
+| `packaging/winget/*.locale.en-US.yaml`         | winget                                                                              |
+| `packaging/scoop/knitcalc.json`                | Scoop                                                                               |
+| `packaging/chocolatey/knitcalc.nuspec`         | Chocolatey                                                                          |
+| `packaging/homebrew/knitcalc.rb`               | Homebrew                                                                            |
+| `packaging/apt/{control,knitcalc.desktop}`     | apt / `.deb`                                                                        |
+| `packaging/obs/knitcalc.spec`                  | openSUSE Build Service (rpm)                                                        |
+| `packaging/aur/{PKGBUILD,SRCINFO}`             | AUR                                                                                 |
+| `snap/{snapcraft.yaml,gui/knitcalc.desktop}`   | Snap Store                                                                          |
+| `packaging/flatpak/*.{metainfo.xml,desktop}`   | Flathub, GNOME Software, KDE Discover, AppImage                                     |
+| `packaging/fdroid/*.yml`                       | F-Droid main repo                                                                   |
+| `packaging/desktop/*.desktop`                  | the Linux tarball / dev install (`tool/linux_desktop_install.dart`)                 |
+| `packaging/inno/knitcalc.iss` (`[Setup]` keys) | Windows installer, Add/Remove Programs                                              |
+| `packaging/metadata/github.json`               | this repository's own description, website and topics                               |
+| `pubspec.yaml` (description and URLs)          | pub metadata                                                                        |
+
+Never edit those files' metadata by hand: `mise lint` runs
+`packaging_metadata.dart --check` and fails when any of them drifts, and
+`mise build` regenerates them. Files that also carry build logic (PKGBUILD, the
+rpm spec, `snapcraft.yaml`, the F-Droid recipe, the Inno script, `pubspec.yaml`)
+keep it — only their metadata fields are rewritten.
+
+Screenshots live at `packaging/metadata/screenshots/<locale>/<form-factor>/<id>.png`
+and are listed by id in `metadata.yaml`; the phone set is copied into the
+fastlane tree, and AppStream links the desktop set from `main` by raw URL. The
+**icon** has its own single source, `assets/icon/icon.png`: `mise build` runs
+`icons_launcher` plus `tool/packaging_icons.dart`, which regenerate every
+platform icon, the fastlane catalogue icon and the Flatpak icon from it.
+
+The GitHub repository listing is pushed on each release by
+`packaging/ci/publish_repo_metadata.sh` (the `Sync GitHub repository listing`
+step). It runs on `PACKAGING_GITHUB_TOKEN` — editing repository settings is not
+a scope a workflow `permissions:` block can grant to the built-in token — and,
+like every other channel, records its verdict for the release channel report.
+
+## Channels
+
 Templates for publishing the desktop builds to winget, Scoop, Chocolatey
 (Windows) and Homebrew (macOS). `{{VERSION}}`, `{{URL}}` and `{{SHA256}}`
 placeholders are filled in by `.github/workflows/publish.yml` after each release
@@ -268,9 +315,10 @@ All of these take the **standard release artifact** built by CI — no separate
 build is needed. Bundling Google Play Services is fine for every one of them
 (unlike F-Droid above): native Google sign-in falls back to the browser
 loopback OAuth flow on devices without Play Services (e.g. Huawei), so the same
-APK/AAB works everywhere. Listing copy, screenshots and the icon are reused from
-`fastlane/metadata/android/{en-US,ru-RU}/` — that directory is the single source
-of truth for all catalogs; don't re-type the texts per store.
+APK/AAB works everywhere. Listing copy, screenshots and the icon are uploaded
+from `fastlane/metadata/android/{en-US,ru-RU}/`, which `mise metadata` renders
+from `packaging/metadata/metadata.yaml` (see the top of this file) — don't
+re-type the texts per store, and don't edit the fastlane files either.
 
 These stores ship and update the app themselves, so the in-app updater stays
 silent for them: `androidChannelForInstaller` maps their installer package names
