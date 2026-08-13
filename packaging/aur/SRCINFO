@@ -1,5 +1,5 @@
 pkgbase = knitcalc-bin
-	pkgdesc = Knitting calculator: gauge conversion, increases/decreases distribution, yarn estimation, project notes with photos
+	pkgdesc = Knitting calculator: gauge conversion, stitch counts, yarn estimation
 	pkgver = {{VERSION}}
 	pkgrel = 1
 	url = https://github.com/dmezhnov/knitcalc

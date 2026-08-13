@@ -1,0 +1,113 @@
+# Single source of truth for every store / package-manager listing.
+#
+# Icon, screenshots, names, descriptions, URLs and tags live HERE and nowhere
+# else: `mise metadata` (tool/packaging_metadata.dart) renders them into the
+# per-channel files — winget, Scoop, Chocolatey, Homebrew, apt, AUR, OBS/rpm,
+# Snap, Flathub, F-Droid/IzzyOnDroid (fastlane) and the Inno installer — and
+# `mise lint` fails if any of them drifts from this file. Never edit the
+# generated files by hand; edit this one and re-run `mise metadata`.
+#
+# The icon is not listed here: every channel derives it from assets/icon/icon.png
+# (icons_launcher plus tool/packaging_icons.dart). See packaging/README.md.
+
+ids:
+    # Reverse-DNS application id: flatpak, the .desktop basename, the Wayland
+    # app_id and the bundle ids. Must equal APPLICATION_ID in
+    # linux/CMakeLists.txt and the id in linux/runner/my_application.cc.
+    app: io.github.dmezhnov.knitcalc
+    # Package/binary name shared by deb, rpm, Snap, Scoop, Chocolatey, Homebrew.
+    package: knitcalc
+    aur: knitcalc-bin
+    winget: Dmezhnov.KnitCalc
+
+name: KnitCalc
+
+publisher:
+    name: Dmitry Mezhnov
+    account: dmezhnov
+    email: dmezhnov@users.noreply.github.com
+    url: https://github.com/dmezhnov
+
+license:
+    id: MIT
+    url: https://github.com/dmezhnov/knitcalc/blob/main/LICENSE
+
+urls:
+    homepage: https://github.com/dmezhnov/knitcalc
+    website: https://dmezhnov.github.io/knitcalc/
+    repository: https://github.com/dmezhnov/knitcalc
+    issues: https://github.com/dmezhnov/knitcalc/issues
+    changelog: https://github.com/dmezhnov/knitcalc/releases
+
+categories:
+    # freedesktop menu categories (.desktop, AppStream).
+    freedesktop:
+        - Utility
+    # F-Droid catalogue categories.
+    fdroid:
+        - Science & Education
+
+tags:
+    - knitting
+    - calculator
+    - craft
+    - knitcalc
+
+# Screenshot files live at
+# packaging/metadata/screenshots/<locale>/<form-factor>/<id>.png — one file per
+# locale per id, so a screenshot is added by dropping the localized PNGs in and
+# listing its id here. `desktop` feeds AppStream/Flathub, `phone` feeds the
+# fastlane metadata every Android catalogue reads (Play, IzzyOnDroid, RuStore…).
+screenshots:
+    desktop:
+        - id: calculator
+    phone:
+        - id: calculator
+        - id: projects
+
+locales:
+    en-US:
+        # BCP-47 tag used by AppStream xml:lang and .desktop key suffixes.
+        lang: en
+        name: KnitCalc
+        # Very short label: AppStream <summary>, .desktop Comment, rpm Summary.
+        # Keep under 35 characters, no trailing period, do not start with the
+        # application name (AppStream/desktop-file validators check all three).
+        tagline: Knitting calculator
+        # One-line description: store headlines, winget, Scoop, Chocolatey,
+        # Homebrew, deb synopsis, AUR pkgdesc, Play short description. Max 79
+        # characters (the tightest limit is the Snap Store's).
+        summary: 'Knitting calculator: gauge conversion, stitch counts, yarn estimation'
+        # Opening paragraph of every long description.
+        intro: >-
+            KnitCalc is a cross-platform helper for the arithmetic of knitting:
+            it converts counts between gauges, distributes increases and
+            decreases evenly across a row, and estimates how much yarn a project
+            needs.
+        features:
+            - Gauge conversion between a swatch and a pattern
+            - Even distribution of increases and decreases
+            - Yarn usage estimation
+            - Project notes with photos, optionally synced between devices
+        captions:
+            calculator: Gauge conversion for a new project
+            projects: Saved projects with their notes
+
+    ru-RU:
+        lang: ru
+        name: KnitCalc
+        tagline: Вязальный калькулятор
+        summary: 'Вязальный калькулятор: пересчёт плотности, петли, расход пряжи'
+        intro: >-
+            KnitCalc — кроссплатформенное приложение, которое берёт на себя
+            вязальную арифметику: пересчитывает петли между плотностями,
+            равномерно распределяет прибавки и убавки в ряду и оценивает расход
+            пряжи.
+        features:
+            - Пересчёт петель по плотности образца и описания
+            - Равномерное распределение прибавок и убавок
+            - Оценка расхода пряжи
+            - Заметки о проектах с фото и необязательной синхронизацией между устройствами
+        captions:
+            calculator: Пересчёт петель для нового изделия
+            projects: Сохранённые проекты и заметки к ним

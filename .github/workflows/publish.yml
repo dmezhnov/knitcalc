@@ -476,6 +476,17 @@ jobs:
                   bash packaging/ci/channel_status.sh scoop ok "$version"
                   bash packaging/ci/channel_status.sh homebrew ok "$version"
 
+            # The repository page is a listing like any other: its description,
+            # website and topics come from packaging/metadata/metadata.yaml via
+            # the generated packaging/metadata/github.json, so the GitHub page
+            # cannot drift from what the stores show. It runs on the winget PAT,
+            # not the built-in token: editing repository settings is not one of
+            # the scopes a workflow `permissions:` block can grant.
+            - name: Sync GitHub repository listing
+              env:
+                  GH_TOKEN: ${{ secrets.PACKAGING_GITHUB_TOKEN }}
+              run: bash packaging/ci/publish_repo_metadata.sh
+
             # The app reads the available version from a Firestore document
             # instead of the GitHub API (avoids the 60/hour unauthenticated rate
             # limit, which is shared per IP under carrier-grade NAT). Write the

@@ -57,10 +57,12 @@ arg "<target>" help="Build target" {
 '''
 # packaging_icons regenerates the repo-resident catalog icons (fastlane,
 # flatpak) from the same source, so swapping assets/icon/icon.png updates
-# every channel without manual steps.
+# every channel without manual steps; packaging_metadata does the same for the
+# listing texts, screenshots and URLs (see the metadata task below).
 run = [
     "dart run icons_launcher:create",
     "dart run tool/packaging_icons.dart",
+    "dart run tool/packaging_metadata.dart",
     "mise build-{{ usage.target }}",
 ]
 
@@ -243,8 +245,17 @@ run = "flutter run"
 hide = true
 run = "flutter run"
 
+[tasks.metadata]
+description = "Render every store listing from packaging/metadata/metadata.yaml"
+run = "dart run tool/packaging_metadata.dart"
+
 [tasks.lint]
-run = "trunk check --all"
+# The --check pass fails if any channel's listing (winget, Scoop, Chocolatey,
+# Homebrew, apt, AUR, rpm, Snap, Flathub, fastlane, the Inno installer, the
+# GitHub repo listing) drifted from packaging/metadata/metadata.yaml. It runs
+# first: a stale listing is a one-command fix (`mise metadata`) and there is no
+# point linting output that is about to be regenerated.
+run = ["dart run tool/packaging_metadata.dart --check", "trunk check --all"]
 
 [tasks.format]
 run = "trunk fmt"

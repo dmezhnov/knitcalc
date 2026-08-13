@@ -1,6 +1,10 @@
 {
+    "##": [
+        "Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.",
+        "Edit that file and run `mise metadata`; changes here are overwritten."
+    ],
     "version": "{{VERSION}}",
-    "description": "KnitCalc is a knitting calculator",
+    "description": "Knitting calculator: gauge conversion, stitch counts, yarn estimation",
     "homepage": "https://github.com/dmezhnov/knitcalc",
     "license": "MIT",
     "url": "{{URL}}",

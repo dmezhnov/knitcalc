@@ -1,0 +1,10 @@
+{
+    "##": [
+        "Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.",
+        "Edit that file and run `mise metadata`; changes here are overwritten.",
+        "Pushed to the repository by packaging/ci/publish_repo_metadata.sh."
+    ],
+    "description": "Knitting calculator: gauge conversion, stitch counts, yarn estimation",
+    "homepage": "https://dmezhnov.github.io/knitcalc/",
+    "topics": ["knitting", "calculator", "craft", "knitcalc"]
+}

@@ -1,7 +1,10 @@
 [Desktop Entry]
+# Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.
+# Edit that file and run `mise metadata`; changes here are overwritten.
 Type=Application
 Name=KnitCalc
-Comment=KnitCalc is a knitting calculator
+Comment=Knitting calculator
+Comment[ru]=Вязальный калькулятор
 Exec=knitcalc
 Icon=knitcalc
 Terminal=false

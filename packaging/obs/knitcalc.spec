@@ -26,8 +26,14 @@ Requires:       gtk3
 ExclusiveArch:  x86_64
 
 %description
-Gauge conversion, increases/decreases distribution, yarn estimation and
-project notes with photos.
+KnitCalc is a cross-platform helper for the arithmetic of knitting: it
+converts counts between gauges, distributes increases and decreases evenly
+across a row, and estimates how much yarn a project needs.
+
+* Gauge conversion between a swatch and a pattern
+* Even distribution of increases and decreases
+* Yarn usage estimation
+* Project notes with photos, optionally synced between devices
 
 %prep
 %setup -q -c
