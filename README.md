@@ -54,6 +54,19 @@ macos-arm64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app
 macos-x64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
 ```
 
+Both mise paths install the plain Linux tarball, which links the system GTK 3
+stack rather than carrying a runtime of its own (the AppImage, Snap and Flatpak
+builds do, and the `.deb` declares GTK as a dependency); if it is missing, the
+plugin's install hook lists the libraries and the package to install. On NixOS
+that means nix-ld — with these libraries `knitcalc` runs from any shell:
+
+```nix
+programs.nix-ld.enable = true;
+programs.nix-ld.libraries = with pkgs; [
+  gtk3 pango cairo gdk-pixbuf glib harfbuzz at-spi2-atk libepoxy fontconfig
+];
+```
+
 Linux users can also take the AppImage (with zsync delta updates) from the
 release assets, or add the apt repository hosted on the GitHub Pages site —
 setup commands for it and the remaining channels (winget, Chocolatey,
