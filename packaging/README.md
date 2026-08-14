@@ -185,13 +185,14 @@ tap:
 
 The plugin is generated into `packaging/mise/plugin/` — `metadata.lua` and
 `knitcalc.lua` (repository, package name, per-platform asset names) come from
-`metadata.yaml`, the four hooks next to them are hand-written code:
+`metadata.yaml`, the five hooks next to them are hand-written code:
 `available.lua` lists the GitHub releases, `pre_install.lua` resolves the
 platform's asset through the API (that gives both the percent-encoded download
 URL for the `+build` tag and the asset's sha256 digest, which mise verifies),
-`env_keys.lua` puts the install directory on PATH and `post_install.lua`
+`env_keys.lua` puts the install directory on PATH, `post_install.lua`
 symlinks the macOS `.app` binary next to it so that one PATH entry fits all
-three platforms.
+three platforms and adds the per-platform application entry described below, and
+`pre_uninstall.lua` removes that entry again.
 
 `post_install.lua` also carries the Linux half of that: the tarball is the one
 channel with no runtime of its own (it links the system GTK 3 stack — see the
@@ -237,8 +238,32 @@ install:
     macos-arm64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
     macos-x64 = { asset_pattern = "knitcalc-macos-*.zip", bin_path = "knitcalc.app/Contents/MacOS" }
 
-mise puts `knitcalc` on PATH and installs no desktop entry or icon. An app
-installed this way detects `Channel.mise` (the executable resolves inside
+mise itself only puts `knitcalc` on PATH — a GUI app installed that way exists
+but cannot be launched without a terminal, so the plugin's `post_install` hook
+adds the platform's usual entry point and `pre_uninstall.lua` takes it back out:
+
+| Platform | What the hook adds                                                                                                      |
+| -------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Linux    | the tarball's own `install.sh` (per-user `.desktop` + hicolor icons), then the entry's `Exec=` rewritten to mise's shim |
+| macOS    | `~/Applications/KnitCalc.app`, a symlink to the bundle in the install tree (what a Homebrew cask puts there too)        |
+| Windows  | a Start-menu shortcut in `[Environment]::GetFolderPath('Programs')`, targeting the versioned `knitcalc.exe`             |
+
+Everything about that is version-sensitive, because mise keeps versions side by
+side. On Linux the entry points at the **shim**, not at install.sh's versioned
+`Exec=`: `mise use knitcalc@<newer>` leaves the old directory in place, and the
+menu would go on launching the old build. On macOS and Windows the alias and the
+shortcut are re-pointed on every install instead, since a shim there is either
+useless (macOS needs the `.app`, not the binary) or ugly (mise's Windows shims
+are console executables and flash a window). Removal is guarded the same way in
+all three: the entry goes only if it still belongs to this mise — the Linux
+`Exec=` is this mise's shim and it is the last installed version (mise's version
+aliases `installs/knitcalc/{1,1.8,latest}` are symlinks and do not count), the
+macOS symlink still resolves into the version being removed, the Windows
+shortcut still targets it. A `.deb`, a Scoop shortcut or an Inno install that
+owns the same paths is left alone.
+
+The github backend block above runs no hooks, so that path stays PATH-only.
+An app installed either way detects `Channel.mise` (the executable resolves inside
 `…/mise/installs/…`) and never self-updates: the banner comes from
 `mise outdated --json` and its button runs `mise upgrade knitcalc` in a
 terminal — see `lib/update/impl/pm/specs/mise_spec.dart`.

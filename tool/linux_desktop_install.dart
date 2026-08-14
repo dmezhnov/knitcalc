@@ -175,6 +175,8 @@ here=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)
 app_id=io.github.dmezhnov.knitcalc
 data=\${XDG_DATA_HOME:-\$HOME/.local/share}
 
+# `cp -a src/. dest/` needs dest to exist, and on a fresh account it does not.
+mkdir -p "\$data/icons/hicolor"
 cp -a "\$here/desktop/icons/hicolor/." "\$data/icons/hicolor/"
 
 mkdir -p "\$data/applications"

@@ -812,7 +812,40 @@ jobs:
                     export MISE_CACHE_DIR="$work/cache"
                     export MISE_CONFIG_DIR="$work/config"
                     export MISE_GLOBAL_CONFIG_FILE="$work/config/config.toml"
+                    export XDG_DATA_HOME="$work/xdg"
                     cd "$work"
+                  }
+
+                  # The plugin's post_install hook also makes the app
+                  # launchable without a terminal: a .desktop entry on Linux
+                  # (in XDG_DATA_HOME above), a ~/Applications alias on macOS
+                  # and a Start-menu shortcut on Windows. pre_uninstall takes
+                  # it back out — checked here, because a leftover entry
+                  # pointing at a removed version is exactly what a user sees.
+                  menu_entry() {
+                    case "$RUNNER_OS" in
+                      Linux) echo "$XDG_DATA_HOME/applications/io.github.dmezhnov.knitcalc.desktop" ;;
+                      macOS) echo "$HOME/Applications/KnitCalc.app" ;;
+                      *) echo "$APPDATA/Microsoft/Windows/Start Menu/Programs/KnitCalc.lnk" ;;
+                    esac
+                  }
+
+                  check_menu_entry() {
+                    entry="$(menu_entry)"
+                    if [ ! -e "$entry" ]; then
+                      echo "::warning::plugin: no application entry at $entry on ${{ matrix.os }}."
+                      bash "$status" "$channel" failed "plugin installed no application entry"
+                      exit 1
+                    fi
+                    echo "plugin: application entry installed ($entry)"
+
+                    mise uninstall "knitcalc@$version"
+                    if [ -e "$entry" ]; then
+                      echo "::warning::plugin: $entry survived 'mise uninstall' on ${{ matrix.os }}."
+                      bash "$status" "$channel" failed "application entry survived uninstall"
+                      exit 1
+                    fi
+                    echo "plugin: application entry removed on uninstall"
                   }
 
                   # Runs headless on every runner: the native --version path
@@ -846,6 +879,7 @@ jobs:
                   fi
 
                   check_version plugin
+                  check_menu_entry
 
                   # 2. The plugin-less path: the github backend block that
                   # packaging/README.md documents, pinned to this release.
