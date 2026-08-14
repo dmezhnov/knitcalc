@@ -28,8 +28,10 @@ yay -S knitcalc-bin             # AUR
 
 On Linux, Windows and macOS alike the release assets can also be installed with
 the [mise](https://mise.jdx.dev) version manager, which puts `knitcalc` on PATH
-(no desktop entry). This repository doubles as its own mise plugin, so no entry
-in mise's registry is involved:
+and, for the current user, into the place the platform launches apps from: the
+application menu on Linux, `~/Applications` on macOS, the Start menu on Windows.
+This repository doubles as its own mise plugin, so no entry in mise's registry
+is involved:
 
 ```bash
 mise plugin install knitcalc https://github.com/dmezhnov/knitcalc
@@ -38,7 +40,9 @@ mise use -g knitcalc@latest
 
 Without installing a plugin the same builds are reachable through mise's
 `github` backend — add this to `~/.config/mise/config.toml` and run
-`mise install`:
+`mise install`. This path runs no plugin hooks, so it only puts `knitcalc` on
+PATH — no menu entry; on Linux one can be added afterwards with the `install.sh`
+that ships inside the installed directory:
 
 ```toml
 [tool_alias]

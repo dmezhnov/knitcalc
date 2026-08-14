@@ -254,7 +254,10 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 # Each check gets its own mise dirs: a bare `mise install` otherwise also
-# installs everything the developer's global config lists.
+# installs everything the developer's global config lists. XDG_DATA_HOME is
+# redirected with them because the plugin's post-install hook writes a desktop
+# entry there — pointing at a shim in this throwaway MISE_DATA_DIR, so a real
+# ~/.local/share would keep a broken menu entry after the temp dir is gone.
 isolate() {
   dir="$work/$1"
   mkdir -p "$dir/config"
@@ -263,7 +266,80 @@ isolate() {
   export MISE_CACHE_DIR="$dir/cache"
   export MISE_CONFIG_DIR="$dir/config"
   export MISE_GLOBAL_CONFIG_FILE="$dir/config/config.toml"
+  export XDG_DATA_HOME="$dir/xdg"
   cd "$dir"
+}
+
+# Where the plugin's post_install hook puts the app so it can be launched
+# without a terminal. Checked for the plugin path only — the github backend runs
+# no hooks. Only the Linux location is isolated (XDG_DATA_HOME above); the macOS
+# alias and the Windows shortcut land in the real user profile, which is why the
+# uninstall check runs right after and takes them back out.
+menu_entry() {
+  case "$(uname -s)" in
+    Linux) echo "$XDG_DATA_HOME/applications/io.github.dmezhnov.knitcalc.desktop" ;;
+    Darwin) echo "$HOME/Applications/KnitCalc.app" ;;
+    *) echo "$APPDATA/Microsoft/Windows/Start Menu/Programs/KnitCalc.lnk" ;;
+  esac
+}
+
+check_menu_entry() {
+  entry="$(menu_entry)"
+  if [ ! -e "$entry" ]; then
+    echo "plugin: nothing installed at $entry" >&2
+    exit 1
+  fi
+
+  case "$(uname -s)" in
+    Linux)
+      # The entry must launch the shim, not the versioned install directory, or
+      # an upgrade would leave the menu on the old build. The hook writes the
+      # path blind (mise reshims only after the hook returns), so the shim is
+      # what needs checking here.
+      if [ ! -x "$MISE_DATA_DIR/shims/knitcalc" ]; then
+        echo "plugin: no shim at $MISE_DATA_DIR/shims/knitcalc" >&2
+        exit 1
+      fi
+      if ! grep -q "^Exec=$MISE_DATA_DIR/shims/knitcalc$" "$entry"; then
+        echo "plugin: desktop entry does not launch the mise shim:" >&2
+        grep "^Exec=" "$entry" >&2
+        exit 1
+      fi
+      if [ ! -f "$XDG_DATA_HOME/icons/hicolor/256x256/apps/io.github.dmezhnov.knitcalc.png" ]; then
+        echo "plugin: desktop entry installed without its icon theme" >&2
+        exit 1
+      fi
+      ;;
+    Darwin)
+      # A symlink into the install tree, not a copy: the app must keep running
+      # out of …/mise/installs/… for `Channel.mise` detection.
+      case "$(readlink "$entry")" in
+        "$MISE_DATA_DIR"/*) ;;
+        *) echo "plugin: $entry does not point into $MISE_DATA_DIR" >&2; exit 1 ;;
+      esac
+      ;;
+  esac
+
+  echo "plugin: application entry installed ($entry)"
+}
+
+# `mise uninstall` has to take it with it (pre_uninstall hook), or the menu
+# keeps an item pointing at files that are gone.
+check_menu_entry_removed() {
+  entry="$(menu_entry)"
+  mise uninstall "knitcalc@$1"
+
+  if [ -e "$entry" ]; then
+    echo "plugin: $entry survived 'mise uninstall'" >&2
+    exit 1
+  fi
+  if [ "$(uname -s)" = Linux ] &&
+    [ -f "$XDG_DATA_HOME/icons/hicolor/256x256/apps/io.github.dmezhnov.knitcalc.png" ]; then
+    echo "plugin: icons survived 'mise uninstall'" >&2
+    exit 1
+  fi
+
+  echo "plugin: application entry removed on uninstall"
 }
 
 check_version() {
@@ -293,6 +369,9 @@ isolate plugin-check
 mise plugin install knitcalc "file://$plugin"
 mise use -g "knitcalc@$version"
 check_version plugin
+check_menu_entry
+# `latest` resolves to a concrete version only after the install.
+check_menu_entry_removed "$(mise exec -- knitcalc --version | sed 's/^knitcalc //')"
 
 # 2. The plugin-less path: the github backend block from packaging/README.md.
 isolate backend-check
