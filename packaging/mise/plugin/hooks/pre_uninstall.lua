@@ -51,8 +51,11 @@ local function removeMacosApplicationsLink(path, displayName)
 link="$HOME/Applications/]==] .. displayName .. [==[.app"
 [ -L "$link" ] || exit 0
 
+# Both layouts post_install.lua can link: the bundle inside the install
+# directory, or — when mise flattened the archive — the install directory itself,
+# in which case the link target is the path with nothing after it.
 case "$(readlink "$link")" in
-    "]==] .. path .. [==["/*) rm -f "$link" ;;
+    "]==] .. path .. [==[" | "]==] .. path .. [==["/*) rm -f "$link" ;;
 esac
 ]==])
 end
@@ -69,10 +72,18 @@ local function removeStartMenuShortcut(path, displayName)
             .. ".lnk';"
             .. 'if (-not (Test-Path $lnk)) { exit 0 };'
             .. '$ws=New-Object -ComObject WScript.Shell;'
-            .. "$target=$ws.CreateShortcut($lnk).TargetPath;"
-            .. "if ($target.StartsWith('"
+            .. '$target=$ws.CreateShortcut($lnk).TargetPath;'
+            .. 'if (-not $target) { exit 0 };'
+            -- Both sides through GetFullPath: mise hands the hook a path whose
+            -- separators need not match the ones WScript.Shell stored in the
+            -- shortcut, and a raw StartsWith on those missed — release
+            -- 1.8.78+101 left the Start-menu entry behind on the runner.
+            .. "$here=[IO.Path]::GetFullPath('"
             .. path
-            .. "', 'OrdinalIgnoreCase')) { Remove-Item -Force $lnk }\""
+            .. "');"
+            .. '$target=[IO.Path]::GetFullPath($target);'
+            .. "if ($target.StartsWith($here, 'OrdinalIgnoreCase')) "
+            .. '{ Remove-Item -Force $lnk }"'
     )
 end
 

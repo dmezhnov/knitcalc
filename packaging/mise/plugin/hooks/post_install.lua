@@ -122,8 +122,17 @@ end
 local function linkMacosApplications(path, name, displayName)
     os.execute([==[
 p="]==] .. path .. [==["
-bundle="$p/]==] .. name .. [==[.app"
-[ -d "$bundle" ] || exit 0
+
+# Same two layouts linkMacosBundle above handles: the bundle keeps its own
+# directory unless mise flattened a single-directory archive on extraction, in
+# which case the install directory *is* the bundle. Release 1.8.78+101 shipped
+# only the first case and the macOS runner reported "no application entry":
+# mise does flatten our zip, so `$p/knitcalc.app` never existed.
+bundle=""
+for c in "$p/]==] .. name .. [==[.app" "$p"; do
+    if [ -d "$c/Contents" ]; then bundle="$c"; break; fi
+done
+[ -n "$bundle" ] || exit 0
 
 apps="$HOME/Applications"
 link="$apps/]==] .. displayName .. [==[.app"
@@ -165,10 +174,14 @@ local function installStartMenuShortcut(path, name, displayName)
             .. displayName
             .. ".lnk';"
             .. '$ws=New-Object -ComObject WScript.Shell;'
-            .. '$installs=Split-Path $p;'
+            -- Through GetFullPath on both sides: the path mise hands the hook
+            -- and the one WScript.Shell stored in an existing shortcut need not
+            -- spell their separators the same way.
+            .. '$installs=[IO.Path]::GetFullPath((Split-Path $p));'
             .. 'if (Test-Path $lnk) {'
             .. '  $target=$ws.CreateShortcut($lnk).TargetPath;'
-            .. '  if (-not $target.StartsWith($installs, '
+            .. '  if ($target) { $target=[IO.Path]::GetFullPath($target) };'
+            .. '  if (-not $target -or -not $target.StartsWith($installs, '
             .. "'OrdinalIgnoreCase')) { exit 0 }"
             .. '};'
             .. '$s=$ws.CreateShortcut($lnk);'
