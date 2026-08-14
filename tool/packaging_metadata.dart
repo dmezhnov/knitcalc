@@ -667,7 +667,8 @@ void _renderMise(Meta meta, Plan plan) {
 /// `mise plugin install knitcalc <repo url>` then `mise use -g knitcalc`, no
 /// entry in jdx/mise needed. Only these two files are generated — the hooks
 /// next to them are code and stay hand-written; everything of theirs that could
-/// drift from this file (repository, package name) lives in `lib/knitcalc.lua`.
+/// drift from this file (repository, package name, the app's display name)
+/// lives in `lib/knitcalc.lua`.
 ///
 /// The publish job copies the rendered tree to the root of `main`, where mise
 /// expects a plugin's `metadata.lua`/`hooks/`, exactly as it does for the Scoop
@@ -697,6 +698,9 @@ void _renderMisePlugin(Meta meta, Plan plan) {
         '\n'
         'M.repo = "${meta.publisherAccount}/${meta.package}"\n'
         'M.package = "${meta.package}"\n'
+        '-- User-visible name, used by the hooks that add the app to the\n'
+        '-- Windows Start menu and to ~/Applications on macOS.\n'
+        'M.displayName = ${_json(l.name)}\n'
         'M.apiHeaders = {\n'
         '    Accept = "application/vnd.github+json",\n'
         '    ["User-Agent"] = "mise-${meta.package}-plugin",\n'

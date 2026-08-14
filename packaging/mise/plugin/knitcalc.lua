@@ -4,6 +4,9 @@ local M = {}
 
 M.repo = "dmezhnov/knitcalc"
 M.package = "knitcalc"
+-- User-visible name, used by the hooks that add the app to the
+-- Windows Start menu and to ~/Applications on macOS.
+M.displayName = "KnitCalc"
 M.apiHeaders = {
     Accept = "application/vnd.github+json",
     ["User-Agent"] = "mise-knitcalc-plugin",
