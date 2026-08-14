@@ -1,16 +1,16 @@
 # Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.
 # Edit that file and run `mise metadata`; changes here are overwritten.
 #
-# Homebrew cask template. 1.8.78+101, https://github.com/dmezhnov/knitcalc/releases/download/v1.8.78+101/knitcalc-macos-1.8.78+101.zip and acae3de509691c30cc2d1fbf391da86089fb0296f7ca5f4c8ec1bc22b1ce335a are filled in
+# Homebrew cask template. 1.8.79+102, https://github.com/dmezhnov/knitcalc/releases/download/v1.8.79+102/knitcalc-macos-1.8.79+102.zip and 004c7c2d91db8bb2f216c7890e52e65e5b7dfa1a1d58e0d86a6fe85fd275494e are filled in
 # by the `publish` job of .github/workflows/publish.yml, which renders the
 # result to Casks/knitcalc.rb on main — the repo itself doubles as the
 # tap, exactly like the Scoop bucket. Version keeps the full +build metadata
 # (the macOS zip filename and release URL do too); cask versions are free-form.
 cask "knitcalc" do
-  version "1.8.78+101"
-  sha256 "acae3de509691c30cc2d1fbf391da86089fb0296f7ca5f4c8ec1bc22b1ce335a"
+  version "1.8.79+102"
+  sha256 "004c7c2d91db8bb2f216c7890e52e65e5b7dfa1a1d58e0d86a6fe85fd275494e"
 
-  url "https://github.com/dmezhnov/knitcalc/releases/download/v1.8.78+101/knitcalc-macos-1.8.78+101.zip",
+  url "https://github.com/dmezhnov/knitcalc/releases/download/v1.8.79+102/knitcalc-macos-1.8.79+102.zip",
       verified: "github.com/dmezhnov/knitcalc/"
   name "KnitCalc"
   desc "Knitting calculator: gauge conversion, stitch counts, yarn estimation"
