@@ -194,19 +194,11 @@ run = "mise run dev-{{ os() }}"
 [tasks.dev-linux]
 hide = true
 run = '''
-# Flutter's GTK embedder prints harmless noise we filter out of its output:
-#   "Atk-CRITICAL **: atk_socket_embed: assertion 'plug_id != NULL' failed"
-#     — upstream engine a11y bug; fires once at startup. NO a11y env var
-#       suppresses it (tested NO_AT_BRIDGE=1 and GTK_A11Y=none, both no-ops).
-#   "Gdk-WARNING **: Error converting selection from UTF8_STRING"
-#     — GTK clipboard/PRIMARY-selection conversion warning; can flood by the
-#       hundreds while interacting with a text field. Engine-level (GdkClipboard),
-#       not fixable from Dart, and harmless.
-# The only way to hide them is to filter those lines out of flutter's output.
-# flutter forwards the app's stderr onto its OWN stdout (interleaved with the
-# interactive UI), so we run flutter under a pty (util-linux `script`) — which
-# keeps colours and the hot-reload key UI working — and grep the lines away.
-# `script -e` propagates flutter's exit code; stdin is forwarded so r/R/q work.
+# The harmless GTK/ATK noise this task used to grep out of flutter's output
+# (atk_socket_embed, the empty-name cursor-theme message, the UTF8_STRING
+# selection warning) is now dropped inside the app itself, by the GLib log writer
+# installed in linux/runner/main.cc — in the released binary too, not just here.
+# That is why flutter no longer needs a pty (util-linux `script`) wrapper.
 
 # A dev (`flutter run`) build installs no desktop integration, so on Wayland the
 # compositor/taskbar can't match the window's app_id to an icon and shows a
@@ -230,11 +222,11 @@ if [ -e /etc/NIXOS ] && command -v nix-shell >/dev/null 2>&1; then
       # gtk-update-icon-cache is not on the host PATH. gtk3 is in this shell, so
       # build the cache here.
       gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
-      script -qefc "flutter run" /dev/null | grep --line-buffered -vE "atk_socket_embed|Error converting selection from UTF8_STRING"
+      flutter run
     '
 fi
 
-script -qefc "flutter run" /dev/null | grep --line-buffered -vE "atk_socket_embed|Error converting selection from UTF8_STRING"
+flutter run
 '''
 
 [tasks.dev-macos]
