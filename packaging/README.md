@@ -191,7 +191,18 @@ platform's asset through the API (that gives both the percent-encoded download
 URL for the `+build` tag and the asset's sha256 digest, which mise verifies),
 `env_keys.lua` puts the install directory on PATH and `post_install.lua`
 symlinks the macOS `.app` binary next to it so that one PATH entry fits all
-three platforms. The shared module sits at the plugin root instead of the
+three platforms.
+
+`post_install.lua` also carries the Linux half of that: the tarball is the one
+channel with no runtime of its own (it links the system GTK 3 stack — see the
+NixOS note in the root README), so the hook asks the loader whether that stack
+resolves and, if it does not, prints the missing sonames with the package to
+install for apt/dnf/pacman/zypper/nix-ld. It warns and never fails the install.
+The question goes to `LD_TRACE_LOADED_OBJECTS=1 "$bin"` rather than to `ldd`,
+because that runs the binary's own interpreter: under nix-ld `ldd` traces with
+its own glibc loader and reports the whole GTK stack as missing on a machine
+where the app starts fine. The loader prints the list and exits without running
+`main`, so the check cannot open a window or hang the install. The shared module sits at the plugin root instead of the
 documented `lib/` because `lib/` at the root of this repository is the Flutter
 source tree; `require` resolves from the plugin root just as well.
 
