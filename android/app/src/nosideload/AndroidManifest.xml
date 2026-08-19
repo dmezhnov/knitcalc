@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Manifest overlay for the no-sideload build (KNITCALC_NO_SIDELOAD_INSTALL=1,
+     see android/app/build.gradle.kts and the build-apk-nosideload mise task):
+     the same app without REQUEST_INSTALL_PACKAGES, for any catalogue that
+     refuses an app able to install another package.
+
+     RuStore is the one that forced it - its information-security review
+     rejected 1.8.79+102 with "Разрешение ANDROID.PERMISSION.REQUEST_INSTALL_PACKAGES
+     необходимо удалить" - but nothing here is RuStore-specific, and other
+     catalogues with the same rule take this artifact as it is. We need the
+     permission only for the sideload self-update, which hands a downloaded
+     release APK to the system installer, and a store install never runs it: the
+     store ships the updates there. The same build also disables that updater on
+     the Dart side (the KNITCALC_SIDELOAD_INSTALL=false dart-define, see
+     lib/update/update_factory.dart) so the app cannot offer an install it is no
+     longer allowed to perform. That define is spelled without its leading
+     dashes here on purpose: a double hyphen may not appear inside an XML
+     comment, and the manifest merger refuses to parse the file if it does.
+
+     This file is merged over src/main/AndroidManifest.xml as the `release`
+     build type's manifest, which outranks main, so tools:node="remove" deletes
+     the permission from the merged result. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove"/>
+</manifest>

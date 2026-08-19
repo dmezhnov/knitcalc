@@ -10,6 +10,7 @@ project-specific setup and flags:
 - `mise format` — format code
 - `mise lint` — lint
 - `mise metadata` — re-render every store/package-manager listing
+- `mise screenshots` — re-capture the phone store screenshots
 
 ## Store listings
 

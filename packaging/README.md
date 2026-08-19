@@ -41,6 +41,18 @@ fastlane tree, and AppStream links the desktop set from `main` by raw URL. The
 `icons_launcher` plus `tool/packaging_icons.dart`, which regenerate every
 platform icon, the fastlane catalogue icon and the Flatpak icon from it.
 
+The phone screenshots are not taken by hand either: `mise screenshots [en|ru]`
+(`tool/store_screenshots.bun.ts`) drives the published web build with headless
+Chrome over CDP and rewrites all three per locale at 1080×1920 — 9:16 exactly,
+the ratio RuStore requires and every other catalogue accepts. Run
+`mise metadata` afterwards so the fastlane copies follow. One script captures
+both locales so they show the same two projects; since the app starts in
+Russian, the English pass switches language through the app bar first. Flutter
+paints into a canvas, so the script works through the accessibility tree, and
+an open popup or dropdown empties that tree entirely — the two taps inside one
+are made by coordinate, which is why the viewport is fixed at 432×768 with a
+device pixel ratio of 2.5.
+
 The GitHub repository listing is pushed on each release by
 `packaging/ci/publish_repo_metadata.sh` (the `Sync GitHub repository listing`
 step). It runs on `PACKAGING_GITHUB_TOKEN` — editing repository settings is not
@@ -432,12 +444,53 @@ to match `mise.toml`), validate with `fdroid lint`/`fdroid build`, and open an
 MR. Expect reviewer iteration — Flutter recipes usually need it. Until it lands,
 IzzyOnDroid (above) covers F-Droid clients.
 
+### The no-sideload APK (`knitcalc-<version>-nosideload.apk`)
+
+The release also carries a second universal APK **without
+`REQUEST_INSTALL_PACKAGES`**, for any catalogue that refuses an app able to
+install another package. RuStore is what forced it - its information-security
+review rejected 1.8.79+102 with «Разрешение
+ANDROID.PERMISSION.REQUEST_INSTALL_PACKAGES необходимо удалить и отправить
+приложение на модерацию вновь», and saying in the sensitive-permissions
+questionnaire that the self-update is inactive there did not help: the
+permission has to be absent from the binary, not merely unused. Nothing in the
+artifact is RuStore-specific, so upload it to any other store that applies the
+same rule.
+
+We need the permission only for the sideload self-update, which hands a
+downloaded release APK to the system installer, and a store install never runs
+it: the store ships the updates there.
+
+`mise build apk-nosideload` produces it; CI builds it beside the other Android
+artifacts (see the publish workflow — first, because flutter writes every APK to
+`app-release.apk`). It differs from the normal APK in two ways and in nothing
+else - same signing key, application id and version code:
+
+- `KNITCALC_NO_SIDELOAD_INSTALL=1` makes `android/app/build.gradle.kts` merge
+  `android/app/src/nosideload/AndroidManifest.xml` as the release build type's
+  manifest, whose `tools:node="remove"` deletes the permission from the merged
+  result (a build-type overlay outranks `src/main`; an environment variable
+  rather than a product flavor, so every other build keeps the single
+  unflavoured release variant and its output paths);
+- `--dart-define=KNITCALC_SIDELOAD_INSTALL=false` turns off the sideload updater
+  in `lib/update/update_factory.dart`, so a build that cannot install a package
+  never offers to. It matters only if such an APK is installed by something
+  other than the store it was uploaded to (`adb`, a file manager): a RuStore
+  install already resolves to `Channel.androidRustore`, which does not
+  self-update either.
+
+`REQUEST_DELETE_PACKAGES` (the offer to uninstall the leftover pre-rename app)
+is left in place - the review named only the install permission. Check a
+candidate build with
+`aapt dump permissions build/app/outputs/flutter-apk/app-nosideload-release.apk`.
+
 ### RuStore — manual
 
 Free developer account at <https://console.rustore.ru> (needs identity
-verification), then upload the release `.aab` or APK by hand; texts and
-screenshots can be reused from `fastlane/metadata/android/ru-RU/`. No
-publishing API is wired up.
+verification), then upload **`knitcalc-<version>-nosideload.apk`** from the
+GitHub release by hand - **not** the normal APK and not the `.aab`, see the
+section above. Texts and screenshots can be reused from
+`fastlane/metadata/android/ru-RU/`. No publishing API is wired up.
 
 ### Other Android stores (Samsung, Amazon, Huawei, Accrescent, NashStore, RuMarket)
 
@@ -508,7 +561,8 @@ Smaller Russian catalogs besides RuStore. Both are **fully manual**: register on
 each console (NashStore <https://nashstore.ru>, RuMarket via its developer
 portal), upload the release `.aab`/APK by hand, and reuse the Russian listing
 from `fastlane/metadata/android/ru-RU/`. No publishing API is wired up; treat
-them like RuStore above.
+them like RuStore above - including its artifact: if either one applies the same
+information-security rule, upload the no-sideload APK.
 
 ### nixpkgs
 
