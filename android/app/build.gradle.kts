@@ -24,6 +24,16 @@ fun signingValue(envKey: String, propKey: String): String? =
 val releaseStoreFile = signingValue("ANDROID_KEYSTORE_PATH", "storeFile")
 val hasReleaseSigning = releaseStoreFile != null
 
+// Some catalogues refuse an app that can install another package: RuStore's
+// information-security review rejected 1.8.79+102 naming REQUEST_INSTALL_PACKAGES,
+// and the rule is not theirs alone. Building with KNITCALC_NO_SIDELOAD_INSTALL=1
+// merges src/nosideload/AndroidManifest.xml over the main manifest, which removes
+// the permission; the sideload updater that needs it is switched off in the same
+// build with --dart-define=KNITCALC_SIDELOAD_INSTALL=false. Driven by an
+// environment variable rather than a product flavor so every other build (and
+// every CI job) keeps the single unflavoured release variant and its output paths.
+val noSideloadInstall = System.getenv("KNITCALC_NO_SIDELOAD_INSTALL") == "1"
+
 android {
     namespace = "io.github.dmezhnov.knitcalc"
     compileSdk = flutter.compileSdkVersion
@@ -46,6 +56,14 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    // The release build type's manifest outranks src/main's, so the overlay's
+    // tools:node="remove" wins in the merged manifest.
+    if (noSideloadInstall) {
+        sourceSets.getByName("release") {
+            manifest.srcFile("src/nosideload/AndroidManifest.xml")
+        }
     }
 
     signingConfigs {

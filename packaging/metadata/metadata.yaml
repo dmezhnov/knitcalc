@@ -63,6 +63,7 @@ screenshots:
         - id: calculator
     phone:
         - id: calculator
+        - id: project
         - id: projects
 
 locales:
@@ -91,6 +92,7 @@ locales:
             - Project notes with photos, optionally synced between devices
         captions:
             calculator: Gauge conversion for a new project
+            project: Saving a project with notes and photos
             projects: Saved projects with their notes
 
     ru-RU:
@@ -110,4 +112,5 @@ locales:
             - Заметки о проектах с фото и необязательной синхронизацией между устройствами
         captions:
             calculator: Пересчёт петель для нового изделия
+            project: Сохранение изделия с заметками и фото
             projects: Сохранённые проекты и заметки к ним
