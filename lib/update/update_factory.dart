@@ -21,6 +21,21 @@ import 'package:knitcalc/update/impl/windows/windows_portable_update_service.dar
 import 'package:knitcalc/update/impl/windows/windows_update_service.dart';
 import 'package:knitcalc/update/update_service.dart';
 
+/// Whether this build may download a release APK and hand it to the system
+/// installer.
+///
+/// False only in the no-sideload build (`mise build apk-nosideload`), which
+/// ships without `REQUEST_INSTALL_PACKAGES` for the catalogues that refuse that
+/// permission (RuStore rejected a release over it) — see
+/// android/app/src/nosideload/AndroidManifest.xml. Without the permission the
+/// install intent is refused by the system, so a build that dropped it must not
+/// offer the sideload update at all; the store that distributes such a build
+/// updates the app itself.
+const bool sideloadInstallSupported = bool.fromEnvironment(
+  'KNITCALC_SIDELOAD_INSTALL',
+  defaultValue: true,
+);
+
 /// Returns the [UpdateService] implementation for the given [channel].
 ///
 /// During Phase 1 every channel maps to [NoopUpdateService]; later phases swap
@@ -33,9 +48,12 @@ UpdateService createUpdateService(Channel channel) {
       return createWebUpdateService(currentAppVersion());
 
     // Sideload: check GitHub Releases, download the APK and launch the
-    // system installer.
+    // system installer — unless this build has no permission to install
+    // packages (the no-sideload APK), in which case it stays silent.
     case Channel.androidSideload:
-      return createAndroidUpdateService(currentAppVersion());
+      return sideloadInstallSupported
+          ? createAndroidUpdateService(currentAppVersion())
+          : const NoopUpdateService();
 
     // Google Play: Play itself reports update availability and ships the
     // binary; run the flexible in-app update flow (no GitHub, no review lag).

@@ -114,6 +114,13 @@ jobs:
                     echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
                   } >> "$GITHUB_ENV"
 
+            # The APK without REQUEST_INSTALL_PACKAGES, for catalogues that
+            # reject it (RuStore). Built before the normal APK because flutter
+            # writes both to app-release.apk: the task copies its result aside,
+            # then the build below overwrites the shared path.
+            - name: Build the no-sideload APK
+              run: mise build apk-nosideload
+
             - name: Build APK
               run: mise build apk
 
@@ -172,6 +179,11 @@ jobs:
                     cp "build/app/outputs/flutter-apk/app-${abi}-release.apk" \
                        "release/android/knitcalc-${version}-${abi}.apk"
                   done
+                  # Uploaded by hand to the catalogues that reject
+                  # REQUEST_INSTALL_PACKAGES, RuStore for one; it carries neither
+                  # the permission nor the sideload updater (packaging/README.md).
+                  cp build/app/outputs/flutter-apk/app-nosideload-release.apk \
+                     "release/android/knitcalc-${version}-nosideload.apk"
                   cp build/app/outputs/bundle/release/app-release.aab "release/android/knitcalc-${version}.aab"
                   tar -C build/linux/x64/release/bundle -czf "release/linux/knitcalc-linux-x64-${version}.tar.gz" .
                   mv "knitcalc-${version}-x86_64.AppImage" "knitcalc-${version}-x86_64.AppImage.zsync" release/linux/
