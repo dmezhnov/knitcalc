@@ -6,12 +6,17 @@ library;
 
 import 'product.dart';
 import 'rectangular_scarf.dart';
+import 'shoulder_slope.dart';
 import 'triangular_shawl.dart';
 
 export 'product.dart';
 
 /// All supported products, in dropdown order. The first entry is the default.
-const List<Product> products = [RectangularScarf(), TriangularShawl()];
+const List<Product> products = [
+  RectangularScarf(),
+  TriangularShawl(),
+  ShoulderSlope(),
+];
 
 /// The product registered under [id], or the first product as a fallback.
 Product productById(String id) => products.firstWhere(

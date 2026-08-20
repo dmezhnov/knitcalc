@@ -5,6 +5,7 @@
 
   "productRectangularScarf": "Прямоугольный шарф",
   "productTriangularShawl": "Треугольный палантин",
+  "productShoulderSlope": "Скос плеча",
 
   "gaugeStitches": "Количество петель",
   "gaugeSampleWidthCm": "Ширина образца (см)",
@@ -31,6 +32,19 @@
   "shawlIncreasesPerSide": "Прибавок с каждой стороны",
   "shawlDecreaseRate": "Темп убавок",
   "shawlIncreaseRate": "Темп прибавок",
+
+  "shoulderWidthCm": "Ширина плеча (см)",
+  "shoulderHeightCm": "Высота плеча (см)",
+  "shoulderHeightHint": "Зависит от изделия: обычно от 3 до 9 см, чем свободнее посадка, тем больше",
+  "shoulderWidthStitches": "Петель в ширине плеча",
+  "shoulderHeightRows": "Рядов в высоте плеча",
+  "shoulderDecreaseRows": "Убавок, через ряд",
+  "shoulderStepRows": "Рядов с убавкой по {count, plural, one{{count} петле} few{{count} петли} other{{count} петель}}",
+  "@shoulderStepRows": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
 
   "saveAction": "Сохранить",
   "newProjectAction": "Новое",
