@@ -5,6 +5,7 @@
 
   "productRectangularScarf": "Rectangular scarf",
   "productTriangularShawl": "Triangular shawl",
+  "productShoulderSlope": "Shoulder slope",
 
   "gaugeStitches": "Stitch count",
   "gaugeSampleWidthCm": "Swatch width (cm)",
@@ -31,6 +32,19 @@
   "shawlIncreasesPerSide": "Increases per side",
   "shawlDecreaseRate": "Decrease rate",
   "shawlIncreaseRate": "Increase rate",
+
+  "shoulderWidthCm": "Shoulder width (cm)",
+  "shoulderHeightCm": "Shoulder height (cm)",
+  "shoulderHeightHint": "Depends on the garment: usually 3 to 9 cm, the looser the fit the more",
+  "shoulderWidthStitches": "Stitches across the shoulder",
+  "shoulderHeightRows": "Rows over the shoulder height",
+  "shoulderDecreaseRows": "Decrease rows, every other row",
+  "shoulderStepRows": "{count, plural, one{Rows decreasing by {count} stitch} other{Rows decreasing by {count} stitches}}",
+  "@shoulderStepRows": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
 
   "saveAction": "Save",
   "newProjectAction": "New",

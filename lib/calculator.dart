@@ -307,6 +307,8 @@ class _CalculatorState extends State<Calculator> {
       ],
       decoration: InputDecoration(
         labelText: input.label(l10n),
+        helperText: input.hint?.call(l10n),
+        helperMaxLines: 3,
         border: const OutlineInputBorder(),
       ),
       key: Key(input.key),
