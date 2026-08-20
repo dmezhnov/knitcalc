@@ -27,6 +27,7 @@ class ProductInput {
   const ProductInput({
     required this.key,
     required this.label,
+    this.hint,
     this.allowDecimal = true,
   });
 
@@ -36,6 +37,10 @@ class ProductInput {
 
   /// Resolves the field label for the active locale.
   final LocalizedString label;
+
+  /// Resolves an optional explanation shown under the field (a typical range,
+  /// how to measure), or `null` when the label says everything.
+  final LocalizedString? hint;
 
   /// Whether the field accepts a fractional value.
   final bool allowDecimal;

@@ -98,4 +98,50 @@ void main() {
     expect(getOutputValue(tester, 'changeCount'), '15');
     expect(getOutputValue(tester, 'changeRate'), '6');
   });
+
+  testWidgets('calculates shoulder slope', (WidgetTester tester) async {
+    await openCalculator(tester);
+
+    await tester.tap(find.text('Прямоугольный шарф'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Скос плеча').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ширина плеча (см)'), findsOneWidget);
+
+    final Finder stitchesEl = find.byKey(const Key('stitches'));
+    final Finder sampleWidthCmEl = find.byKey(const Key('sampleWidthCm'));
+    final Finder rowsEl = find.byKey(const Key('rows'));
+    final Finder sampleLengthCmEl = find.byKey(const Key('sampleLengthCm'));
+    final Finder shoulderWidthCmEl = find.byKey(const Key('shoulderWidthCm'));
+    final Finder shoulderHeightCmEl = find.byKey(const Key('shoulderHeightCm'));
+
+    // 1.6 stitches and 2 rows per cm: a 20 cm wide, 6.5 cm high shoulder is the
+    // 32 stitches over 13 rows of the worked example.
+    await tester.enterText(stitchesEl, '16');
+    await tester.enterText(sampleWidthCmEl, '10');
+    await tester.enterText(rowsEl, '20');
+    await tester.enterText(sampleLengthCmEl, '10');
+    await tester.enterText(shoulderWidthCmEl, '20');
+    await tester.enterText(shoulderHeightCmEl, '6.5');
+    await tester.pumpAndSettle();
+
+    expect(getOutputValue(tester, 'shoulderWidthStitches'), '32');
+    expect(getOutputValue(tester, 'shoulderHeightRows'), '13');
+    expect(getOutputValue(tester, 'decreaseRows'), '7');
+    // 32 over 7 rows: four rows of 5 stitches and three of 4.
+    expect(getOutputValue(tester, 'largeStepRows'), '4');
+    expect(find.text('Рядов с убавкой по 5 петель'), findsOneWidget);
+    expect(getOutputValue(tester, 'smallStepRows'), '3');
+    expect(find.text('Рядов с убавкой по 4 петли'), findsOneWidget);
+
+    // An exact division leaves a single group: 32 stitches over 8 rows.
+    await tester.enterText(shoulderHeightCmEl, '7.5');
+    await tester.pumpAndSettle();
+
+    expect(getOutputValue(tester, 'decreaseRows'), '8');
+    expect(find.byKey(const Key('largeStepRows')), findsNothing);
+    expect(getOutputValue(tester, 'smallStepRows'), '8');
+    expect(find.text('Рядов с убавкой по 4 петли'), findsOneWidget);
+  });
 }
