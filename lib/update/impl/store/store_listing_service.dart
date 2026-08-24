@@ -9,7 +9,7 @@ import 'package:knitcalc/update/download_control.dart';
 import 'package:knitcalc/update/update_service.dart';
 
 /// Returns the listing-based update service for a store [channel] (Samsung,
-/// Amazon, Huawei, F-Droid, Accrescent).
+/// Amazon, Huawei, F-Droid, Accrescent, RuStore).
 UpdateService createStoreListingService(Channel channel, AppVersion? current) =>
     StoreListingUpdateService(channel: channel, current: current);
 

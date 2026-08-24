@@ -5,7 +5,7 @@
 `packaging/metadata/metadata.yaml` is the **single source of truth** for
 everything a store shows: application name, tagline, one-line summary, long
 description and feature list (per locale), publisher, license, URLs, tags,
-categories and screenshots. `mise metadata`
+categories, screenshots and the per-release "what's new" notes. `mise metadata`
 (`tool/packaging_metadata.dart`) renders it into every channel:
 
 | Rendered file                                  | Channel                                                                             |
@@ -484,13 +484,58 @@ is left in place - the review named only the install permission. Check a
 candidate build with
 `aapt dump permissions build/app/outputs/flutter-apk/app-nosideload-release.apk`.
 
-### RuStore — manual
+### RuStore
 
 Free developer account at <https://console.rustore.ru> (needs identity
-verification), then upload **`knitcalc-<version>-nosideload.apk`** from the
-GitHub release by hand - **not** the normal APK and not the `.aab`, see the
-section above. Texts and screenshots can be reused from
-`fastlane/metadata/android/ru-RU/`. No publishing API is wired up.
+verification). RuStore takes **`knitcalc-<version>-nosideload.apk`** - **not**
+the normal APK and not the `.aab`, see the section above. Texts and screenshots
+come from `fastlane/metadata/android/ru-RU/`.
+
+The first upload had to be manual: the Public API refuses to work until the app
+has at least one active version, and the app card itself is console-only.
+
+Since then it publishes from CI. The `rustore` job in `.github/workflows/publish.yml`
+runs `packaging/rustore/publish_version.sh`, which mints a token
+(`auth_token.sh`: sign `keyId+timestamp` with SHA512withRSA, `POST /public/auth/`,
+JWE valid 900 s), creates a draft version, uploads the no-sideload APK and sends
+it for moderation. It needs the `RUSTORE_KEY_ID` and `RUSTORE_PRIVATE_KEY`
+secrets - an API key made in the console under **Applications -> KnitCalc -> API
+RuStore**, scoped to this application and to the "Uploading and Publishing Apps"
+methods; without them the job is skipped with a warning, like the Snap Store.
+Three things worth knowing before touching it:
+
+- RuStore allows **one draft per application** and a draft cannot be edited,
+  only deleted. The script is idempotent around that: it does nothing if the
+  versionCode is already submitted, and otherwise deletes the leftover draft
+  before creating its own - so a failed run is fixed by re-running the job, not
+  by cleaning up in the console.
+- Fields the draft does not send (name, categories, descriptions, price,
+  contacts) are **inherited from the active version**, so a release only carries
+  "what's new" and the moderator comment. "What's new" comes from
+  `fastlane/metadata/android/ru-RU/changelogs/<versionCode>.txt`, generated from
+  the `releases:` list in `packaging/metadata/metadata.yaml` like every other
+  listing — so the text a release shows in RuStore, IzzyOnDroid, F-Droid and
+  Play is written once. A version with no entry there falls back to a one-line
+  "Обновление до версии X", so a forgotten note delays nothing.
+- The API **rejects any APK carrying a sensitive permission the previous version
+  did not declare** (HTTP 400, "new sensitive permissions"). Such a release has
+  to go through the console once, with the permission declaration filled in;
+  the automation is unaffected afterwards.
+
+Every version is moderated (up to three days), so the store lags the GitHub
+release - which is why the `rustore` field of the update document is bumped
+separately once RuStore has actually published (see firebase/README.md).
+
+**Live since 2026-08-24** at
+<https://www.rustore.ru/catalog/app/io.github.dmezhnov.knitcalc> (1.8.80+103;
+1.8.79+102 was rejected over `REQUEST_INSTALL_PACKAGES`, which is what the
+no-sideload APK above exists for). RuStore installs therefore update _through
+the store_: `Channel.androidRustore` is a store-listing channel like F-Droid -
+the banner comes from the `rustore` field of `config/storeVersions`, which is
+**bumped by hand once RuStore has actually published** the new version (see
+packaging/firebase/README.md), and the update button opens the listing.
+`flutter_rustore_update` stays rejected: an extra dependency for what the
+listing service already does for five other stores.
 
 ### Other Android stores (Samsung, Amazon, Huawei, Accrescent, NashStore, RuMarket)
 

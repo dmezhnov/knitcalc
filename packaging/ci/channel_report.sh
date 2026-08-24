@@ -25,6 +25,7 @@ channels=(
     "chocolatey|Chocolatey"
     "snap|Snap Store"
     "aur|AUR"
+    "rustore|RuStore"
     "mise-linux|mise (Linux install check)"
     "mise-windows|mise (Windows install check)"
     "mise-macos|mise (macOS install check)"
@@ -38,6 +39,7 @@ channels=(
 } >> "$summary"
 
 failed=0
+published=()
 for entry in "${channels[@]}"; do
     id="${entry%%|*}"
     name="${entry#*|}"
@@ -63,12 +65,22 @@ for entry in "${channels[@]}"; do
     printf '| %s | %s %s | %s |\n' "$name" "$icon" "$state" "$cell" >> "$summary"
 
     if [ "$state" = ok ]; then
-        echo "::notice::${name}: ${detail:-published}"
+        # One annotation per channel would lose the tail of the list: GitHub
+        # renders at most 10 notices per step and there are more channels than
+        # that (AUR and the mise checks used to fall off the end), so the green
+        # ones are collected and announced together. Failures stay one apiece —
+        # they are errors, which are not capped, and each needs its own detail.
+        published+=("${name}: ${detail:-published}")
     else
         failed=1
         echo "::error::${name}: ${state}${detail:+ — $detail}"
     fi
 done
+
+if [ "${#published[@]}" -ne 0 ]; then
+    printf -v joined '%s; ' "${published[@]}"
+    echo "::notice::Published — ${joined%; }"
+fi
 
 if [ "$failed" -ne 0 ]; then
     {

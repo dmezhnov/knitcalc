@@ -66,6 +66,25 @@ screenshots:
         - id: project
         - id: projects
 
+# Per-release "what's new", newest first. Rendered to
+# fastlane/metadata/android/<locale>/changelogs/<versionCode>.txt — the file
+# IzzyOnDroid, F-Droid and Play show next to the version, and the text the
+# RuStore upload sends as `whatsNew`. The version code (after the +) names the
+# file, so an entry is added in the same edit as the version bump. Play caps the
+# text at 500 characters; one or two sentences is the format every catalogue
+# displays well. A locale missing here fails `mise lint`.
+releases:
+    - version: 1.9.1+105
+      notes:
+          en-US: Installs from RuStore now get an update notice that opens the store listing.
+          ru-RU: Приложение, установленное из RuStore, теперь сообщает о новой версии и открывает её карточку в магазине.
+
+    - version: 1.9.0+104
+      notes:
+          # A plain scalar may not contain ": ", so these are quoted.
+          en-US: 'New calculation: the shoulder slope — how many stitches to decrease in each row.'
+          ru-RU: 'Новый расчёт: скос плеча — сколько петель убавлять в каждом ряду.'
+
 locales:
     en-US:
         # BCP-47 tag used by AppStream xml:lang and .desktop key suffixes.
