@@ -1,0 +1,1 @@
+Installs from RuStore now get an update notice that opens the store listing.

@@ -107,6 +107,40 @@ void main() {
       );
     });
 
+    // RuStore published the listing on 2026-08-24, so unlike the other stores
+    // both of its urls are the real ones rather than a best-effort guess.
+    test('opens the published RuStore listing', () async {
+      final attempted = <Uri>[];
+
+      final service = StoreListingUpdateService(
+        channel: Channel.androidRustore,
+        current: const AppVersion(1, 8, 80),
+        fetch: fakeStoreVersions({
+          'rustore': const RemoteEntry(
+            version: AppVersion(1, 9, 0),
+            label: '1.9.0',
+          ),
+        }),
+        launchUrl: (url) async {
+          attempted.add(url);
+          // RuStore app missing → fall through to the catalogue page.
+          return url.scheme == 'https';
+        },
+      );
+
+      final info = await service.checkForUpdate();
+      await service.startUpdate(info!);
+
+      expect(
+        attempted.first.toString(),
+        'rustore://apps.rustore.ru/app/io.github.dmezhnov.knitcalc',
+      );
+      expect(
+        attempted.last.toString(),
+        'https://www.rustore.ru/catalog/app/io.github.dmezhnov.knitcalc',
+      );
+    });
+
     test('throws when no listing url can be opened', () async {
       final service = StoreListingUpdateService(
         channel: Channel.androidAccrescent,

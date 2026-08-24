@@ -1,0 +1,66 @@
+name: Bump a store version
+
+# Tells the app that one Android store has published a new version, so its
+# users get the update banner and a button that opens that store's listing.
+#
+# Release CI cannot do this: a store publishes on its own schedule, days after
+# the release (RuStore moderation takes up to three days), and a field bumped
+# early would send users to a listing that still carries the old build. It is a
+# workflow rather than a local script because the only credential that may write
+# the document is the FIREBASE_SA_KEY secret — the maintainer's machine reaches
+# neither the Firebase console nor most googleapis.com hosts.
+#
+# See packaging/firebase/README.md.
+
+on:
+    workflow_dispatch:
+        inputs:
+            store:
+                description: Which store has published.
+                type: choice
+                options:
+                    - rustore
+                    - fdroid
+                    - samsung
+                    - amazon
+                    - huawei
+                    - accrescent
+                required: true
+            version:
+                description: The version that store now serves, e.g. 1.8.80+103.
+                required: true
+
+permissions:
+    contents: read
+
+jobs:
+    bump:
+        name: Bump ${{ inputs.store }} to ${{ inputs.version }}
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            # Same token dance as the release job: mint it from the SA key with a
+            # self-signed JWT (gcloud is preinstalled), because the IAM Service
+            # Account Credentials API is not enabled on the project.
+            - name: Bump the store field
+              env:
+                  FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
+                  STORE: ${{ inputs.store }}
+                  VERSION: ${{ inputs.version }}
+              run: |
+                  set -euo pipefail
+                  if [ -z "$FIREBASE_SA_KEY" ]; then
+                    echo "::error::FIREBASE_SA_KEY is not set; cannot write the store-versions document."
+                    exit 1
+                  fi
+                  key="$RUNNER_TEMP/firebase-sa.json"
+                  printf '%s' "$FIREBASE_SA_KEY" > "$key"
+                  trap 'rm -f "$key"' EXIT
+                  gcloud auth activate-service-account --key-file="$key" --quiet
+                  ACCESS_TOKEN="$(gcloud auth print-access-token)" \
+                    packaging/firebase/bump_store_version.sh

@@ -1,6 +1,6 @@
 /// Per-store version keys and listing links for the Android stores that ship
 /// and install the binary themselves (Samsung, Amazon, Huawei, F-Droid,
-/// Accrescent).
+/// Accrescent, RuStore).
 ///
 /// For these channels the app does not download anything: the update banner
 /// shows when the remote store-versions document reports a newer version for the
@@ -12,7 +12,8 @@
 ///
 /// TODO(update): the deep links/web fallbacks are best-effort placeholders until
 /// the listings are live; verify each once published (Huawei AppGallery web URLs
-/// in particular key on a numeric app id, not the package name).
+/// in particular key on a numeric app id, not the package name). RuStore is the
+/// first one verified against a live listing.
 library;
 
 import 'package:knitcalc/update/channel.dart';
@@ -28,6 +29,7 @@ String? storeVersionKey(Channel channel) => switch (channel) {
   Channel.androidHuawei => 'huawei',
   Channel.androidFdroid => 'fdroid',
   Channel.androidAccrescent => 'accrescent',
+  Channel.androidRustore => 'rustore',
   _ => null,
 };
 
@@ -57,6 +59,11 @@ List<Uri> storeListingUrls(Channel channel) {
       return [Uri.parse('https://f-droid.org/packages/$appApplicationId/')];
     case Channel.androidAccrescent:
       return [Uri.parse('https://accrescent.app/app/$appApplicationId')];
+    case Channel.androidRustore:
+      return [
+        Uri.parse('rustore://apps.rustore.ru/app/$appApplicationId'),
+        Uri.parse('https://www.rustore.ru/catalog/app/$appApplicationId'),
+      ];
     // ignore: no_default_cases
     default:
       return const [];

@@ -65,21 +65,19 @@ UpdateService createUpdateService(Channel channel) {
     case Channel.iosAppStore:
       return createIosAppStoreService(currentAppVersion());
 
-    // RuStore in-app update is pending a minSdk 24 bump and on-device build
-    // verification; until then RuStore installs update through the store.
-    // TODO(update): wire flutter_rustore_update once minSdk is raised to 24.
-    case Channel.androidRustore:
-      return const NoopUpdateService();
-
     // Samsung Galaxy Store, Amazon Appstore, Huawei AppGallery, F-Droid,
-    // Accrescent: the store ships and installs the binary, so the app does not
+    // Accrescent, RuStore: the store ships and installs the binary, so the app
+    // does not
     // self-update; it shows the banner from the version the store published in
     // the remote store-versions document and opens the listing on update.
+    // (RuStore also has flutter_rustore_update for an in-app flow; it stays
+    // rejected — an extra dependency for what this service already does.)
     case Channel.androidSamsung:
     case Channel.androidAmazon:
     case Channel.androidHuawei:
     case Channel.androidFdroid:
     case Channel.androidAccrescent:
+    case Channel.androidRustore:
       return createStoreListingService(channel, currentAppVersion());
 
     // Package-manager installs: the manager owns updates — probe it for
