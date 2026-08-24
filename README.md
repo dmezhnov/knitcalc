@@ -76,7 +76,8 @@ release assets, or add the apt repository hosted on the GitHub Pages site —
 setup commands for it and the remaining channels (winget, Chocolatey,
 IzzyOnDroid, openSUSE Build Service, nixpkgs) are collected in
 [packaging/README.md](packaging/README.md). Android APKs (universal and
-per-ABI) ship with every release.
+per-ABI) ship with every release, and the app is also in
+[RuStore](https://www.rustore.ru/catalog/app/io.github.dmezhnov.knitcalc).
 
 ## Features
 

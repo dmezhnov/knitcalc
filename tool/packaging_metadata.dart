@@ -93,6 +93,21 @@ class L10n {
       '$intro\n\n${features.map((f) => '$marker $f').join('\n')}';
 }
 
+/// One release's user-facing "what's new", in every locale.
+class Release {
+  Release({required this.version, required this.notes});
+
+  /// Full `1.9.1+105` version as it appears in pubspec.yaml.
+  final String version;
+
+  /// Locale tag to the note shown for this release.
+  final Map<String, String> notes;
+
+  /// The part after the `+`: Android identifies a version by its code, and the
+  /// changelog file is named after it.
+  String get code => version.split('+').last;
+}
+
 class Meta {
   Meta._({
     required this.appId,
@@ -115,6 +130,7 @@ class Meta {
     required this.fdroidCategories,
     required this.tags,
     required this.screenshots,
+    required this.releases,
     required this.locales,
   });
 
@@ -140,6 +156,9 @@ class Meta {
 
   /// Form factor (`desktop`, `phone`) to the ordered screenshot ids.
   final Map<String, List<String>> screenshots;
+
+  /// Release notes, newest first.
+  final List<Release> releases;
 
   /// Locale tag to its texts; iteration order is the file's, so the first entry
   /// is the default locale (the one single-locale channels get).
@@ -170,6 +189,17 @@ class Meta {
           for (final shot in entry.value as YamlList) shot['id'] as String,
         ],
     };
+
+    final releases = [
+      for (final entry in (root['releases'] as YamlList? ?? YamlList()))
+        Release(
+          version: entry['version'] as String,
+          notes: {
+            for (final n in (entry['notes'] as YamlMap).entries)
+              n.key as String: (n.value as String).trim(),
+          },
+        ),
+    ];
 
     final locales = <String, L10n>{};
     for (final entry in (root['locales'] as YamlMap).entries) {
@@ -216,6 +246,7 @@ class Meta {
       ],
       tags: [for (final t in root['tags'] as YamlList) t as String],
       screenshots: screenshots,
+      releases: releases,
       locales: locales,
     );
     meta._validate();
@@ -261,6 +292,30 @@ class Meta {
         }
       }
     }
+    final seen = <String>{};
+    for (final r in releases) {
+      if (!RegExp(r'^\d+\.\d+\.\d+\+\d+$').hasMatch(r.version)) {
+        _fail('release "${r.version}": expected a version like 1.9.1+105.');
+      }
+      if (!seen.add(r.code)) {
+        _fail('release ${r.version}: version code ${r.code} is used twice.');
+      }
+      for (final l in locales.values) {
+        final note = r.notes[l.tag];
+        if (note == null || note.isEmpty) {
+          _fail('release ${r.version}: no "what\'s new" for ${l.tag}.');
+        }
+        // Play caps a changelog at 500 characters; the other catalogues are
+        // looser, and RuStore allows 5000.
+        if (note.length > 500) {
+          _fail(
+            'release ${r.version} (${l.tag}): the note is ${note.length} '
+            'chars; Google Play caps it at 500.',
+          );
+        }
+      }
+    }
+
     for (final form in screenshots.keys) {
       for (final id in screenshots[form]!) {
         for (final l in locales.values) {
@@ -285,6 +340,17 @@ void _renderFastlane(Meta meta, Plan plan) {
     plan.text('$dir/title.txt', '${l.name}\n');
     plan.text('$dir/short_description.txt', '${l.summary}\n');
     plan.text('$dir/full_description.txt', '${l.longText('*')}\n');
+
+    // IzzyOnDroid, F-Droid and Play all read the per-version changelog from
+    // this directory, named by version code; the RuStore upload sends the same
+    // text as `whatsNew` (packaging/rustore/publish_version.sh). Pruned so a
+    // release dropped from metadata.yaml cannot leave its file behind.
+    for (final r in meta.releases) {
+      plan.text('$dir/changelogs/${r.code}.txt', '${r.notes[l.tag]}\n');
+    }
+    plan.prune('$dir/changelogs', {
+      for (final r in meta.releases) '${r.code}.txt',
+    });
   }
 }
 

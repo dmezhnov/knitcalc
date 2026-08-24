@@ -27,7 +27,7 @@ Each field is keyed by channel. Two shapes:
   unknown or absent. All APKs share one versionCode (see
   `android/app/build.gradle.kts`), so the variants are interchangeable.
 - **Store-listing channels** (`samsung`, `amazon`, `huawei`, `fdroid`,
-  `accrescent`) — a bare version string. The app opens the store listing to
+  `accrescent`, `rustore`) — a bare version string. The app opens the store listing to
   update; it downloads nothing. **Bumped by hand** (see below).
 
 Example (Firestore console / REST shape):
@@ -95,10 +95,19 @@ workflow; see the commit history if it must be recreated.
 
 ## Manual store-version bump (store-listing channels)
 
-When a store (Samsung, Amazon, Huawei, F-Droid, Accrescent) has **actually
+When a store (Samsung, Amazon, Huawei, F-Droid, Accrescent, RuStore) has **actually
 published** a new version, set that store's field to the published version so
-its users see the banner. Either edit the document in the Firestore console, or
-PATCH a single field, e.g. for F-Droid:
+its users see the banner. Run the **"Bump a store version"** workflow
+(`.github/workflows/bump-store-version.yml`, `workflow_dispatch` with the store
+and the version) — it holds the `FIREBASE_SA_KEY` secret and calls
+`bump_store_version.sh`, which PATCHes that one field:
+
+```bash
+gh workflow run bump-store-version.yml -f store=rustore -f version=1.8.80+103
+```
+
+With a token in hand the same PATCH is one curl (Firestore console works too,
+when it is reachable), e.g. for F-Droid:
 
 ```bash
 ACCESS_TOKEN="$(gcloud auth print-access-token)"   # or the SA token
