@@ -673,6 +673,65 @@ jobs:
                   path: channel-status
                   if-no-files-found: ignore
 
+    rustore:
+        name: Publish to RuStore
+        runs-on: ubuntu-latest
+        needs:
+            - linux-android-web
+            - publish
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            - name: Download Android artifacts
+              uses: actions/download-artifact@v8
+              with:
+                  name: release-linux-android-web
+                  path: release
+
+            # RuStore takes the no-sideload APK, not the normal one: its
+            # information-security review rejects REQUEST_INSTALL_PACKAGES (it
+            # turned 1.8.79+102 down over exactly that permission). The upload
+            # only *submits* — every version goes through moderation, up to
+            # three days, which is why the `rustore` field of the update
+            # document is bumped separately once the store has published.
+            #
+            # Skipped with a warning until the API key secrets are configured,
+            # like the Snap Store and Chocolatey; see packaging/README.md.
+            - name: Upload the no-sideload APK
+              env:
+                  RUSTORE_KEY_ID: ${{ secrets.RUSTORE_KEY_ID }}
+                  RUSTORE_PRIVATE_KEY: ${{ secrets.RUSTORE_PRIVATE_KEY }}
+              run: |
+                  set -uo pipefail
+                  version='${{ needs.linux-android-web.outputs.version }}'
+                  if [ -z "$RUSTORE_KEY_ID" ] || [ -z "$RUSTORE_PRIVATE_KEY" ]; then
+                    echo "::warning::RUSTORE_KEY_ID/RUSTORE_PRIVATE_KEY are not set; skipping RuStore."
+                    bash packaging/ci/channel_status.sh rustore skipped "RuStore API key is not configured"
+                    exit 0
+                  fi
+                  # Never fail the run: the release is already tagged and
+                  # published, and the report job turns this into the red mark.
+                  if VERSION="$version" \
+                     APK="release/android/knitcalc-${version}-nosideload.apk" \
+                     packaging/rustore/publish_version.sh; then
+                    bash packaging/ci/channel_status.sh rustore ok "$version sent for moderation"
+                  else
+                    echo "::warning::RuStore upload failed; the version was not sent for moderation."
+                    bash packaging/ci/channel_status.sh rustore failed "see this step's log; re-running the job is safe"
+                  fi
+
+            - name: Upload channel status
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: channel-status-rustore
+                  path: channel-status
+                  if-no-files-found: ignore
+
     aur:
         name: Publish to the AUR
         runs-on: ubuntu-latest
@@ -983,6 +1042,7 @@ jobs:
             - windows-package-managers
             - snap-store
             - aur
+            - rustore
             - mise-install
             - deploy-pages
 
