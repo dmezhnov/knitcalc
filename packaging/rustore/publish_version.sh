@@ -4,8 +4,9 @@
 #
 # RuStore moderates every version (up to three days), so this only *submits* —
 # the listing goes live later, on its own. That is also why the `rustore` field
-# of the store-versions document is bumped separately, by hand, once the store
-# has actually published: see packaging/firebase/bump_store_version.sh.
+# of the store-versions document is bumped separately, once the store has
+# actually published: the "Sync store versions" workflow polls for that with
+# packaging/rustore/published_version.sh.
 #
 # The upload is the **no-sideload** APK on purpose: the normal one carries
 # REQUEST_INSTALL_PACKAGES, which RuStore's information-security review rejects
@@ -101,7 +102,7 @@ api GET "/public/v1/application/${PACKAGE_NAME}/version?page=0&size=50" > "$vers
 # A re-run after a green submission must not submit again — RuStore would
 # reject the duplicate versionCode anyway, but with a failure rather than a
 # no-op, and a moderation queue is not something to poke twice.
-existing="$(json "$versions" "next((v['versionStatus'] for v in d['body']['content'] if v['versionCode']==${version_code} and v['versionStatus'] not in ('REJECTED_BY_MODERATOR','DELETED')), None)")"
+existing="$(json "$versions" "next((v['versionStatus'] for v in d['body']['content'] if v['versionCode']==${version_code} and v['versionStatus'] not in ('REJECTED_BY_MODERATOR','REJECTED_BY_SECURITY','DELETED_DRAFT')), None)")"
 if [ -n "$existing" ]; then
     echo "rustore: versionCode ${version_code} is already there as ${existing}; nothing to do."
     exit 0

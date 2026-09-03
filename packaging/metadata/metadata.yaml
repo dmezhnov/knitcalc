@@ -74,6 +74,11 @@ screenshots:
 # text at 500 characters; one or two sentences is the format every catalogue
 # displays well. A locale missing here fails `mise lint`.
 releases:
+    - version: 1.9.2+106
+      notes:
+          en-US: An update notice for a store install now appears as soon as the store publishes the new version.
+          ru-RU: Уведомление об обновлении в установленном из магазина приложении теперь появляется сразу, как только магазин опубликовал новую версию.
+
     - version: 1.9.1+105
       notes:
           en-US: Installs from RuStore now get an update notice that opens the store listing.

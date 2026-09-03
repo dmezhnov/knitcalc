@@ -524,7 +524,10 @@ Three things worth knowing before touching it:
 
 Every version is moderated (up to three days), so the store lags the GitHub
 release - which is why the `rustore` field of the update document is bumped
-separately once RuStore has actually published (see firebase/README.md).
+separately, once RuStore has actually published. Nothing announces that moment,
+so the "Sync store versions" workflow polls for it four times a day:
+`packaging/rustore/published_version.sh` asks the same Public API which version
+is ACTIVE, and the field is bumped to it (see firebase/README.md).
 
 **Live since 2026-08-24** at
 <https://www.rustore.ru/catalog/app/io.github.dmezhnov.knitcalc> (1.8.80+103;
@@ -532,8 +535,9 @@ separately once RuStore has actually published (see firebase/README.md).
 no-sideload APK above exists for). RuStore installs therefore update _through
 the store_: `Channel.androidRustore` is a store-listing channel like F-Droid -
 the banner comes from the `rustore` field of `config/storeVersions`, which is
-**bumped by hand once RuStore has actually published** the new version (see
-packaging/firebase/README.md), and the update button opens the listing.
+**bumped once RuStore has actually published** the new version - by the polling
+workflow above, or by hand when it has to be forced (see
+packaging/firebase/README.md) - and the update button opens the listing.
 `flutter_rustore_update` stays rejected: an extra dependency for what the
 listing service already does for five other stores.
 
