@@ -28,7 +28,8 @@ Each field is keyed by channel. Two shapes:
   `android/app/build.gradle.kts`), so the variants are interchangeable.
 - **Store-listing channels** (`samsung`, `amazon`, `huawei`, `fdroid`,
   `accrescent`, `rustore`) — a bare version string. The app opens the store listing to
-  update; it downloads nothing. **Bumped by hand** (see below).
+  update; it downloads nothing. Bumped **after** that store publishes — `rustore`
+  by the polling workflow, the rest by hand (see below).
 
 Example (Firestore console / REST shape):
 
@@ -93,11 +94,25 @@ created headless (the maintainer's IP can't reach the Firebase/Cloud console or
 most googleapis.com hosts) via the throwaway `firebase-bootstrap` branch
 workflow; see the commit history if it must be recreated.
 
-## Manual store-version bump (store-listing channels)
+## Store-version bump (store-listing channels)
 
 When a store (Samsung, Amazon, Huawei, F-Droid, Accrescent, RuStore) has **actually
 published** a new version, set that store's field to the published version so
-its users see the banner. Run the **"Bump a store version"** workflow
+its users see the banner.
+
+**RuStore does this on its own.** The **"Sync store versions"** workflow
+(`.github/workflows/sync-store-versions.yml`) runs four times a day, asks the
+RuStore Public API which version is ACTIVE
+(`packaging/rustore/published_version.sh`) and bumps the field when it differs
+from the document — so the banner appears within hours of moderation letting a
+release through, with nobody watching for it. A staged rollout
+(`PARTIAL_ACTIVE`) does not count: it would put a banner in front of users whose
+listing still offers the old build. The other stores have no API here and stay
+manual; F-Droid and Accrescent get a step in that workflow once they carry the
+app.
+
+To force a field — a store outside RuStore, a rollback, or a fix that should not
+wait for the next poll — run the **"Bump a store version"** workflow
 (`.github/workflows/bump-store-version.yml`, `workflow_dispatch` with the store
 and the version) — it holds the `FIREBASE_SA_KEY` secret and calls
 `bump_store_version.sh`, which PATCHes that one field:
