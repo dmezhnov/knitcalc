@@ -1,0 +1,100 @@
+name: Sync store versions
+
+# Polls the stores that publish on their own schedule and bumps their field of
+# the store-versions document once a version is actually live, so a user who
+# installed from that store gets the update banner without anyone running the
+# manual "Bump a store version" workflow.
+#
+# Release CI cannot write these fields: RuStore moderates for up to three days,
+# and a field bumped at release time would send users to a listing that still
+# carries the old build. Polling is the only way to learn when that changed —
+# nothing notifies us — and it has to run here rather than on a developer
+# machine, because writing the document needs the FIREBASE_SA_KEY secret.
+#
+# Scheduled workflows run from the file on the default branch, which release CI
+# fast-forwards to `test` on every release ("Push main and tag" in publish.yml),
+# so a change to this file starts firing with the release that ships it; the
+# scripts it runs are always the current ones, since it checks out `test`.
+# GitHub also disables cron in a repository with no activity for 60 days.
+#
+# RuStore is the only store-listing channel that is live and has an API. F-Droid
+# and Accrescent get their step here once they carry the app (F-Droid's index is
+# public: /api/v1/packages/<id> gives suggestedVersionCode).
+#
+# See packaging/firebase/README.md.
+
+on:
+    schedule:
+        # Four times a day: moderation takes days, and the banner is not worth a
+        # tighter loop.
+        - cron: '17 */6 * * *'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: store-versions
+    cancel-in-progress: false
+
+jobs:
+    rustore:
+        name: Sync the rustore field
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout test branch
+              uses: actions/checkout@v5
+              with:
+                  ref: test
+
+            - name: Ask RuStore what it serves
+              id: rustore
+              env:
+                  RUSTORE_KEY_ID: ${{ secrets.RUSTORE_KEY_ID }}
+                  RUSTORE_PRIVATE_KEY: ${{ secrets.RUSTORE_PRIVATE_KEY }}
+              run: |
+                  set -euo pipefail
+                  if [ -z "$RUSTORE_KEY_ID" ] || [ -z "$RUSTORE_PRIVATE_KEY" ]; then
+                    echo "::warning::RUSTORE_KEY_ID/RUSTORE_PRIVATE_KEY are not set; skipping RuStore."
+                    exit 0
+                  fi
+                  published="$(packaging/rustore/published_version.sh)"
+                  echo "published=$published" >> "$GITHUB_OUTPUT"
+                  echo "rustore serves: ${published:-nothing yet}"
+
+            # The document is world-readable (the app reads it unauthenticated),
+            # so the comparison costs no credential — and skipping an unchanged
+            # value keeps the run silent on the days nothing happened.
+            - name: Compare with the store-versions document
+              id: current
+              if: steps.rustore.outputs.published != ''
+              run: |
+                  set -euo pipefail
+                  url="https://firestore.googleapis.com/v1/projects/knitcalc-sync/databases/(default)/documents/config/storeVersions"
+                  current="$(curl -sS "$url" | python3 -c 'import json,sys; print(json.load(sys.stdin)["fields"].get("rustore",{}).get("stringValue",""))')"
+                  echo "current=$current" >> "$GITHUB_OUTPUT"
+                  echo "document says: ${current:-unset}"
+
+            # Same token dance as the release job: mint it from the SA key with a
+            # self-signed JWT (gcloud is preinstalled), because the IAM Service
+            # Account Credentials API is not enabled on the project.
+            - name: Bump the rustore field
+              if: steps.rustore.outputs.published != '' && steps.rustore.outputs.published != steps.current.outputs.current
+              env:
+                  FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
+                  STORE: rustore
+                  VERSION: ${{ steps.rustore.outputs.published }}
+              run: |
+                  set -euo pipefail
+                  if [ -z "$FIREBASE_SA_KEY" ]; then
+                    echo "::error::FIREBASE_SA_KEY is not set; cannot write the store-versions document."
+                    exit 1
+                  fi
+                  key="$RUNNER_TEMP/firebase-sa.json"
+                  printf '%s' "$FIREBASE_SA_KEY" > "$key"
+                  trap 'rm -f "$key"' EXIT
+                  gcloud auth activate-service-account --key-file="$key" --quiet
+                  ACCESS_TOKEN="$(gcloud auth print-access-token)" \
+                    packaging/firebase/bump_store_version.sh
+                  echo "::notice::RuStore users are now offered $VERSION."

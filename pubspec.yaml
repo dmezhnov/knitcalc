@@ -6,7 +6,7 @@ description: 'Knitting calculator: gauge conversion, stitch counts, yarn estimat
 
 publish_to: none
 
-version: 1.9.1+105
+version: 1.9.2+106
 
 environment:
     sdk: ^3.11.4

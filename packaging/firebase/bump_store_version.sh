@@ -6,8 +6,10 @@
 #
 # These fields cannot be written by release CI: a store publishes on its own
 # schedule, days after the release, and a field bumped early would send users to
-# a listing that still carries the old build. So this runs by hand — through the
-# "Bump a store version" workflow, which holds the service-account key.
+# a listing that still carries the old build. So this runs afterwards — for
+# RuStore from the "Sync store versions" workflow, which polls the store's API
+# until the version is live, and otherwise by hand through the "Bump a store
+# version" workflow. Both hold the service-account key.
 #
 # Only the named field is touched (updateMask), so the self-update entries
 # written by publish_store_versions.sh and the other stores are left intact.
