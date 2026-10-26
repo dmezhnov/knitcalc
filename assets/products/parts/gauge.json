@@ -1,0 +1,38 @@
+{
+    "inputs": [
+        {
+            "key": "stitches",
+            "label": { "ru": "Количество петель", "en": "Stitch count" },
+            "allowDecimal": false
+        },
+        {
+            "key": "sampleWidthCm",
+            "label": { "ru": "Ширина образца (см)", "en": "Swatch width (cm)" }
+        },
+        {
+            "key": "rows",
+            "label": { "ru": "Количество рядов", "en": "Row count" },
+            "allowDecimal": false
+        },
+        {
+            "key": "sampleLengthCm",
+            "label": { "ru": "Длина образца (см)", "en": "Swatch length (cm)" }
+        }
+    ],
+    "values": {
+        "stitchesPerCm": "stitches / sampleWidthCm",
+        "rowsPerCm": "rows / sampleLengthCm"
+    },
+    "outputs": [
+        {
+            "key": "stitchesPerCm",
+            "label": { "ru": "Петель в см", "en": "Stitches per cm" },
+            "value": "stitchesPerCm"
+        },
+        {
+            "key": "rowsPerCm",
+            "label": { "ru": "Рядов в см", "en": "Rows per cm" },
+            "value": "rowsPerCm"
+        }
+    ]
+}

@@ -1,0 +1,71 @@
+{
+    "name": { "ru": "Прямоугольный шарф", "en": "Rectangular scarf" },
+    "include": ["gauge"],
+    "inputs": [
+        {
+            "key": "targetWidthCm",
+            "label": {
+                "ru": "Желаемая ширина (см)",
+                "en": "Desired width (cm)"
+            }
+        },
+        {
+            "key": "targetLengthCm",
+            "label": {
+                "ru": "Желаемая длина (см)",
+                "en": "Desired length (cm)"
+            }
+        },
+        {
+            "key": "sampleWidthStitches",
+            "label": {
+                "ru": "Ширина образца (петель)",
+                "en": "Swatch width (stitches)"
+            },
+            "allowDecimal": false
+        },
+        {
+            "key": "sampleThreadLengthCm",
+            "label": {
+                "ru": "Длина нити образца (см)",
+                "en": "Swatch yarn length (cm)"
+            }
+        },
+        {
+            "key": "sampleThreadWidthCm",
+            "label": {
+                "ru": "Ширина нити образца (см)",
+                "en": "Swatch yarn width (cm)"
+            }
+        }
+    ],
+    "values": {
+        "threadLengthPerStitch": "sampleThreadLengthCm / sampleWidthStitches"
+    },
+    "outputs": [
+        {
+            "key": "targetStitches",
+            "label": {
+                "ru": "Желаемое количество петель",
+                "en": "Desired stitch count"
+            },
+            "value": "stitchesPerCm * targetWidthCm"
+        },
+        {
+            "key": "targetRows",
+            "label": {
+                "ru": "Желаемое количество рядов",
+                "en": "Desired row count"
+            },
+            "value": "rowsPerCm * targetLengthCm"
+        },
+        {
+            "key": "targetThreadLength",
+            "label": {
+                "ru": "Желаемая длина нити",
+                "en": "Desired yarn length"
+            },
+            "value": "threadLengthPerStitch * stitches"
+        }
+    ]
+}

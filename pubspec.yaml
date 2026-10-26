@@ -6,7 +6,7 @@ description: 'Knitting calculator: gauge conversion, stitch counts, yarn estimat
 
 publish_to: none
 
-version: 1.9.2+106
+version: 1.9.3+107
 
 environment:
     sdk: ^3.11.4
@@ -88,3 +88,8 @@ flutter:
     uses-material-design: true
     # Generate AppLocalizations from lib/l10n/*.arb (see l10n.yaml).
     generate: true
+    # Product definitions, read at startup (see lib/products/README.md). An
+    # asset directory is not recursive, so the shared parts need their own line.
+    assets:
+        - assets/products/
+        - assets/products/parts/
