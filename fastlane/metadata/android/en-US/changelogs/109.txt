@@ -1,0 +1,1 @@
+Under the hood: the build machines and tools are now fixed to exact versions, so every release is built the same way. Nothing changes in the app.
