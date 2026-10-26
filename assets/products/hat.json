@@ -1,0 +1,106 @@
+{
+    "name": { "ru": "Шапка", "en": "Hat" },
+    "include": ["gauge"],
+    "inputs": [
+        {
+            "key": "headCircumferenceCm",
+            "label": {
+                "ru": "Обхват головы (см)",
+                "en": "Head circumference (cm)"
+            },
+            "hint": {
+                "ru": "Типичный обхват: женщина 53–58,5 см, мужчина 56–61 см, ребёнок 45,5–51 см",
+                "en": "Typical: woman 53–58.5 cm, man 56–61 cm, child 45.5–51 cm"
+            }
+        },
+        {
+            "key": "stretchPercent",
+            "label": {
+                "ru": "Уменьшение на растяжение (%)",
+                "en": "Negative ease (%)"
+            },
+            "hint": {
+                "ru": "Насколько шапка меньше головы: обычно 5–10%, резинка тянется сильнее гладкой вязки",
+                "en": "How much smaller than the head the hat is: usually 5–10%, ribbing stretches more than stockinette"
+            }
+        },
+        {
+            "key": "hatHeightCm",
+            "label": {
+                "ru": "Высота шапки (см)",
+                "en": "Hat height (cm)"
+            },
+            "hint": {
+                "ru": "От края до макушки, вместе с отворотом, если он есть",
+                "en": "From the brim to the crown, including any turned-up brim"
+            }
+        }
+    ],
+    "values": {
+        "wedges": "8",
+        "castOn": "wedges * round(stitchesPerCm * headCircumferenceCm * (1 - stretchPercent / 100) / wedges)",
+        "totalRounds": "round(rowsPerCm * hatHeightCm)",
+        "crownDecreaseRounds": "castOn > wedges ? castOn / wedges - 1 : 0",
+        "crownRounds": "crownDecreaseRounds * 2",
+        "straightRounds": "totalRounds - crownRounds"
+    },
+    "outputs": [
+        {
+            "key": "castOn",
+            "label": {
+                "ru": "Набрать петель (кратно 8)",
+                "en": "Cast on (a multiple of 8)"
+            },
+            "value": "castOn"
+        },
+        {
+            "key": "hatCircumferenceCm",
+            "label": {
+                "ru": "Обхват шапки без растяжения (см)",
+                "en": "Hat circumference, unstretched (cm)"
+            },
+            "value": "stitchesPerCm > 0 ? castOn / stitchesPerCm : null"
+        },
+        {
+            "key": "straightRounds",
+            "label": {
+                "ru": "Рядов до начала убавок макушки",
+                "en": "Rounds before the crown decreases"
+            },
+            "value": "straightRounds",
+            "highlight": "straightRounds < 0"
+        },
+        {
+            "key": "crownDecreaseRounds",
+            "label": {
+                "ru": "Рядов с убавками, через ряд, по 8 петель",
+                "en": "Decrease rounds, every other round, 8 stitches each"
+            },
+            "value": "crownDecreaseRounds"
+        },
+        {
+            "key": "crownRounds",
+            "label": {
+                "ru": "Рядов на макушку",
+                "en": "Rounds over the crown"
+            },
+            "value": "crownRounds"
+        },
+        {
+            "key": "crownHeightCm",
+            "label": {
+                "ru": "Высота макушки (см)",
+                "en": "Crown height (cm)"
+            },
+            "value": "rowsPerCm > 0 ? crownRounds / rowsPerCm : null"
+        },
+        {
+            "key": "finalStitches",
+            "label": {
+                "ru": "Петель в конце, стянуть нитью",
+                "en": "Stitches left, gathered with the tail"
+            },
+            "value": "castOn > wedges ? wedges : null"
+        }
+    ]
+}

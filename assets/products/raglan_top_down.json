@@ -1,0 +1,136 @@
+{
+    "name": {
+        "ru": "Реглан сверху",
+        "en": "Top-down raglan"
+    },
+    "include": ["gauge"],
+    "inputs": [
+        {
+            "key": "finishedChestCm",
+            "label": {
+                "ru": "Обхват груди изделия (см)",
+                "en": "Finished chest (cm)"
+            },
+            "hint": {
+                "ru": "Обхват груди плюс свобода: 5–10 см по фигуре, 10–20 см свободно. Остальное считается в процентах от него (система Элизабет Циммерманн)",
+                "en": "Chest plus ease: 5–10 cm fitted, 10–20 cm loose. Everything else is a percentage of it (Elizabeth Zimmermann's system)"
+            }
+        },
+        {
+            "key": "yokeDepthCm",
+            "label": {
+                "ru": "Глубина реглана (см)",
+                "en": "Yoke depth (cm)"
+            },
+            "hint": {
+                "ru": "От горловины до подмышки по прямой. Типичная глубина проймы: женские размеры от 15,5 (XS) до 26,5 см (5X), M — 17,5–19 см",
+                "en": "From the neck to the underarm, straight down. Typical armhole depth: women's sizes 15.5 cm (XS) to 26.5 cm (5X), M 17.5–19 cm"
+            }
+        }
+    ],
+    "values": {
+        "bodyStitches": "2 * round(stitchesPerCm * finishedChestCm / 2)",
+        "neckStitches": "2 * round(bodyStitches * 0.2)",
+        "underarmStitches": "round(bodyStitches * 0.08)",
+        "upperArmStitches": "round(bodyStitches * 0.33)",
+        "sleeveStart": "round(neckStitches / 6)",
+        "bodyStart": "neckStitches / 2 - sleeveStart",
+        "yokeRounds": "round(rowsPerCm * yokeDepthCm)",
+        "raglanRounds": "max(0, min(floor(yokeRounds / 2), floor((upperArmStitches - underarmStitches - sleeveStart) / 2)))",
+        "sleeveAtSplit": "sleeveStart + 2 * raglanRounds",
+        "bodyAfterRaglan": "bodyStart + 2 * raglanRounds",
+        "bodyOnlyRounds": "max(0, min(yokeRounds - raglanRounds, floor((bodyStitches / 2 - underarmStitches - bodyAfterRaglan) / 2)))",
+        "bodyAtSplit": "bodyAfterRaglan + 2 * bodyOnlyRounds",
+        "underarmCastOn": "bodyStitches / 2 - bodyAtSplit"
+    },
+    "outputs": [
+        {
+            "key": "bodyStitches",
+            "label": {
+                "ru": "Петель по обхвату груди",
+                "en": "Stitches around the chest"
+            },
+            "value": "bodyStitches"
+        },
+        {
+            "key": "neckStitches",
+            "label": {
+                "ru": "Набрать по горловине (40%)",
+                "en": "Cast on at the neck (40%)"
+            },
+            "value": "neckStitches"
+        },
+        {
+            "key": "bodyStart",
+            "label": {
+                "ru": "Из них на перед и на спинку, по",
+                "en": "Of them, for the front and for the back, each"
+            },
+            "value": "bodyStart"
+        },
+        {
+            "key": "sleeveStart",
+            "label": {
+                "ru": "Из них на каждый рукав",
+                "en": "Of them, for each sleeve"
+            },
+            "value": "sleeveStart"
+        },
+        {
+            "key": "yokeRounds",
+            "label": {
+                "ru": "Рядов реглана",
+                "en": "Yoke rounds"
+            },
+            "value": "yokeRounds"
+        },
+        {
+            "key": "raglanRounds",
+            "label": {
+                "ru": "Рядов с 8 прибавками по линиям реглана, через ряд",
+                "en": "Rounds with 8 increases at the raglan lines, every other round"
+            },
+            "value": "raglanRounds"
+        },
+        {
+            "key": "bodyOnlyRounds",
+            "label": {
+                "ru": "Рядов с 4 прибавками только на переде и спинке, в рядах между прибавками реглана",
+                "en": "Rounds with 4 increases on the front and back only, between the raglan increase rounds"
+            },
+            "value": "bodyOnlyRounds"
+        },
+        {
+            "key": "bodyAtSplit",
+            "label": {
+                "ru": "Перед и спинка при разделении, по",
+                "en": "Front and back at the split, each"
+            },
+            "value": "bodyAtSplit"
+        },
+        {
+            "key": "sleeveAtSplit",
+            "label": {
+                "ru": "Рукав при разделении, снять на булавку",
+                "en": "Each sleeve at the split, put on hold"
+            },
+            "value": "sleeveAtSplit"
+        },
+        {
+            "key": "underarmCastOn",
+            "label": {
+                "ru": "Набрать под каждой проймой",
+                "en": "Cast on under each arm"
+            },
+            "value": "underarmCastOn"
+        },
+        {
+            "key": "sleeveStitches",
+            "label": {
+                "ru": "Петель рукава с петлями под проймой",
+                "en": "Sleeve stitches with the underarm"
+            },
+            "value": "sleeveAtSplit + underarmCastOn"
+        }
+    ]
+}
