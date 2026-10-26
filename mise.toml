@@ -430,8 +430,13 @@ check_version backend
 # Homebrew, apt, AUR, rpm, Snap, Flathub, fastlane, the Inno installer, the
 # GitHub repo listing) drifted from packaging/metadata/metadata.yaml. It runs
 # first: a stale listing is a one-command fix (`mise metadata`) and there is no
-# point linting output that is about to be regenerated.
-run = ["dart run tool/packaging_metadata.dart --check", "trunk check --all"]
+# point linting output that is about to be regenerated. check_ci_pins fails
+# on a *-latest runner label or an action not pinned to a commit SHA.
+run = [
+    "dart run tool/packaging_metadata.dart --check",
+    "dart run tool/check_ci_pins.dart",
+    "trunk check --all",
+]
 
 [tasks.format]
 run = "trunk fmt"

@@ -34,7 +34,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   fetch-depth: 0
                   ref: test
@@ -64,7 +64,7 @@ jobs:
                   echo "${JAVA_HOME_17_X64}/bin" >> "$GITHUB_PATH"
 
             - name: Install mise
-              uses: jdx/mise-action@v4
+              uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
               with:
                   # Pin mise for reproducible CI: 2026.6.14 restores dangling
                   # symlink shims from cache on Windows ("flutter.exe is not a
@@ -192,7 +192,7 @@ jobs:
                   echo "linux_sha256=$(sha256sum "release/linux/knitcalc-linux-x64-${version}.tar.gz" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
             - name: Upload Linux, Android, Web artifacts
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: release-linux-android-web
                   path: release
@@ -233,13 +233,13 @@ jobs:
                   bash packaging/ci/channel_status.sh apt ok "${{ steps.version.outputs.version }}"
 
             - name: Upload GitHub Pages artifact
-              uses: actions/upload-pages-artifact@v5
+              uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
               with:
                   path: build/web
 
             - name: Upload channel status
               if: always()
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: channel-status-linux-android-web
                   path: channel-status
@@ -247,7 +247,7 @@ jobs:
 
     windows:
         name: Build Windows
-        runs-on: windows-latest
+        runs-on: windows-2025
         needs: linux-android-web
 
         outputs:
@@ -257,12 +257,12 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
             - name: Install mise
-              uses: jdx/mise-action@v4
+              uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
               with:
                   # Pin mise for reproducible CI: 2026.6.14 restores dangling
                   # symlink shims from cache on Windows ("flutter.exe is not a
@@ -310,14 +310,14 @@ jobs:
                   "setup_sha256=$setupSha" >> $env:GITHUB_OUTPUT
 
             - name: Upload Windows artifact
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: release-windows
                   path: release
 
     apple:
         name: Build macOS and iOS
-        runs-on: macos-latest
+        runs-on: macos-26
         needs: linux-android-web
 
         outputs:
@@ -325,12 +325,12 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
             - name: Install mise
-              uses: jdx/mise-action@v4
+              uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
               with:
                   # Pin mise for reproducible CI: 2026.6.14 restores dangling
                   # symlink shims from cache on Windows ("flutter.exe is not a
@@ -367,14 +367,14 @@ jobs:
                   echo "sha256=$sha" >> "$GITHUB_OUTPUT"
 
             - name: Upload Apple artifacts
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: release-apple
                   path: release
 
     publish:
         name: Publish release
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         needs:
             - linux-android-web
             - windows
@@ -386,7 +386,7 @@ jobs:
 
         steps:
             - name: Checkout main branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   fetch-depth: 0
                   ref: main
@@ -476,7 +476,7 @@ jobs:
                   git commit -m "Flatpak metainfo release ${{ needs.linux-android-web.outputs.version }}"
 
             - name: Download release artifacts
-              uses: actions/download-artifact@v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   pattern: release-*
                   path: release-download
@@ -563,7 +563,7 @@ jobs:
 
             - name: Upload channel status
               if: always()
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: channel-status-publish
                   path: channel-status
@@ -571,7 +571,7 @@ jobs:
 
     windows-package-managers:
         name: Publish to Windows package managers
-        runs-on: windows-latest
+        runs-on: windows-2025
         needs:
             - linux-android-web
             - windows
@@ -579,7 +579,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
@@ -613,7 +613,7 @@ jobs:
 
             - name: Upload channel status
               if: always()
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: channel-status-windows-package-managers
                   path: channel-status
@@ -630,12 +630,12 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
             - name: Download Linux artifacts
-              uses: actions/download-artifact@v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: release-linux-android-web
                   path: release
@@ -667,7 +667,7 @@ jobs:
 
             - name: Upload channel status
               if: always()
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: channel-status-snap-store
                   path: channel-status
@@ -675,19 +675,19 @@ jobs:
 
     rustore:
         name: Publish to RuStore
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         needs:
             - linux-android-web
             - publish
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
             - name: Download Android artifacts
-              uses: actions/download-artifact@v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: release-linux-android-web
                   path: release
@@ -726,7 +726,7 @@ jobs:
 
             - name: Upload channel status
               if: always()
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: channel-status-rustore
                   path: channel-status
@@ -734,14 +734,14 @@ jobs:
 
     aur:
         name: Publish to the AUR
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         needs:
             - linux-android-web
             - publish
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
@@ -795,7 +795,7 @@ jobs:
 
             - name: Upload channel status
               if: always()
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: channel-status-aur
                   path: channel-status
@@ -817,17 +817,17 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - os: ubuntu-latest
+                    - os: ubuntu-24.04
                       channel: mise-linux
-                    - os: windows-latest
+                    - os: windows-2025
                       channel: mise-windows
-                    - os: macos-latest
+                    - os: macos-26
                       channel: mise-macos
         runs-on: ${{ matrix.os }}
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
@@ -843,12 +843,14 @@ jobs:
                   sudo apt-get install -y libgtk-3-0 liblzma5
 
             - name: Install mise
-              uses: jdx/mise-action@v4
+              uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
               with:
-                  # Deliberately unpinned, unlike the build jobs: this check is
-                  # about what a user's current mise does with our release, and
-                  # the pin there works around a Windows *shim* cache
-                  # regression that neither `mise exec` nor an uncached run hits.
+                  # This check is about what a user's current mise does with our
+                  # release, so it tracks the newest mise (Renovate proposes
+                  # each one) rather than the build jobs' 2026.6.11, which works
+                  # around a Windows *shim* cache regression that neither
+                  # `mise exec` nor an uncached run hits.
+                  version: 2026.10.19
                   #
                   # Only the mise binary: `mise install` here would build this
                   # repo's own toolchain (Flutter, Dart, Bun).
@@ -982,7 +984,7 @@ jobs:
 
             - name: Upload channel status
               if: always()
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: channel-status-${{ matrix.channel }}
                   path: channel-status
@@ -990,7 +992,7 @@ jobs:
 
     deploy-pages:
         name: Deploy GitHub Pages
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         needs:
             # linux-android-web only for outputs.version in the channel report;
             # publish already depends on it, so this adds no waiting.
@@ -1004,12 +1006,12 @@ jobs:
         steps:
             - name: Deploy GitHub Pages
               id: deployment
-              uses: actions/deploy-pages@v5
+              uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
             # Only for the channel report: the deploy action needs no checkout,
             # but the status helper lives in the repo.
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
@@ -1018,7 +1020,7 @@ jobs:
 
             - name: Upload channel status
               if: always()
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: channel-status-deploy-pages
                   path: channel-status
@@ -1032,7 +1034,7 @@ jobs:
     # job once the cause is fixed, no new version needed.
     channel-report:
         name: Release channel report
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         if: always()
         needs:
             - linux-android-web
@@ -1048,7 +1050,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
@@ -1056,7 +1058,7 @@ jobs:
             # report calls those channels `unknown` rather than passing them.
             - name: Download channel statuses
               continue-on-error: true
-              uses: actions/download-artifact@v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   pattern: channel-status-*
                   path: channel-status
