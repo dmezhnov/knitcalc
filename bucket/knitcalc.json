@@ -3,12 +3,12 @@
         "Generated from packaging/metadata/metadata.yaml by tool/packaging_metadata.dart.",
         "Edit that file and run `mise metadata`; changes here are overwritten."
     ],
-    "version": "1.9.3+107",
+    "version": "1.10.0+108",
     "description": "Knitting calculator: gauge conversion, stitch counts, yarn estimation",
     "homepage": "https://github.com/dmezhnov/knitcalc",
     "license": "MIT",
-    "url": "https://github.com/dmezhnov/knitcalc/releases/download/v1.9.3+107/knitcalc-windows-x64-1.9.3+107.zip",
-    "hash": "90b28549c6380285e836dfb5a29644f08e5223e78114e116afd056e302fa9347",
+    "url": "https://github.com/dmezhnov/knitcalc/releases/download/v1.10.0+108/knitcalc-windows-x64-1.10.0+108.zip",
+    "hash": "91301dcad379f60a4a2fca6bab5b5518aa3866c4a2dc314f15093acb9d70cd6b",
     "bin": "knitcalc.exe",
     "shortcuts": [["knitcalc.exe", "KnitCalc"]],
     "checkver": {
