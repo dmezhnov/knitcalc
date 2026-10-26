@@ -3,49 +3,6 @@
 
   "productKindLabel": "Вид изделия",
 
-  "productRectangularScarf": "Прямоугольный шарф",
-  "productTriangularShawl": "Треугольный палантин",
-  "productShoulderSlope": "Скос плеча",
-
-  "gaugeStitches": "Количество петель",
-  "gaugeSampleWidthCm": "Ширина образца (см)",
-  "gaugeRows": "Количество рядов",
-  "gaugeSampleLengthCm": "Длина образца (см)",
-  "gaugeStitchesPerCm": "Петель в см",
-  "gaugeRowsPerCm": "Рядов в см",
-
-  "targetLengthCm": "Желаемая длина (см)",
-  "targetRows": "Желаемое количество рядов",
-
-  "scarfTargetWidthCm": "Желаемая ширина (см)",
-  "scarfSampleWidthStitches": "Ширина образца (петель)",
-  "scarfSampleThreadLengthCm": "Длина нити образца (см)",
-  "scarfSampleThreadWidthCm": "Ширина нити образца (см)",
-  "scarfTargetStitches": "Желаемое количество петель",
-  "scarfTargetThreadLength": "Желаемая длина нити",
-
-  "shawlStartWidthCm": "Ширина в начале (см)",
-  "shawlEndWidthCm": "Ширина в конце (см)",
-  "shawlStartWidthStitches": "Петель в начале",
-  "shawlEndWidthStitches": "Петель в конце",
-  "shawlDecreasesPerSide": "Убавок с каждой стороны",
-  "shawlIncreasesPerSide": "Прибавок с каждой стороны",
-  "shawlDecreaseRate": "Темп убавок",
-  "shawlIncreaseRate": "Темп прибавок",
-
-  "shoulderWidthCm": "Ширина плеча (см)",
-  "shoulderHeightCm": "Высота плеча (см)",
-  "shoulderHeightHint": "Зависит от изделия: обычно от 3 до 9 см, чем свободнее посадка, тем больше",
-  "shoulderWidthStitches": "Петель в ширине плеча",
-  "shoulderHeightRows": "Рядов в высоте плеча",
-  "shoulderDecreaseRows": "Убавок, через ряд",
-  "shoulderStepRows": "Рядов с убавкой по {count, plural, one{{count} петле} few{{count} петли} other{{count} петель}}",
-  "@shoulderStepRows": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-
   "saveAction": "Сохранить",
   "newProjectAction": "Новое",
   "newProjectTitle": "Новое изделие",

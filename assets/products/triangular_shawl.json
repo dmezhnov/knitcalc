@@ -1,0 +1,74 @@
+{
+    "name": { "ru": "Треугольный палантин", "en": "Triangular shawl" },
+    "include": ["gauge"],
+    "inputs": [
+        {
+            "key": "startWidthCm",
+            "label": { "ru": "Ширина в начале (см)", "en": "Start width (cm)" }
+        },
+        {
+            "key": "endWidthCm",
+            "label": { "ru": "Ширина в конце (см)", "en": "End width (cm)" }
+        },
+        {
+            "key": "targetLengthCm",
+            "label": {
+                "ru": "Желаемая длина (см)",
+                "en": "Desired length (cm)"
+            }
+        }
+    ],
+    "values": {
+        "startWidthStitches": "round(stitchesPerCm * startWidthCm)",
+        "endWidthStitches": "round(stitchesPerCm * endWidthCm)",
+        "targetRows": "rowsPerCm * targetLengthCm",
+        "isDecreasing": "startWidthStitches > endWidthStitches",
+        "changeCount": "abs(startWidthStitches - endWidthStitches) / 2",
+        "changeRate": "changeCount > 0 ? targetRows / changeCount : null"
+    },
+    "outputs": [
+        {
+            "key": "startWidthStitches",
+            "label": { "ru": "Петель в начале", "en": "Stitches at start" },
+            "value": "startWidthStitches"
+        },
+        {
+            "key": "endWidthStitches",
+            "label": { "ru": "Петель в конце", "en": "Stitches at end" },
+            "value": "endWidthStitches"
+        },
+        {
+            "key": "targetRows",
+            "label": {
+                "ru": "Желаемое количество рядов",
+                "en": "Desired row count"
+            },
+            "value": "targetRows"
+        },
+        {
+            "key": "changeCount",
+            "label": {
+                "if": "isDecreasing",
+                "then": {
+                    "ru": "Убавок с каждой стороны",
+                    "en": "Decreases per side"
+                },
+                "else": {
+                    "ru": "Прибавок с каждой стороны",
+                    "en": "Increases per side"
+                }
+            },
+            "value": "changeCount"
+        },
+        {
+            "key": "changeRate",
+            "label": {
+                "if": "isDecreasing",
+                "then": { "ru": "Темп убавок", "en": "Decrease rate" },
+                "else": { "ru": "Темп прибавок", "en": "Increase rate" }
+            },
+            "value": "changeRate",
+            "highlight": "changeRate != null && abs(changeRate - round(changeRate)) > 0.005"
+        }
+    ]
+}

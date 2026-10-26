@@ -74,6 +74,11 @@ screenshots:
 # text at 500 characters; one or two sentences is the format every catalogue
 # displays well. A locale missing here fails `mise lint`.
 releases:
+    - version: 1.9.3+107
+      notes:
+          en-US: 'Under the hood: item calculations are now described as data rather than code, so new item types arrive faster. Results are unchanged.'
+          ru-RU: 'Внутренние изменения: расчёты изделий теперь описаны данными, а не кодом, поэтому новые виды изделий будут появляться быстрее. Результаты расчётов не изменились.'
+
     - version: 1.9.2+106
       notes:
           en-US: An update notice for a store install now appears as soon as the store publishes the new version.
