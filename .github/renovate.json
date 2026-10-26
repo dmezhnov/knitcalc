@@ -1,0 +1,18 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "baseBranchPatterns": ["test"],
+    "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+    "customManagers": [
+        {
+            "description": "mise's own manager cannot look clang up; it is LLVM's release",
+            "customType": "regex",
+            "managerFilePatterns": ["/(^|/)mise\\.toml$/"],
+            "matchStrings": [
+                "\\nclang = \\{ version = \"(?<currentValue>[^\"]+)\""
+            ],
+            "depNameTemplate": "llvm/llvm-project",
+            "datasourceTemplate": "github-releases",
+            "extractVersionTemplate": "^llvmorg-(?<version>.+)$"
+        }
+    ]
+}

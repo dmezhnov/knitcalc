@@ -26,11 +26,11 @@ permissions:
 jobs:
     republish:
         name: Republish to winget/Chocolatey
-        runs-on: windows-latest
+        runs-on: windows-2025
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@v5
+              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
               with:
                   ref: test
 
