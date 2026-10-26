@@ -1,0 +1,90 @@
+{
+    "name": { "ru": "Скос плеча", "en": "Shoulder slope" },
+    "include": ["gauge"],
+    "inputs": [
+        {
+            "key": "shoulderWidthCm",
+            "label": { "ru": "Ширина плеча (см)", "en": "Shoulder width (cm)" }
+        },
+        {
+            "key": "shoulderHeightCm",
+            "label": {
+                "ru": "Высота плеча (см)",
+                "en": "Shoulder height (cm)"
+            },
+            "hint": {
+                "ru": "Зависит от изделия: обычно от 3 до 9 см, чем свободнее посадка, тем больше",
+                "en": "Depends on the garment: usually 3 to 9 cm, the looser the fit the more"
+            }
+        }
+    ],
+    "values": {
+        "widthStitches": "round(stitchesPerCm * shoulderWidthCm)",
+        "heightRows": "round(rowsPerCm * shoulderHeightCm)",
+        "decreaseRows": "heightRows > 0 ? round(heightRows / 2) : null",
+        "canSplit": "decreaseRows > 0 && widthStitches > 0",
+        "smallStep": "canSplit ? floor(widthStitches / decreaseRows) : 0",
+        "largeStepRows": "canSplit ? widthStitches % decreaseRows : 0",
+        "smallStepRows": "canSplit ? decreaseRows - largeStepRows : 0"
+    },
+    "outputs": [
+        {
+            "key": "shoulderWidthStitches",
+            "label": {
+                "ru": "Петель в ширине плеча",
+                "en": "Stitches across the shoulder"
+            },
+            "value": "widthStitches"
+        },
+        {
+            "key": "shoulderHeightRows",
+            "label": {
+                "ru": "Рядов в высоте плеча",
+                "en": "Rows over the shoulder height"
+            },
+            "value": "heightRows"
+        },
+        {
+            "key": "decreaseRows",
+            "label": {
+                "ru": "Убавок, через ряд",
+                "en": "Decrease rows, every other row"
+            },
+            "value": "decreaseRows"
+        },
+        {
+            "key": "largeStepRows",
+            "label": {
+                "plural": "smallStep + 1",
+                "ru": {
+                    "one": "Рядов с убавкой по {count} петле",
+                    "few": "Рядов с убавкой по {count} петли",
+                    "other": "Рядов с убавкой по {count} петель"
+                },
+                "en": {
+                    "one": "Rows decreasing by {count} stitch",
+                    "other": "Rows decreasing by {count} stitches"
+                }
+            },
+            "value": "largeStepRows",
+            "when": "largeStepRows > 0"
+        },
+        {
+            "key": "smallStepRows",
+            "label": {
+                "plural": "smallStep",
+                "ru": {
+                    "one": "Рядов с убавкой по {count} петле",
+                    "few": "Рядов с убавкой по {count} петли",
+                    "other": "Рядов с убавкой по {count} петель"
+                },
+                "en": {
+                    "one": "Rows decreasing by {count} stitch",
+                    "other": "Rows decreasing by {count} stitches"
+                }
+            },
+            "value": "smallStepRows",
+            "when": "smallStep > 0 && smallStepRows > 0"
+        }
+    ]
+}

@@ -3,49 +3,6 @@
 
   "productKindLabel": "Item type",
 
-  "productRectangularScarf": "Rectangular scarf",
-  "productTriangularShawl": "Triangular shawl",
-  "productShoulderSlope": "Shoulder slope",
-
-  "gaugeStitches": "Stitch count",
-  "gaugeSampleWidthCm": "Swatch width (cm)",
-  "gaugeRows": "Row count",
-  "gaugeSampleLengthCm": "Swatch length (cm)",
-  "gaugeStitchesPerCm": "Stitches per cm",
-  "gaugeRowsPerCm": "Rows per cm",
-
-  "targetLengthCm": "Desired length (cm)",
-  "targetRows": "Desired row count",
-
-  "scarfTargetWidthCm": "Desired width (cm)",
-  "scarfSampleWidthStitches": "Swatch width (stitches)",
-  "scarfSampleThreadLengthCm": "Swatch yarn length (cm)",
-  "scarfSampleThreadWidthCm": "Swatch yarn width (cm)",
-  "scarfTargetStitches": "Desired stitch count",
-  "scarfTargetThreadLength": "Desired yarn length",
-
-  "shawlStartWidthCm": "Start width (cm)",
-  "shawlEndWidthCm": "End width (cm)",
-  "shawlStartWidthStitches": "Stitches at start",
-  "shawlEndWidthStitches": "Stitches at end",
-  "shawlDecreasesPerSide": "Decreases per side",
-  "shawlIncreasesPerSide": "Increases per side",
-  "shawlDecreaseRate": "Decrease rate",
-  "shawlIncreaseRate": "Increase rate",
-
-  "shoulderWidthCm": "Shoulder width (cm)",
-  "shoulderHeightCm": "Shoulder height (cm)",
-  "shoulderHeightHint": "Depends on the garment: usually 3 to 9 cm, the looser the fit the more",
-  "shoulderWidthStitches": "Stitches across the shoulder",
-  "shoulderHeightRows": "Rows over the shoulder height",
-  "shoulderDecreaseRows": "Decrease rows, every other row",
-  "shoulderStepRows": "{count, plural, one{Rows decreasing by {count} stitch} other{Rows decreasing by {count} stitches}}",
-  "@shoulderStepRows": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
-
   "saveAction": "Save",
   "newProjectAction": "New",
   "newProjectTitle": "New project",

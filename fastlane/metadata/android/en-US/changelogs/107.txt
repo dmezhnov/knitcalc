@@ -1,0 +1,1 @@
+Under the hood: item calculations are now described as data rather than code, so new item types arrive faster. Results are unchanged.
