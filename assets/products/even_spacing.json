@@ -1,0 +1,117 @@
+{
+    "name": {
+        "ru": "Равномерные прибавки и убавки",
+        "en": "Evenly spaced increases and decreases"
+    },
+    "inputs": [
+        {
+            "key": "fromStitches",
+            "label": { "ru": "Петель сейчас", "en": "Stitches now" },
+            "allowDecimal": false
+        },
+        {
+            "key": "toStitches",
+            "label": { "ru": "Петель должно стать", "en": "Stitches wanted" },
+            "hint": {
+                "ru": "Петли делятся на отрезки, каждый кончается прибавкой или убавкой (2 вместе); в прямом ряду последний отрезок — без неё",
+                "en": "The stitches split into segments, each ending in an increase or a decrease (k2tog); in a flat row the last segment has none"
+            },
+            "allowDecimal": false
+        }
+    ],
+    "values": {
+        "change": "toStitches - fromStitches",
+        "changeCount": "abs(change)",
+        "isIncrease": "change > 0",
+        "flatSegments": "changeCount + 1",
+        "flatSmall": "floor(fromStitches / flatSegments)",
+        "roundSmall": "changeCount > 0 ? floor(fromStitches / changeCount) : 0",
+        "minSegment": "isIncrease ? 1 : 2",
+        "flatFits": "changeCount > 0 && flatSmall >= minSegment",
+        "roundFits": "changeCount > 0 && roundSmall >= minSegment",
+        "flatLarge": "flatFits ? fromStitches % flatSegments : 0",
+        "flatSmallCount": "flatFits ? flatSegments - flatLarge : 0",
+        "roundLarge": "roundFits ? fromStitches % changeCount : 0",
+        "roundSmallCount": "roundFits ? changeCount - roundLarge : 0"
+    },
+    "outputs": [
+        {
+            "key": "changeCount",
+            "label": {
+                "if": "change < 0",
+                "then": { "ru": "Убавок", "en": "Decreases" },
+                "else": { "ru": "Прибавок", "en": "Increases" }
+            },
+            "value": "changeCount",
+            "highlight": "changeCount > 0 && !roundFits"
+        },
+        {
+            "key": "flatLargeSegments",
+            "label": {
+                "plural": "flatSmall + 1",
+                "ru": {
+                    "one": "В ряду: отрезков по {count} петле",
+                    "few": "В ряду: отрезков по {count} петли",
+                    "other": "В ряду: отрезков по {count} петель"
+                },
+                "en": {
+                    "one": "Flat: segments of {count} stitch",
+                    "other": "Flat: segments of {count} stitches"
+                }
+            },
+            "value": "flatLarge",
+            "when": "flatLarge > 0"
+        },
+        {
+            "key": "flatSmallSegments",
+            "label": {
+                "plural": "flatSmall",
+                "ru": {
+                    "one": "В ряду: отрезков по {count} петле",
+                    "few": "В ряду: отрезков по {count} петли",
+                    "other": "В ряду: отрезков по {count} петель"
+                },
+                "en": {
+                    "one": "Flat: segments of {count} stitch",
+                    "other": "Flat: segments of {count} stitches"
+                }
+            },
+            "value": "flatSmallCount",
+            "when": "flatSmallCount > 0"
+        },
+        {
+            "key": "roundLargeSegments",
+            "label": {
+                "plural": "roundSmall + 1",
+                "ru": {
+                    "one": "По кругу: отрезков по {count} петле",
+                    "few": "По кругу: отрезков по {count} петли",
+                    "other": "По кругу: отрезков по {count} петель"
+                },
+                "en": {
+                    "one": "In the round: segments of {count} stitch",
+                    "other": "In the round: segments of {count} stitches"
+                }
+            },
+            "value": "roundLarge",
+            "when": "roundLarge > 0"
+        },
+        {
+            "key": "roundSmallSegments",
+            "label": {
+                "plural": "roundSmall",
+                "ru": {
+                    "one": "По кругу: отрезков по {count} петле",
+                    "few": "По кругу: отрезков по {count} петли",
+                    "other": "По кругу: отрезков по {count} петель"
+                },
+                "en": {
+                    "one": "In the round: segments of {count} stitch",
+                    "other": "In the round: segments of {count} stitches"
+                }
+            },
+            "value": "roundSmallCount",
+            "when": "roundSmallCount > 0"
+        }
+    ]
+}

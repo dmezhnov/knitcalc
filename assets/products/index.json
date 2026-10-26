@@ -1,3 +1,13 @@
 {
-    "products": ["rectangular_scarf", "triangular_shawl", "shoulder_slope"]
+    "products": [
+        "rectangular_scarf",
+        "triangular_shawl",
+        "shoulder_slope",
+        "hat",
+        "mittens",
+        "socks",
+        "raglan_top_down",
+        "even_spacing",
+        "yarn_by_weight"
+    ]
 }
