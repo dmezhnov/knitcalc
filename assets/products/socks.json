@@ -1,0 +1,164 @@
+{
+    "name": { "ru": "Носки (сверху вниз)", "en": "Socks (cuff down)" },
+    "include": ["gauge"],
+    "inputs": [
+        {
+            "key": "footCircumferenceCm",
+            "label": {
+                "ru": "Обхват стопы (см)",
+                "en": "Foot circumference (cm)"
+            },
+            "hint": {
+                "ru": "По самому широкому месту. Типично: женщина 17,5–23 см, мужчина 20,5–25,5 см",
+                "en": "Around the widest part. Typical: woman 17.5–23 cm, man 20.5–25.5 cm"
+            }
+        },
+        {
+            "key": "stretchPercent",
+            "label": {
+                "ru": "Уменьшение на растяжение (%)",
+                "en": "Negative ease (%)"
+            },
+            "hint": {
+                "ru": "Обычно 10%: носок должен плотно облегать",
+                "en": "Usually 10%: a sock should fit snugly"
+            }
+        },
+        {
+            "key": "legLengthCm",
+            "label": {
+                "ru": "Высота паголенка (см)",
+                "en": "Leg length (cm)"
+            },
+            "hint": {
+                "ru": "От края до начала пятки, вместе с резинкой",
+                "en": "From the cuff edge to the heel, ribbing included"
+            }
+        },
+        {
+            "key": "footLengthCm",
+            "label": {
+                "ru": "Длина стопы (см)",
+                "en": "Foot length (cm)"
+            },
+            "hint": {
+                "ru": "От пятки до кончика большого пальца. Типично: женщина 20–28 см, мужчина 23,5–30,5 см",
+                "en": "From the back of the heel to the tip of the big toe. Typical: woman 20–28 cm, man 23.5–30.5 cm"
+            }
+        }
+    ],
+    "values": {
+        "castOn": "4 * round(stitchesPerCm * footCircumferenceCm * (1 - stretchPercent / 100) / 4)",
+        "legRounds": "round(rowsPerCm * legLengthCm)",
+        "heelStitches": "castOn / 2",
+        "heelSide": "floor(heelStitches / 3)",
+        "heelMiddle": "heelStitches - 2 * heelSide",
+        "gussetPickUp": "heelStitches / 2",
+        "gussetDecreaseRounds": "heelMiddle / 2",
+        "toeHalfDecreaseRounds": "floor(castOn / 8)",
+        "toeHalfStitches": "castOn - 4 * toeHalfDecreaseRounds",
+        "toeEveryRoundDecreases": "toeHalfStitches > 8 ? floor((toeHalfStitches - 8) / 4) : 0",
+        "toeRounds": "toeHalfDecreaseRounds * 2 + toeEveryRoundDecreases",
+        "toeLengthCm": "rowsPerCm > 0 ? toeRounds / rowsPerCm : null",
+        "footBeforeToeCm": "rowsPerCm > 0 ? footLengthCm - toeLengthCm : null"
+    },
+    "outputs": [
+        {
+            "key": "castOn",
+            "label": {
+                "ru": "Набрать петель (кратно 4)",
+                "en": "Cast on (a multiple of 4)"
+            },
+            "value": "castOn"
+        },
+        {
+            "key": "legRounds",
+            "label": {
+                "ru": "Рядов паголенка",
+                "en": "Leg rounds"
+            },
+            "value": "legRounds"
+        },
+        {
+            "key": "heelStitches",
+            "label": {
+                "ru": "Пятка: петель и рядов стенки",
+                "en": "Heel flap: stitches and rows"
+            },
+            "value": "heelStitches"
+        },
+        {
+            "key": "heelSide",
+            "label": {
+                "ru": "Пятка: петель в боковых частях",
+                "en": "Heel turn: stitches in each side part"
+            },
+            "value": "heelSide"
+        },
+        {
+            "key": "heelMiddle",
+            "label": {
+                "ru": "Пятка: петель в средней части",
+                "en": "Heel turn: stitches in the middle part"
+            },
+            "value": "heelMiddle"
+        },
+        {
+            "key": "gussetPickUp",
+            "label": {
+                "ru": "Набрать с каждой стороны стенки",
+                "en": "Pick up along each side of the flap"
+            },
+            "value": "gussetPickUp"
+        },
+        {
+            "key": "gussetDecreaseRounds",
+            "label": {
+                "ru": "Клин: убавок с каждой стороны, через ряд",
+                "en": "Gusset: decreases each side, every other round"
+            },
+            "value": "gussetDecreaseRounds"
+        },
+        {
+            "key": "footBeforeToeCm",
+            "label": {
+                "ru": "Длина стопы до мыска, от пятки (см)",
+                "en": "Foot length before the toe, from the heel (cm)"
+            },
+            "value": "footBeforeToeCm",
+            "highlight": "footBeforeToeCm != null && footBeforeToeCm <= 0"
+        },
+        {
+            "key": "toeHalfDecreaseRounds",
+            "label": {
+                "ru": "Мысок: рядов с 4 убавками, через ряд",
+                "en": "Toe: rounds with 4 decreases, every other round"
+            },
+            "value": "toeHalfDecreaseRounds"
+        },
+        {
+            "key": "toeEveryRoundDecreases",
+            "label": {
+                "ru": "Мысок: затем рядов с 4 убавками подряд",
+                "en": "Toe: then rounds with 4 decreases, every round"
+            },
+            "value": "toeEveryRoundDecreases"
+        },
+        {
+            "key": "toeFinalStitches",
+            "label": {
+                "ru": "Петель в конце, стянуть нитью",
+                "en": "Stitches left, gathered with the tail"
+            },
+            "value": "toeHalfStitches - 4 * toeEveryRoundDecreases"
+        },
+        {
+            "key": "toeLengthCm",
+            "label": {
+                "ru": "Длина мыска (см)",
+                "en": "Toe length (cm)"
+            },
+            "value": "toeLengthCm"
+        }
+    ]
+}

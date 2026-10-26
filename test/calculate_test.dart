@@ -60,7 +60,8 @@ void main() {
     expect(getOutputValue(tester, 'rowsPerCm'), '1.71');
     expect(getOutputValue(tester, 'targetStitches'), '75');
     expect(getOutputValue(tester, 'targetRows'), '85.71');
-    expect(getOutputValue(tester, 'targetThreadLength'), '18.75');
+    // 25 cm of yarn per 20 stitches, over 75 stitches by 85.71 rows.
+    expect(getOutputValue(tester, 'targetThreadLength'), '80.36');
   });
 
   testWidgets('calculates triangular shawl', (WidgetTester tester) async {

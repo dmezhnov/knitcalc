@@ -1,0 +1,118 @@
+{
+    "name": { "ru": "Варежки", "en": "Mittens" },
+    "include": ["gauge"],
+    "inputs": [
+        {
+            "key": "handCircumferenceCm",
+            "label": {
+                "ru": "Обхват ладони (см)",
+                "en": "Hand circumference (cm)"
+            },
+            "hint": {
+                "ru": "Над большим пальцем, без него. Типично: женщина 18–20,5 см, мужчина 20,5–23,5 см",
+                "en": "Above the thumb, not around it. Typical: woman 18–20.5 cm, man 20.5–23.5 cm"
+            }
+        },
+        {
+            "key": "easeCm",
+            "label": {
+                "ru": "Прибавка на свободу (см)",
+                "en": "Ease (cm)"
+            },
+            "hint": {
+                "ru": "Варежка сидит свободнее перчатки: обычно 1–2 см",
+                "en": "A mitten fits looser than a glove: usually 1–2 cm"
+            }
+        },
+        {
+            "key": "handLengthCm",
+            "label": {
+                "ru": "Длина кисти (см)",
+                "en": "Hand length (cm)"
+            },
+            "hint": {
+                "ru": "От запястья до кончика среднего пальца. Типично: женщина 16–19 см, мужчина 19–21,5 см",
+                "en": "From the wrist to the tip of the middle finger. Typical: woman 16–19 cm, man 19–21.5 cm"
+            }
+        }
+    ],
+    "values": {
+        "castOn": "4 * round(stitchesPerCm * (handCircumferenceCm + easeCm) / 4)",
+        "thumbStitches": "2 * round(castOn / 6)",
+        "thumbIncreaseRounds": "thumbStitches / 2",
+        "thumbGussetRounds": "thumbIncreaseRounds * 3",
+        "handRounds": "round(rowsPerCm * handLengthCm)",
+        "topHalfDecreaseRounds": "floor(castOn / 8)",
+        "topHalfStitches": "castOn - 4 * topHalfDecreaseRounds",
+        "topEveryRoundDecreases": "topHalfStitches > 8 ? floor((topHalfStitches - 8) / 4) : 0",
+        "topRounds": "topHalfDecreaseRounds * 2 + topEveryRoundDecreases",
+        "roundsBeforeTop": "handRounds - topRounds"
+    },
+    "outputs": [
+        {
+            "key": "castOn",
+            "label": {
+                "ru": "Петель по обхвату (кратно 4)",
+                "en": "Stitches around (a multiple of 4)"
+            },
+            "value": "castOn"
+        },
+        {
+            "key": "thumbIncreaseRounds",
+            "label": {
+                "ru": "Клин пальца: рядов с 2 прибавками, через 2 ряда",
+                "en": "Thumb gusset: rounds with 2 increases, every 3rd round"
+            },
+            "value": "thumbIncreaseRounds"
+        },
+        {
+            "key": "thumbGussetRounds",
+            "label": {
+                "ru": "Клин пальца: всего рядов",
+                "en": "Thumb gusset: rounds in all"
+            },
+            "value": "thumbGussetRounds"
+        },
+        {
+            "key": "thumbStitches",
+            "label": {
+                "ru": "Петель большого пальца, снять на булавку",
+                "en": "Thumb stitches, put on hold"
+            },
+            "value": "thumbStitches"
+        },
+        {
+            "key": "roundsBeforeTop",
+            "label": {
+                "ru": "Рядов от запястья до убавок",
+                "en": "Rounds from the wrist to the top decreases"
+            },
+            "value": "roundsBeforeTop",
+            "highlight": "roundsBeforeTop < thumbGussetRounds"
+        },
+        {
+            "key": "topHalfDecreaseRounds",
+            "label": {
+                "ru": "Верх: рядов с 4 убавками, через ряд",
+                "en": "Top: rounds with 4 decreases, every other round"
+            },
+            "value": "topHalfDecreaseRounds"
+        },
+        {
+            "key": "topEveryRoundDecreases",
+            "label": {
+                "ru": "Верх: затем рядов с 4 убавками подряд",
+                "en": "Top: then rounds with 4 decreases, every round"
+            },
+            "value": "topEveryRoundDecreases"
+        },
+        {
+            "key": "topFinalStitches",
+            "label": {
+                "ru": "Петель в конце, стянуть нитью",
+                "en": "Stitches left, gathered with the tail"
+            },
+            "value": "topHalfStitches - 4 * topEveryRoundDecreases"
+        }
+    ]
+}
