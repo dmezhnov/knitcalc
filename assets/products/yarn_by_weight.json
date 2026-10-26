@@ -1,0 +1,105 @@
+{
+    "name": {
+        "ru": "Расход пряжи по весу образца",
+        "en": "Yarn needed, by swatch weight"
+    },
+    "inputs": [
+        {
+            "key": "swatchWeightG",
+            "label": { "ru": "Вес образца (г)", "en": "Swatch weight (g)" },
+            "hint": {
+                "ru": "Образец, связанный тем же узором и выстиранный, как будет изделие",
+                "en": "A swatch in the same pattern, washed the way the item will be"
+            }
+        },
+        {
+            "key": "sampleWidthCm",
+            "label": { "ru": "Ширина образца (см)", "en": "Swatch width (cm)" }
+        },
+        {
+            "key": "sampleLengthCm",
+            "label": { "ru": "Длина образца (см)", "en": "Swatch length (cm)" }
+        },
+        {
+            "key": "pieceWidthCm",
+            "label": { "ru": "Ширина детали (см)", "en": "Piece width (cm)" }
+        },
+        {
+            "key": "pieceLengthCm",
+            "label": { "ru": "Длина детали (см)", "en": "Piece length (cm)" }
+        },
+        {
+            "key": "pieceCount",
+            "label": {
+                "ru": "Количество таких деталей",
+                "en": "Number of such pieces"
+            },
+            "hint": {
+                "ru": "Пустое поле — одна деталь. Свитер — перед, спинка и два рукава, каждый по размерам в самом широком месте",
+                "en": "Empty means one. A sweater is a front, a back and two sleeves, each at its widest"
+            },
+            "allowDecimal": false
+        },
+        {
+            "key": "reservePercent",
+            "label": { "ru": "Запас (%)", "en": "Reserve (%)" },
+            "hint": {
+                "ru": "На резинки, отделку и неровность веса мотков: обычно 10–15%",
+                "en": "For ribbing, finishing and uneven skeins: usually 10–15%"
+            }
+        },
+        {
+            "key": "skeinWeightG",
+            "label": { "ru": "Вес мотка (г)", "en": "Skein weight (g)" }
+        },
+        {
+            "key": "skeinLengthM",
+            "label": {
+                "ru": "Длина нити в мотке (м)",
+                "en": "Yarn per skein (m)"
+            }
+        }
+    ],
+    "values": {
+        "swatchAreaCm2": "sampleWidthCm * sampleLengthCm",
+        "gramsPerCm2": "swatchAreaCm2 > 0 ? swatchWeightG / swatchAreaCm2 : null",
+        "pieces": "pieceCount > 0 ? pieceCount : 1",
+        "itemAreaCm2": "pieceWidthCm * pieceLengthCm * pieces",
+        "itemWeightG": "gramsPerCm2 * itemAreaCm2",
+        "totalWeightG": "itemWeightG * (1 + reservePercent / 100)"
+    },
+    "outputs": [
+        {
+            "key": "itemWeightG",
+            "label": {
+                "ru": "Вес изделия (г)",
+                "en": "Item weight (g)"
+            },
+            "value": "itemWeightG"
+        },
+        {
+            "key": "totalWeightG",
+            "label": {
+                "ru": "Пряжи с запасом (г)",
+                "en": "Yarn with the reserve (g)"
+            },
+            "value": "totalWeightG"
+        },
+        {
+            "key": "totalLengthM",
+            "label": {
+                "ru": "Пряжи с запасом (м)",
+                "en": "Yarn with the reserve (m)"
+            },
+            "value": "skeinWeightG > 0 && skeinLengthM > 0 ? totalWeightG / skeinWeightG * skeinLengthM : null"
+        },
+        {
+            "key": "skeins",
+            "label": {
+                "ru": "Мотков",
+                "en": "Skeins"
+            },
+            "value": "skeinWeightG > 0 ? ceil(totalWeightG / skeinWeightG) : null"
+        }
+    ]
+}
