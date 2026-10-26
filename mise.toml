@@ -21,7 +21,7 @@ android-sdk = "https://github.com/mise-plugins/mise-android-sdk"
 [tools]
 flutter = "3.41.9"
 yq = { version = "4.53.2", os = ["linux"] }
-java = { version = "17.0.2", os = ["linux"] }
+java = { version = "17.0.21+9", os = ["linux"] }
 clang = { version = "18.1.8", os = ["linux"] }
 cmake = "4.3.3"
 ninja = "1.13.2"
