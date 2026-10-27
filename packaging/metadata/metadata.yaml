@@ -74,6 +74,11 @@ screenshots:
 # text at 500 characters; one or two sentences is the format every catalogue
 # displays well. A locale missing here fails `mise lint`.
 releases:
+    - version: 1.10.2+110
+      notes:
+          en-US: 'Under the hood: the Android build moves to Java 17.0.21 and Gradle 8.14.6, and tool updates are now proposed automatically. Nothing changes in the app.'
+          ru-RU: 'Внутренние изменения: Android-сборка переходит на Java 17.0.21 и Gradle 8.14.6, а обновления инструментов теперь предлагаются автоматически. В самом приложении ничего не меняется.'
+
     - version: 1.10.1+109
       notes:
           en-US: 'Under the hood: the build machines and tools are now fixed to exact versions, so every release is built the same way. Nothing changes in the app.'

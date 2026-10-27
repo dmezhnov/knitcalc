@@ -1,0 +1,1 @@
+Under the hood: the Android build moves to Java 17.0.21 and Gradle 8.14.6, and tool updates are now proposed automatically. Nothing changes in the app.
