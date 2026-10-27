@@ -34,7 +34,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   fetch-depth: 0
                   ref: test
@@ -257,7 +257,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
@@ -325,7 +325,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
@@ -386,7 +386,7 @@ jobs:
 
         steps:
             - name: Checkout main branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   fetch-depth: 0
                   ref: main
@@ -579,7 +579,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
@@ -630,7 +630,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
@@ -682,7 +682,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
@@ -741,7 +741,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
@@ -827,7 +827,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
@@ -1011,7 +1011,7 @@ jobs:
             # Only for the channel report: the deploy action needs no checkout,
             # but the status helper lives in the repo.
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
@@ -1050,7 +1050,7 @@ jobs:
 
         steps:
             - name: Checkout test branch
-              uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: test
 
