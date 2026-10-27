@@ -432,10 +432,12 @@ check_version backend
 # first: a stale listing is a one-command fix (`mise metadata`) and there is no
 # point linting output that is about to be regenerated. check_ci_pins fails
 # on a *-latest runner label or an action not pinned to a commit SHA.
+# --no-fix: without a terminal trunk answers its own "Apply formatting?"
+# prompt with yes, rewrites the files and then reports "No issues".
 run = [
     "dart run tool/packaging_metadata.dart --check",
     "dart run tool/check_ci_pins.dart",
-    "trunk check --all",
+    "trunk check --all --no-fix",
 ]
 
 [tasks.format]

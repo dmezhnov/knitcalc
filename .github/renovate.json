@@ -2,6 +2,30 @@
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "baseBranchPatterns": ["test"],
     "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+    "packageRules": [
+        {
+            "description": "mise's own manager looks clang up as a conda package and fails; the regex manager below tracks it as LLVM's release",
+            "matchManagers": ["mise"],
+            "matchDepNames": ["clang"],
+            "enabled": false
+        },
+        {
+            "description": "Flutter's Gradle plugin loader ships inside the Flutter SDK and is published to no repository; it moves with flutter",
+            "matchDepNames": ["dev.flutter.flutter-plugin-loader"],
+            "enabled": false
+        },
+        {
+            "description": "A runner image is a whole build environment (glibc, Visual Studio, Xcode): ubuntu-22.04 is the deliberate glibc floor of the Linux build and the snap job must match its core24 base, so an image change waits for approval on the Dependency Dashboard",
+            "matchDatasources": ["github-runners"],
+            "dependencyDashboardApproval": true
+        },
+        {
+            "description": "The build jobs stay on mise 2026.6.11 until a newer release fixes the Windows shim regression (see publish.yml); approve on the Dependency Dashboard to try one",
+            "matchDepNames": ["jdx/mise"],
+            "matchCurrentValue": "2026.6.11",
+            "dependencyDashboardApproval": true
+        }
+    ],
     "customManagers": [
         {
             "description": "mise's own manager cannot look clang up; it is LLVM's release",
