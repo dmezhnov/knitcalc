@@ -25,7 +25,7 @@ yq = { version = "4.53.2", os = ["linux"] }
 # version as OpenJDK, whose builds stop at 17.0.2, and fails to install it.
 java = { version = "temurin-17.0.21+9", os = ["linux"] }
 clang = { version = "18.1.8", os = ["linux"] }
-cmake = "4.3.3"
+cmake = "4.4.5"
 ninja = "1.13.2"
 firebase = "15.19.1"
 trunk = "1.3.4"
