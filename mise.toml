@@ -19,7 +19,7 @@ run_auto_install = true
 android-sdk = "https://github.com/mise-plugins/mise-android-sdk"
 
 [tools]
-flutter = "3.41.9"
+flutter = "3.47.9"
 yq = { version = "4.53.2", os = ["linux"] }
 # The vendor is spelled out: the build jobs' mise 2026.6.11 reads a bare
 # version as OpenJDK, whose builds stop at 17.0.2, and fails to install it.
