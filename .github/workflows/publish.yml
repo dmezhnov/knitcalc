@@ -71,7 +71,7 @@ jobs:
                   # valid shim"), breaking the Windows build; 2026.6.11 is the
                   # last release that builds cleanly. Bump once a newer mise
                   # fixes the Windows shim regression.
-                  version: 2026.6.11
+                  version: 2026.10.25
 
             - name: Install Linux build packages
               run: |
@@ -269,7 +269,7 @@ jobs:
                   # valid shim"), breaking the Windows build; 2026.6.11 is the
                   # last release that builds cleanly. Bump once a newer mise
                   # fixes the Windows shim regression.
-                  version: 2026.6.11
+                  version: 2026.10.25
 
             - name: Enable Windows desktop
               run: flutter config --enable-windows-desktop
@@ -337,7 +337,7 @@ jobs:
                   # valid shim"), breaking the Windows build; 2026.6.11 is the
                   # last release that builds cleanly. Bump once a newer mise
                   # fixes the Windows shim regression.
-                  version: 2026.6.11
+                  version: 2026.10.25
 
             - name: Enable Apple desktop
               run: flutter config --enable-macos-desktop
@@ -850,7 +850,7 @@ jobs:
                   # each one) rather than the build jobs' 2026.6.11, which works
                   # around a Windows *shim* cache regression that neither
                   # `mise exec` nor an uncached run hits.
-                  version: 2026.10.19
+                  version: 2026.10.25
                   #
                   # Only the mise binary: `mise install` here would build this
                   # repo's own toolchain (Flutter, Dart, Bun).
