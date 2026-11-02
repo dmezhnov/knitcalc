@@ -23,7 +23,7 @@ flutter = "3.41.9"
 yq = { version = "4.53.2", os = ["linux"] }
 # The vendor is spelled out: the build jobs' mise 2026.6.11 reads a bare
 # version as OpenJDK, whose builds stop at 17.0.2, and fails to install it.
-java = { version = "temurin-17.0.21+9", os = ["linux"] }
+java = { version = "temurin-25.0.5+8.0.LTS", os = ["linux"] }
 clang = { version = "18.1.8", os = ["linux"] }
 cmake = "4.3.3"
 ninja = "1.13.2"
